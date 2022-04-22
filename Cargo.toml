@@ -33,9 +33,12 @@ members = [
 	"runtimes/weight-fee-runtime",
 	"nodes/basic-pow",
 	"nodes/hybrid-consensus",
+	"nodes/poscan-consensus",
 	"nodes/kitchen-node",
 	"nodes/rpc-node",
 	"consensus/sha3pow",
 	"traits/account-set",
+	"consensus/poscan",
+	"primitives/consensus/poscan",
 ]
 librocksdb-sys = "6.17.3"

@@ -13,8 +13,8 @@ rand = { version = "0.8", features = ["small_rng"] }
 sha3 = "0.9"
 
 # Substrate packages
-sc-consensus-pow = '0.9'
+sc-consensus-poscan = { version = "0.9", package = "sc-consensus-poscan", path = "../../consensus/poscan" }
 sp-api = '3.0'
-sp-consensus-pow = '0.9'
+sp-consensus-poscan = { version = "0.9", path = "../../primitives/consensus/poscan" }
 sp-core = '3.0'
 sp-runtime = '3.0'

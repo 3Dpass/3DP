@@ -1,8 +1,8 @@
 use parity_scale_codec::{Decode, Encode};
-use sc_consensus_pow::{Error, PowAlgorithm};
+use sc_consensus_poscan::{Error, PowAlgorithm};
 use sha3::{Digest, Sha3_256};
 use sp_api::ProvideRuntimeApi;
-use sp_consensus_pow::{DifficultyApi, Seal as RawSeal};
+use sp_consensus_poscan::{DifficultyApi, Seal as RawSeal};
 use sp_core::{H256, U256};
 use sp_runtime::generic::BlockId;
 use sp_runtime::traits::Block as BlockT;
@@ -131,7 +131,7 @@ where
 			.runtime_api()
 			.difficulty(&parent_id)
 			.map_err(|err| {
-				sc_consensus_pow::Error::Environment(format!(
+				sc_consensus_poscan::Error::Environment(format!(
 					"Fetching difficulty from runtime failed: {:?}",
 					err
 				))

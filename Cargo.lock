@@ -4370,6 +4370,46 @@ dependencies = [
 ]
 
 [[package]]
+name = "poscan-consensus"
+version = "3.0.0"
+dependencies = [
+ "ctrlc",
+ "derive_more 0.15.0",
+ "exit-future",
+ "futures 0.1.31",
+ "futures 0.3.13",
+ "log",
+ "minimal-grandpa-runtime",
+ "parking_lot 0.9.0",
+ "sc-basic-authorship",
+ "sc-cli",
+ "sc-client-api",
+ "sc-consensus",
+ "sc-consensus-poscan",
+ "sc-executor",
+ "sc-finality-grandpa",
+ "sc-network",
+ "sc-service",
+ "sc-transaction-pool",
+ "sha3pow",
+ "sp-api",
+ "sp-consensus",
+ "sp-consensus-poscan",
+ "sp-core",
+ "sp-finality-grandpa",
+ "sp-inherents",
+ "sp-io",
+ "sp-runtime",
+ "sp-timestamp",
+ "sp-transaction-pool",
+ "structopt",
+ "substrate-build-script-utils",
+ "tokio 0.1.22",
+ "trie-root 0.15.2",
+ "vergen",
+]
+
+[[package]]
 name = "ppv-lite86"
 version = "0.2.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5350,6 +5390,29 @@ dependencies = [
 ]
 
 [[package]]
+name = "sc-consensus-poscan"
+version = "0.9.0"
+dependencies = [
+ "derive_more 0.99.11",
+ "futures 0.3.13",
+ "futures-timer 3.0.2",
+ "log",
+ "parity-scale-codec 2.0.1",
+ "parking_lot 0.11.1",
+ "sc-client-api",
+ "sp-api",
+ "sp-block-builder",
+ "sp-blockchain",
+ "sp-consensus",
+ "sp-consensus-poscan",
+ "sp-core",
+ "sp-inherents",
+ "sp-runtime",
+ "sp-timestamp",
+ "substrate-prometheus-endpoint",
+]
+
+[[package]]
 name = "sc-consensus-pow"
 version = "0.9.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -6205,10 +6268,10 @@ version = "3.0.0"
 dependencies = [
  "parity-scale-codec 2.0.1",
  "rand 0.8.3",
- "sc-consensus-pow",
+ "sc-consensus-poscan",
  "sha3 0.9.1",
  "sp-api",
- "sp-consensus-pow",
+ "sp-consensus-poscan",
  "sp-core",
  "sp-runtime",
 ]
@@ -6543,6 +6606,17 @@ dependencies = [
  "sp-runtime",
  "sp-std",
  "sp-timestamp",
+]
+
+[[package]]
+name = "sp-consensus-poscan"
+version = "0.9.0"
+dependencies = [
+ "parity-scale-codec 2.0.1",
+ "sp-api",
+ "sp-core",
+ "sp-runtime",
+ "sp-std",
 ]
 
 [[package]]

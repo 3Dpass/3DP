@@ -1,0 +1,32 @@
+[package]
+name = "sc-consensus-poscan"
+version = "0.9.0"
+authors = ["Parity Technologies <admin@parity.io>"]
+description = "PoW consensus algorithm for substrate"
+edition = "2018"
+license = "GPL-3.0-or-later WITH Classpath-exception-2.0"
+homepage = "https://substrate.dev"
+repository = "https://github.com/paritytech/substrate/"
+readme = "README.md"
+
+[package.metadata.docs.rs]
+targets = ["x86_64-unknown-linux-gnu"]
+
+[dependencies]
+codec = { package = "parity-scale-codec", version = "2.0.0", features = ["derive"] }
+sp-core = { version = "3.0.0" }
+sp-blockchain = { version = "3.0.0" }
+sp-runtime = { version = "3.0.0" }
+sp-api = { version = "3.0.0" }
+sc-client-api = { version = "3.0.0" }
+sp-block-builder = { version = "3.0.0" }
+sp-inherents = { version = "3.0.0" }
+sp-consensus-poscan = { version = "0.9.0", package = "sp-consensus-poscan", path = "../../primitives/consensus/poscan" }
+sp-consensus = { version = "0.9.0" }
+log = "0.4.8"
+futures = { version = "0.3.1", features = ["compat"] }
+futures-timer = "3.0.1"
+parking_lot = "0.11.1"
+sp-timestamp = { version = "3.0.0" }
+derive_more = "0.99.2"
+prometheus-endpoint = { package = "substrate-prometheus-endpoint", version = "0.9.0"}
