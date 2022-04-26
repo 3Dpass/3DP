@@ -62,4 +62,8 @@ sp_api::decl_runtime_apis! {
 		/// Return the target difficulty of the next block.
 		fn difficulty() -> Difficulty;
 	}
+
+	pub trait PoscanApi {
+		fn get_obj(idx: i32) -> i32;
+	}
 }

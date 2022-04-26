@@ -62,6 +62,7 @@ use codec::{Encode, Decode};
 use prometheus_endpoint::Registry;
 use sc_client_api;
 use log::*;
+use sp_core::U256;
 use sp_timestamp::{InherentError as TIError, TimestampInherentData};
 
 use crate::worker::UntilImportedOrTimeout;
@@ -128,6 +129,7 @@ fn aux_key<T: AsRef<[u8]>>(hash: &T) -> Vec<u8> {
 pub struct PowIntermediate<Difficulty> {
 	/// Difficulty of the block, if known.
 	pub difficulty: Option<Difficulty>,
+	pub obj: Vec<u8>,
 }
 
 /// Intermediate key for PoW engine.
@@ -197,6 +199,7 @@ pub trait PowAlgorithm<B: BlockT> {
 		pre_digest: Option<&[u8]>,
 		seal: &Seal,
 		difficulty: Self::Difficulty,
+		obj: &[u8],
 	) -> Result<bool, Error<B>>;
 }
 
@@ -365,6 +368,8 @@ impl<B, I, C, S, Algorithm, CAW> BlockImport<B> for PowBlockImport<B, I, C, S, A
 			INTERMEDIATE_KEY
 		)?;
 
+		let obj = (*intermediate).obj;
+
 		let difficulty = match intermediate.difficulty {
 			Some(difficulty) => difficulty,
 			None => self.algorithm.difficulty(parent_hash)?,
@@ -378,6 +383,7 @@ impl<B, I, C, S, Algorithm, CAW> BlockImport<B> for PowBlockImport<B, I, C, S, A
 			pre_digest.as_ref().map(|v| &v[..]),
 			&inner_seal,
 			difficulty,
+			obj.as_slice(),
 		)? {
 			return Err(Error::<B>::InvalidSeal.into())
 		}
@@ -466,6 +472,7 @@ impl<B: BlockT, Algorithm> Verifier<B> for PowVerifier<B, Algorithm> where
 
 		let intermediate = PowIntermediate::<Algorithm::Difficulty> {
 			difficulty: None,
+			obj: Vec::new(),
 		};
 
 		let mut import_block = BlockImportParams::new(origin, checked_header);
@@ -684,6 +691,7 @@ pub fn start_mining_worker<Block, C, S, Algorithm, E, SO, CAW>(
 					pre_hash: proposal.block.header().hash(),
 					pre_runtime: pre_runtime.clone(),
 					difficulty,
+					obj: Vec::new(),
 				},
 				proposal,
 			};

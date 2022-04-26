@@ -18,3 +18,5 @@ sp-api = '3.0'
 sp-consensus-poscan = { version = "0.9", path = "../../primitives/consensus/poscan" }
 sp-core = '3.0'
 sp-runtime = '3.0'
+# frame-support = { version = "3.0" }
+# frame-system = { version = "3.0" }

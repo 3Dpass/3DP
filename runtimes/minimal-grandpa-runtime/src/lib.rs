@@ -226,6 +226,11 @@ impl pallet_sudo::Config for Runtime {
 	type Call = Call;
 }
 
+impl pallet_poscan::Config for Runtime {
+	type Event = Event;
+	// type MaxBytesInHash = frame_support::traits::ConstU32<64>;
+}
+
 parameter_types! {
 	pub const TransactionByteFee: u128 = 1;
 }
@@ -250,6 +255,9 @@ construct_runtime!(
 		RandomnessCollectiveFlip: pallet_randomness_collective_flip::{Module, Call, Storage},
 		Sudo: pallet_sudo::{Module, Call, Config<T>, Storage, Event<T>},
 		TransactionPayment: pallet_transaction_payment::{Module, Storage},
+
+		PoScan: pallet_poscan::{Module, Call, Storage, Event<T>},
+		// PoScan: pallet_poscan::{Module},
 	}
 );
 
@@ -386,4 +394,15 @@ impl_runtime_apis! {
 			opaque::SessionKeys::decode_into_raw_public_keys(&encoded)
 		}
 	}
+
+	// impl sp_consensus_poscan::PoscanApi<Block> for Runtime {
+	// 	fn get_obj(idx: i32) -> i32 {
+	// 		1 // PoScan::get_obj(idx)
+	// 		// PoScan::get_obj(idx)
+	// 	}
+	// }
 }
+
+// pub fn block_num<B: BlockT>() -> B::BlockNumber {
+// 	System::block_number()
+// }

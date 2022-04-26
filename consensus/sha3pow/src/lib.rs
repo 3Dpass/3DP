@@ -70,6 +70,7 @@ impl<B: BlockT<Hash = H256>> PowAlgorithm<B> for MinimalSha3Algorithm {
 		_pre_digest: Option<&[u8]>,
 		seal: &RawSeal,
 		difficulty: Self::Difficulty,
+		_obj: &[u8],
 	) -> Result<bool, Error<B>> {
 		// Try to construct a seal object by decoding the raw seal given
 		let seal = match Seal::decode(&mut &seal[..]) {
@@ -88,6 +89,8 @@ impl<B: BlockT<Hash = H256>> PowAlgorithm<B> for MinimalSha3Algorithm {
 			pre_hash: *pre_hash,
 			nonce: seal.nonce,
 		};
+
+		// let _obj = <Module<>::get(&seal.nonce);
 
 		if compute.compute() != seal {
 			return Ok(false);
@@ -145,6 +148,7 @@ where
 		_pre_digest: Option<&[u8]>,
 		seal: &RawSeal,
 		difficulty: Self::Difficulty,
+		_obj: &[u8],
 	) -> Result<bool, Error<B>> {
 		// Try to construct a seal object by decoding the raw seal given
 		let seal = match Seal::decode(&mut &seal[..]) {
@@ -164,6 +168,8 @@ where
 			nonce: seal.nonce,
 		};
 
+		//let _obj = <Module<T>>::get_obj(&seal.nonce);
+
 		if compute.compute() != seal {
 			return Ok(false);
 		}
@@ -171,3 +177,42 @@ where
 		Ok(true)
 	}
 }
+
+
+// use frame_support::{decl_module, decl_storage};
+// use frame_system::Config;
+// use codec::{Decode, Encode};
+
+// }
+
+// #[derive(Encode, Decode, Default)] // , RuntimeDebug)]
+// pub struct Obj3d<Hash, Obj> {
+// 	pub hash: Hash,
+// 	pub obj: Obj,
+
+
+// decl_storage! {
+//     trait Store for Module<T: Config> as ObjModule {
+//         /// The storage item for our proofs.
+// 		/// It maps a proof to the user who made the claim and when they made it.
+//         // Objs: map hasher(blake2_128_concat) Vec<u8> => (T::AccountId, T::BlockNumber);
+//         pub Objs: map hasher(blake2_128_concat) U256 => Vec<u8>;
+//     }
+// }
+//
+// decl_module! {
+// 		pub struct Module<T: Config> for enum Call where origin: T::Origin {
+// 		}
+// 	}
+//
+// // impl<T: Config> Module<T> {
+// impl<T: Config> Module<T> {
+// 	pub fn get_obj(key: &U256) -> Vec<u8> {
+// 		Objs::get(key)
+// 	}
+//
+// 	pub fn put_obj(key: &U256, obj: Vec<u8>) -> () {
+// 		Objs::insert(key, obj)
+// 	}
+//
+// }

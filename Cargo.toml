@@ -39,6 +39,7 @@ members = [
 	"consensus/sha3pow",
 	"traits/account-set",
 	"consensus/poscan",
+	# "pallets/poscan",
 	"primitives/consensus/poscan",
 ]
 librocksdb-sys = "6.17.3"

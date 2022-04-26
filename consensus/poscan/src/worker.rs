@@ -37,6 +37,7 @@ pub struct MiningMetadata<H, D> {
 	pub pre_runtime: Option<Vec<u8>>,
 	/// Mining target difficulty.
 	pub difficulty: D,
+	pub obj: Vec<u8>,
 }
 
 /// A build of mining, containing the metadata and the block proposal.
@@ -92,6 +93,7 @@ impl<Block, Algorithm, C> MiningWorker<Block, Algorithm, C> where
 				build.metadata.pre_runtime.as_ref().map(|v| &v[..]),
 				&seal,
 				build.metadata.difficulty,
+				build.metadata.obj.as_slice(),
 			) {
 				Ok(true) => (),
 				Ok(false) => {
@@ -121,6 +123,7 @@ impl<Block, Algorithm, C> MiningWorker<Block, Algorithm, C> where
 
 			let intermediate = PowIntermediate::<Algorithm::Difficulty> {
 				difficulty: Some(build.metadata.difficulty),
+				obj: build.metadata.obj,
 			};
 
 			import_block.intermediates.insert(

@@ -14,6 +14,9 @@ use sp_inherents::InherentDataProviders;
 use std::sync::Arc;
 use std::thread;
 use std::time::Duration;
+use sp_api::ProvideRuntimeApi;
+use sp_consensus_poscan::PoscanApi;
+use sp_runtime::generic::BlockId;
 
 // Our native executor instance.
 native_executor_instance!(
@@ -119,6 +122,39 @@ pub fn new_partial(
 	})
 }
 
+// use sha3pow::Module;
+// use sha3pow::TT;
+//pub trait Trait: sha3pow::Trait {}
+
+
+// use frame_support::{decl_module, decl_storage};
+// // use codec::{Decode, Encode};
+//
+// // }
+//
+// // #[derive(Encode, Decode, Default)] // , RuntimeDebug)]
+// // pub struct Obj3d<Hash, Obj> {
+// // 	pub hash: Hash,
+// // 	pub obj: Obj,
+//
+// pub trait Config: frame_system::Config {}
+//
+// decl_storage! {
+//     trait Store for Module<T: Config> as ObjModule {
+//         /// The storage item for our proofs.
+// 		/// It maps a proof to the user who made the claim and when they made it.
+//         // Objs: map hasher(blake2_128_concat) Vec<u8> => (T::AccountId, T::BlockNumber);
+//         Objs: map hasher(blake2_128_concat) U256 => Vec<u8>;
+//     }
+// }
+//
+// decl_module! {
+// 		pub struct Module<T: Config> for enum Call where origin: T::Origin {
+// 		}
+// 	}
+
+
+
 /// Builds a new service for a full client.
 pub fn new_full(config: Configuration) -> Result<TaskManager, ServiceError> {
 	let sc_service::PartialComponents {
@@ -214,7 +250,7 @@ pub fn new_full(config: Configuration) -> Result<TaskManager, ServiceError> {
 		thread::spawn(move || loop {
 			let worker = _worker.clone();
 			let metadata = worker.lock().metadata();
-			if let Some(metadata) = metadata {
+			if let Some(mut metadata) = metadata {
 				let compute = Compute {
 					difficulty: metadata.difficulty,
 					pre_hash: metadata.pre_hash,
@@ -224,6 +260,18 @@ pub fn new_full(config: Configuration) -> Result<TaskManager, ServiceError> {
 				if hash_meets_difficulty(&seal.work, seal.difficulty) {
 					nonce = U256::from(0);
 					let mut worker = worker.lock();
+
+					let v = vec![1, 2, 3];
+					metadata.obj = v;
+					// // Objs::insert(nonce, v);
+					// <Module<Configuration>>::put_obj(&nonce, v);
+
+					// let b = BlockId::Hash(parent_hash);
+					// let at = runtime::block_num();
+
+					// let at = client.runtime_api();
+					// let _i = client.runtime_api().get_obj(1);
+
 					worker.submit(seal.encode());
 				} else {
 					nonce = nonce.saturating_add(U256::from(1));
