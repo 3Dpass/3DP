@@ -15,8 +15,9 @@ mod tests;
 extern crate lazy_static;
 
 use sp_std::collections::vec_deque::VecDeque;
-use parking_lot::Mutex;
+// use parking_lot::Mutex;
 use sp_std::vec::Vec;
+use spin::Mutex;
 
 
 pub struct MiningProposal {
@@ -32,7 +33,9 @@ lazy_static! {
     // static ref COUNT: usize = HASHMAP.len();
 }
 
-// pub static DEQUE: Mutex<VecDeque<MiningProposal>> = Mutex::new(VecDeque::new());
+
+// pub static DEQUE: Mutex<VecDeque<MiningProposal>> = Mutex::new(VecDeque::from([]));
+
 
 #[frame_support::pallet]
 pub mod pallet {

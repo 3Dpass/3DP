@@ -2718,7 +2718,7 @@ version = "1.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e2abad23fbc42b3700f2f279844dc832adb2b2eb069b2df918f455c4e18cc646"
 dependencies = [
- "spin",
+ "spin 0.5.2",
 ]
 
 [[package]]
@@ -3893,9 +3893,9 @@ dependencies = [
  "frame-system",
  "lazy_static",
  "parity-scale-codec 2.3.1",
- "parking_lot 0.11.1",
  "scale-info",
  "sp-std",
+ "spin 0.9.3",
 ]
 
 [[package]]
@@ -4450,6 +4450,7 @@ dependencies = [
  "futures 0.3.13",
  "log",
  "minimal-grandpa-runtime",
+ "pallet-poscan",
  "parking_lot 0.9.0",
  "sc-basic-authorship",
  "sc-cli",
@@ -4973,7 +4974,7 @@ dependencies = [
  "cc",
  "libc",
  "once_cell",
- "spin",
+ "spin 0.5.2",
  "untrusted",
  "web-sys",
  "winapi 0.3.9",
@@ -7210,6 +7211,12 @@ name = "spin"
 version = "0.5.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6e63cff320ae2c57904679ba7cb63280a3dc4613885beafb148ee7bf9aa9042d"
+
+[[package]]
+name = "spin"
+version = "0.9.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c530c2b0d0bf8b69304b39fe2001993e267461948b890cd037d8ad4293fa1a0d"
 
 [[package]]
 name = "stable_deref_trait"

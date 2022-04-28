@@ -51,6 +51,7 @@ runtime = { package = "minimal-grandpa-runtime", path = "../../runtimes/minimal-
 sha3pow = { path = '../../consensus/sha3pow' }
 sc-consensus-poscan = { version = '0.9', path = "../../consensus/poscan" }
 sp-consensus-poscan = { version = '0.9', path = "../../primitives/consensus/poscan" }
+pallet-poscan = { path = "../../pallets/poscan", default-features = false }
 
 [build-dependencies]
 substrate-build-script-utils = '3.0'

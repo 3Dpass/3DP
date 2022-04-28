@@ -278,6 +278,10 @@ pub fn new_full(config: Configuration) -> Result<TaskManager, ServiceError> {
 					if nonce == U256::MAX {
 						nonce = U256::from(0);
 					}
+
+					use pallet_poscan::DEQUE;
+					let mut lock = DEQUE.lock();
+					let m = (*lock).pop_front();
 				}
 			} else {
 				thread::sleep(Duration::new(1, 0));
