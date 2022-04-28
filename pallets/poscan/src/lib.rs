@@ -27,7 +27,7 @@ pub struct MiningProposal {
 
 lazy_static! {
     pub static ref DEQUE: Mutex<VecDeque<MiningProposal>> = {
-        let mut m = VecDeque::new();
+        let m = VecDeque::new();
         Mutex::new(m)
     };
 }
@@ -51,7 +51,6 @@ pub mod pallet {
 	use frame_support::{dispatch::DispatchResultWithPostInfo, pallet_prelude::*};
 	use sp_std::vec::Vec;
 	// use frame_support::sp_runtime::print as prn;
-	use frame_support::sp_runtime::DispatchError;
 	// use frame_support::runtime_print;
 	use crate::{DEQUE, MiningProposal};
 	use super::decode_hex;
@@ -115,7 +114,7 @@ pub mod pallet {
 			ensure!(!Proofs::<T>::contains_key(&proof), Error::<T>::ProofAlreadyClaimed);
 
 			// Get the block number from the FRAME System pallet.
-			let current_block = <frame_system::Pallet<T>>::block_number();
+			let _current_block = <frame_system::Pallet<T>>::block_number();
 
 			let content = decode_hex(&proof).unwrap();
 

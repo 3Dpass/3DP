@@ -14,9 +14,7 @@ use sp_inherents::InherentDataProviders;
 use std::sync::Arc;
 use std::thread;
 use std::time::Duration;
-use sp_api::ProvideRuntimeApi;
-use sp_consensus_poscan::PoscanApi;
-use sp_runtime::generic::BlockId;
+// use sp_runtime::generic::BlockId;
 
 // Our native executor instance.
 native_executor_instance!(
@@ -282,6 +280,14 @@ pub fn new_full(config: Configuration) -> Result<TaskManager, ServiceError> {
 					use pallet_poscan::DEQUE;
 					let mut lock = DEQUE.lock();
 					let m = (*lock).pop_front();
+					if let Some(obj) = m {
+						let hashes = get_obj_hashes(&obj.pre_obj);
+						if hashes.len() > 0 {
+							let obj_hash = hashes[0];
+							let dh = DoubleHash { pre_hash: metadata.pre_hash, obj_hash };
+							let _h = dh.calc_hash();
+						}
+					}
 				}
 			} else {
 				thread::sleep(Duration::new(1, 0));

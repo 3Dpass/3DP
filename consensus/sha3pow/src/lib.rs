@@ -37,6 +37,7 @@ pub struct Compute {
 	pub difficulty: U256,
 	pub pre_hash: H256,
 	pub nonce: U256,
+	// pub obj_hash: H256,
 }
 
 impl Compute {
@@ -48,6 +49,18 @@ impl Compute {
 			difficulty: self.difficulty,
 			work,
 		}
+	}
+}
+
+#[derive(Clone, PartialEq, Eq, Encode, Decode, Debug)]
+pub struct DoubleHash {
+	pub pre_hash: H256,
+	pub obj_hash: H256,
+}
+
+impl DoubleHash {
+	pub fn calc_hash(self) -> H256 {
+		H256::from_slice(Sha3_256::digest(&self.encode()[..]).as_slice())
 	}
 }
 
@@ -182,16 +195,18 @@ where
 
 use p3d;
 
-pub fn get_obj_hashes(data: &Vec<u8>) -> Vec<u8> {
-	let mut buf: Vec<u8>;
+pub fn get_obj_hashes(data: &Vec<u8>) -> Vec<H256> {
+	let mut buf: Vec<H256> = Vec::new();
 	// TODO: pass params as args
 	let res = p3d::p3d_process(data, p3d::AlgoType::Grid2d, 6i16, 2i16 );
 	match res {
 		Ok(v) => {
 			for i in 0..v.len()-1 {
 				// prn(v[i].as_str());
+				let h = H256::from_slice(v[i].as_bytes());
+				buf.push(h);
 			}
-			buf = v.concat().as_bytes().to_vec();
+			// buf.extend(v.concat().as_bytes().to_vec());
 		},
 		Err(_) => {
 			// runtime_print!(">>> Error");
@@ -200,6 +215,5 @@ pub fn get_obj_hashes(data: &Vec<u8>) -> Vec<u8> {
 		},
 	}
 
-	buf.extend(data);
 	buf
 }

@@ -62,7 +62,6 @@ use codec::{Encode, Decode};
 use prometheus_endpoint::Registry;
 use sc_client_api;
 use log::*;
-use sp_core::U256;
 use sp_timestamp::{InherentError as TIError, TimestampInherentData};
 
 use crate::worker::UntilImportedOrTimeout;
