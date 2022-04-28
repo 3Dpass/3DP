@@ -7,6 +7,8 @@ use sp_core::{H256, U256};
 use sp_runtime::generic::BlockId;
 use sp_runtime::traits::Block as BlockT;
 use std::sync::Arc;
+// use frame_support::sp_runtime::print as prn;
+// use frame_support::runtime_print;
 
 /// Determine whether the given hash satisfies the given difficulty.
 /// The test is done by multiplying the two together. If the product
@@ -178,41 +180,26 @@ where
 	}
 }
 
+use p3d;
 
-// use frame_support::{decl_module, decl_storage};
-// use frame_system::Config;
-// use codec::{Decode, Encode};
+pub fn get_obj_hashes(data: &Vec<u8>) -> Vec<u8> {
+	let mut buf: Vec<u8>;
+	// TODO: pass params as args
+	let res = p3d::p3d_process(data, p3d::AlgoType::Grid2d, 6i16, 2i16 );
+	match res {
+		Ok(v) => {
+			for i in 0..v.len()-1 {
+				// prn(v[i].as_str());
+			}
+			buf = v.concat().as_bytes().to_vec();
+		},
+		Err(_) => {
+			// runtime_print!(">>> Error");
+			// TODO: handle error
+			return Vec::new()
+		},
+	}
 
-// }
-
-// #[derive(Encode, Decode, Default)] // , RuntimeDebug)]
-// pub struct Obj3d<Hash, Obj> {
-// 	pub hash: Hash,
-// 	pub obj: Obj,
-
-
-// decl_storage! {
-//     trait Store for Module<T: Config> as ObjModule {
-//         /// The storage item for our proofs.
-// 		/// It maps a proof to the user who made the claim and when they made it.
-//         // Objs: map hasher(blake2_128_concat) Vec<u8> => (T::AccountId, T::BlockNumber);
-//         pub Objs: map hasher(blake2_128_concat) U256 => Vec<u8>;
-//     }
-// }
-//
-// decl_module! {
-// 		pub struct Module<T: Config> for enum Call where origin: T::Origin {
-// 		}
-// 	}
-//
-// // impl<T: Config> Module<T> {
-// impl<T: Config> Module<T> {
-// 	pub fn get_obj(key: &U256) -> Vec<u8> {
-// 		Objs::get(key)
-// 	}
-//
-// 	pub fn put_obj(key: &U256, obj: Vec<u8>) -> () {
-// 		Objs::insert(key, obj)
-// 	}
-//
-// }
+	buf.extend(data);
+	buf
+}

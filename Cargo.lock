@@ -167,6 +167,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "approx"
+version = "0.5.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "cab112f0a86d568ea0e627cc1d6be74a1e9cd55214684db5561995f6dad897c6"
+dependencies = [
+ "num-traits",
+]
+
+[[package]]
 name = "arrayref"
 version = "0.3.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -435,6 +444,12 @@ name = "base-x"
 version = "0.2.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a4521f3e3d031370679b3b140beb36dfe4801b09ac77e30c61941f97df3ef28b"
+
+[[package]]
+name = "base16ct"
+version = "0.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "349a06037c7bf932dd7e7d1f653678b2038b9ad46a74102f1fc7bd7872678cce"
 
 [[package]]
 name = "base58"
@@ -824,6 +839,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "baf1de4339761588bc0619e3cbc0120ee582ebb74b53b4efbf79117bd2da40fd"
 
 [[package]]
+name = "cgmath"
+version = "0.18.0"
+source = "git+https://github.com/3Dpass/cgmath?branch=master#f8c9fa9f0bededc51102abb4e7305abeb98e69ac"
+dependencies = [
+ "approx 0.5.1",
+ "num-traits",
+]
+
+[[package]]
 name = "chacha20"
 version = "0.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1004,6 +1028,15 @@ name = "core-foundation-sys"
 version = "0.7.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b3a71ab494c0b5b860bdc8407ae08978052417070c2ced38573a9157ad75b8ac"
+
+[[package]]
+name = "core2"
+version = "0.4.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b49ba7ef1ad6107f8824dbe97de947cbaac53c44e7f9756a1fba0d37c1eec505"
+dependencies = [
+ "memchr",
+]
 
 [[package]]
 name = "cpuid-bool"
@@ -2728,6 +2761,56 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "830d08ce1d1d941e6b30645f1a0eb5643013d835ce3779a5fc208261dbe10f55"
 
 [[package]]
+name = "lexical"
+version = "6.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ccd3e434c16f0164124ade12dcdee324fcc3dafb1cad0c7f1d8c2451a1aa6886"
+dependencies = [
+ "lexical-core",
+]
+
+[[package]]
+name = "lexical-core"
+version = "0.8.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "92912c4af2e7d9075be3e5e3122c4d7263855fa6cce34fbece4dd08e5884624d"
+dependencies = [
+ "lexical-util",
+ "lexical-write-float",
+ "lexical-write-integer",
+]
+
+[[package]]
+name = "lexical-util"
+version = "0.8.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c72a9d52c5c4e62fa2cdc2cb6c694a39ae1382d9c2a17a466f18e272a0930eb1"
+dependencies = [
+ "static_assertions",
+]
+
+[[package]]
+name = "lexical-write-float"
+version = "0.8.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8a89ec1d062e481210c309b672f73a0567b7855f21e7d2fae636df44d12e97f9"
+dependencies = [
+ "lexical-util",
+ "lexical-write-integer",
+ "static_assertions",
+]
+
+[[package]]
+name = "lexical-write-integer"
+version = "0.8.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "094060bd2a7c2ff3a16d5304a6ae82727cb3cc9d1c70f813cc73f744c319337e"
+dependencies = [
+ "lexical-util",
+ "static_assertions",
+]
+
+[[package]]
 name = "libc"
 version = "0.2.89"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2752,6 +2835,12 @@ dependencies = [
  "cfg-if 1.0.0",
  "winapi 0.3.9",
 ]
+
+[[package]]
+name = "libm"
+version = "0.1.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7fc7aa29613bd6a620df431842069224d8bc9011086b1db4c0e0cd47fa03ec9a"
 
 [[package]]
 name = "libm"
@@ -3319,6 +3408,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "matrixmultiply"
+version = "0.3.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "add85d4dd35074e6fedc608f8c8f513a3548619a9024b751949ef0e8e45a4d84"
+dependencies = [
+ "rawpointer",
+]
+
+[[package]]
 name = "maybe-uninit"
 version = "2.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3583,14 +3681,14 @@ version = "0.21.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d6b6147c3d50b4f3cdabfe2ecc94a0191fd3d6ad58aefd9664cf396285883486"
 dependencies = [
- "approx",
+ "approx 0.3.2",
  "generic-array 0.13.3",
- "matrixmultiply",
- "num-complex",
+ "matrixmultiply 0.2.4",
+ "num-complex 0.2.4",
  "num-rational",
  "num-traits",
  "rand 0.7.3",
- "rand_distr",
+ "rand_distr 0.2.2",
  "simba",
  "typenum",
 ]
@@ -3612,6 +3710,18 @@ checksum = "670361df1bc2399ee1ff50406a0d422587dd3bb0da596e1978fe8e05dabddf4f"
 dependencies = [
  "libc",
  "socket2",
+]
+
+[[package]]
+name = "ndarray"
+version = "0.15.4"
+source = "git+https://github.com/3Dpass/ndarray?branch=dev#e1160f861bf1badbd80c0187e33390ba280c52e6"
+dependencies = [
+ "matrixmultiply 0.3.2",
+ "num-complex 0.4.0",
+ "num-integer",
+ "num-traits",
+ "rawpointer",
 ]
 
 [[package]]
@@ -3683,6 +3793,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "num-complex"
+version = "0.4.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "26873667bbbb7c5182d4a37c1add32cdf09f841af72da53318fdb81543c15085"
+dependencies = [
+ "num-traits",
+]
+
+[[package]]
 name = "num-integer"
 version = "0.1.44"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3711,7 +3830,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9a64b1ec5cda2586e284722486d802acf1f7dbdc623e2bfc57e65ca1cd099290"
 dependencies = [
  "autocfg",
- "libm",
+ "libm 0.2.1",
 ]
 
 [[package]]
@@ -3722,6 +3841,16 @@ checksum = "05499f3756671c15885fee9034446956fff3f243d6077b91e5767df161f766b3"
 dependencies = [
  "hermit-abi",
  "libc",
+]
+
+[[package]]
+name = "obj-rs"
+version = "0.7.0"
+source = "git+https://github.com/3Dpass/obj-rs?branch=dev#e2ce997504f2106ccdfc054490131a2501e59e00"
+dependencies = [
+ "anyhow",
+ "core2",
+ "num-traits",
 ]
 
 [[package]]
@@ -3806,12 +3935,35 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "77af24da69f9d9341038eba93a073b1fdaaa1b788221b00a69bce9e762cb32de"
 
 [[package]]
+name = "order-stat"
+version = "0.1.3"
+source = "git+https://github.com/3Dpass/order-stat?branch=dev#c1c0d34fe4394f63f6e820993575c4b9dbc5464b"
+dependencies = [
+ "libm 0.2.1",
+]
+
+[[package]]
 name = "owning_ref"
 version = "0.4.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6ff55baddef9e4ad00f88b6c743a2a8062d4c6ade126c2a528644b8e444d52ce"
 dependencies = [
  "stable_deref_trait",
+]
+
+[[package]]
+name = "p3d"
+version = "0.1.0"
+source = "git+https://github.com/3Dpass/p3d?branch=main#8f53ef945d124a5ecf51f4e0ce26110a625a4eb1"
+dependencies = [
+ "base16ct",
+ "cgmath",
+ "libm 0.2.1",
+ "ndarray",
+ "obj-rs",
+ "peroxide",
+ "sha2 0.9.3",
+ "tri-mesh",
 ]
 
 [[package]]
@@ -4317,6 +4469,32 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d4fd5641d01c8f18a23da7b6fe29298ff4b55afcccdf78973b24cf3175fee32e"
 
 [[package]]
+name = "peroxide"
+version = "0.30.9"
+source = "git+https://github.com/3Dpass/Peroxide?branch=devel#3f33fda43b889858fe1e51125f3b79d85a97849b"
+dependencies = [
+ "lexical",
+ "libm 0.2.1",
+ "matrixmultiply 0.3.2",
+ "num-traits",
+ "order-stat",
+ "peroxide-ad",
+ "puruspe",
+ "rand 0.8.3",
+ "rand_distr 0.4.3",
+]
+
+[[package]]
+name = "peroxide-ad"
+version = "0.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f6fba8ff3f40b67996f7c745f699babaa3e57ef5c8178ec999daf7eedc51dc8c"
+dependencies = [
+ "quote 1.0.9",
+ "syn 1.0.64",
+]
+
+[[package]]
 name = "pest"
 version = "2.1.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4637,6 +4815,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "puruspe"
+version = "0.1.5"
+source = "git+https://github.com/3Dpass/puruspe?branch=dev#998a72ee5329f62e2703cf82f1f5d54925f4e225"
+dependencies = [
+ "libm 0.1.4",
+]
+
+[[package]]
 name = "quick-error"
 version = "1.2.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4804,6 +4990,16 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "96977acbdd3a6576fb1d27391900035bf3863d4a16422973a409b488cf29ffb2"
 dependencies = [
  "rand 0.7.3",
+]
+
+[[package]]
+name = "rand_distr"
+version = "0.4.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "32cb0b9bc82b0a0876c2dd994a7e7a2683d3e7390ca40e6886785ef0c7e3ee31"
+dependencies = [
+ "num-traits",
+ "rand 0.8.3",
 ]
 
 [[package]]
@@ -6378,6 +6574,7 @@ dependencies = [
 name = "sha3pow"
 version = "3.0.0"
 dependencies = [
+ "p3d",
  "parity-scale-codec 2.3.1",
  "rand 0.8.3",
  "sc-consensus-poscan",
@@ -6434,8 +6631,8 @@ version = "0.1.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "fb931b1367faadea6b1ab1c306a860ec17aaa5fa39f367d0c744e69d971a1fb2"
 dependencies = [
- "approx",
- "num-complex",
+ "approx 0.3.2",
+ "num-complex 0.2.4",
  "num-traits",
  "paste 0.1.18",
 ]
@@ -8029,6 +8226,14 @@ dependencies = [
  "tracing-core",
  "tracing-log",
  "tracing-serde",
+]
+
+[[package]]
+name = "tri-mesh"
+version = "0.5.0"
+source = "git+https://github.com/3Dpass/tri-mesh?branch=dev#faf897785d2c3aa66a24a0043f1076c3fb7d2c52"
+dependencies = [
+ "cgmath",
 ]
 
 [[package]]
