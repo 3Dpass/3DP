@@ -16,6 +16,7 @@ use std::thread;
 use std::time::Duration;
 // use sp_runtime::generic::BlockId;
 use sc_consensus_poscan::PoscanData;
+use log::*;
 
 // Our native executor instance.
 native_executor_instance!(
@@ -249,6 +250,8 @@ pub fn new_full(config: Configuration) -> Result<TaskManager, ServiceError> {
 		let	mut poscan_data: Option<PoscanData> = None;
 		let mut poscan_hash: Option<H256> = None;
 
+		info!(">>> Spawn mining loop");
+
 		thread::spawn(move || loop {
 			let worker = _worker.clone();
 			let metadata = worker.lock().metadata();
@@ -293,6 +296,7 @@ pub fn new_full(config: Configuration) -> Result<TaskManager, ServiceError> {
 					let mut lock = DEQUE.lock();
 					let maybe_mining_prop = (*lock).pop_front();
 					if let Some(mp) = maybe_mining_prop {
+						info!(">>> Object recieved in minig cycle");
 						let hashes = get_obj_hashes(&mp.pre_obj);
 						if hashes.len() > 0 {
 							let obj_hash = hashes[0];
@@ -300,6 +304,9 @@ pub fn new_full(config: Configuration) -> Result<TaskManager, ServiceError> {
 							poscan_hash = Some(dh.calc_hash());
 							poscan_data = Some(PoscanData { hashes, obj: mp.pre_obj });
 						}
+					}
+					else {
+						thread::sleep(Duration::new(1, 0));
 					}
 				}
 			} else {
