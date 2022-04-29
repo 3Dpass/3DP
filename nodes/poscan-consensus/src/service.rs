@@ -9,12 +9,13 @@ use sc_service::{error::Error as ServiceError, Configuration, PartialComponents,
 use sha3pow::*;
 use sp_api::TransactionFor;
 use sp_consensus::import_queue::BasicQueue;
-use sp_core::{Encode, U256};
+use sp_core::{Encode, U256, H256};
 use sp_inherents::InherentDataProviders;
 use std::sync::Arc;
 use std::thread;
 use std::time::Duration;
 // use sp_runtime::generic::BlockId;
+use sc_consensus_poscan::PoscanData;
 
 // Our native executor instance.
 native_executor_instance!(
@@ -56,7 +57,7 @@ pub fn new_partial(
 				GrandpaBlockImport<FullBackend, Block, FullClient, FullSelectChain>,
 				FullClient,
 				FullSelectChain,
-				MinimalSha3Algorithm,
+				PoscanAlgorithm,
 				impl sp_consensus::CanAuthorWith<Block>,
 			>,
 			sc_finality_grandpa::LinkHalf<Block, FullClient, FullSelectChain>,
@@ -91,7 +92,7 @@ pub fn new_partial(
 	let pow_block_import = sc_consensus_poscan::PowBlockImport::new(
 		grandpa_block_import,
 		client.clone(),
-		sha3pow::MinimalSha3Algorithm,
+		sha3pow::PoscanAlgorithm, //::new(client.clone()),
 		0, // check inherents starting at block 0
 		select_chain.clone(),
 		inherent_data_providers.clone(),
@@ -101,7 +102,7 @@ pub fn new_partial(
 	let import_queue = sc_consensus_poscan::import_queue(
 		Box::new(pow_block_import.clone()),
 		None,
-		sha3pow::MinimalSha3Algorithm,
+		sha3pow::PoscanAlgorithm, //::new(client.clone()),
 		inherent_data_providers.clone(),
 		&task_manager.spawn_handle(),
 		config.prometheus_registry(),
@@ -227,7 +228,7 @@ pub fn new_full(config: Configuration) -> Result<TaskManager, ServiceError> {
 			Box::new(pow_block_import),
 			client,
 			select_chain,
-			MinimalSha3Algorithm,
+			PoscanAlgorithm, // ::new(client.clone()),
 			proposer,
 			network.clone(),
 			None,
@@ -244,23 +245,31 @@ pub fn new_full(config: Configuration) -> Result<TaskManager, ServiceError> {
 			.spawn_blocking("pow", worker_task);
 
 		// Start Mining
-		let mut nonce: U256 = U256::from(0);
+		// let mut nonce: U256 = U256::from(0);
+		let	mut poscan_data: Option<PoscanData> = None;
+		let mut poscan_hash: Option<H256> = None;
+
 		thread::spawn(move || loop {
 			let worker = _worker.clone();
 			let metadata = worker.lock().metadata();
 			if let Some(mut metadata) = metadata {
+				let mut ps: H256;
+				let ps = match poscan_hash {
+					Some(ps) => ps,
+					None => continue,
+				};
 				let compute = Compute {
 					difficulty: metadata.difficulty,
 					pre_hash: metadata.pre_hash,
-					nonce,
+					poscan_hash: ps,
 				};
 				let seal = compute.compute();
 				if hash_meets_difficulty(&seal.work, seal.difficulty) {
-					nonce = U256::from(0);
+					// nonce = U256::from(0);
 					let mut worker = worker.lock();
 
-					let v = vec![1, 2, 3];
-					metadata.obj = v;
+					// let v = vec![1, 2, 3];
+					// metadata.obj = v;
 					// // Objs::insert(nonce, v);
 					// <Module<Configuration>>::put_obj(&nonce, v);
 
@@ -270,22 +279,26 @@ pub fn new_full(config: Configuration) -> Result<TaskManager, ServiceError> {
 					// let at = client.runtime_api();
 					// let _i = client.runtime_api().get_obj(1);
 
-					worker.submit(seal.encode());
-				} else {
-					nonce = nonce.saturating_add(U256::from(1));
-					if nonce == U256::MAX {
-						nonce = U256::from(0);
+					if let Some(ref psdata) = poscan_data {
+						// let _ = psdata.encode();
+						worker.submit(seal.encode(), &psdata);
 					}
+				} else {
+					// nonce = nonce.saturating_add(U256::from(1));
+					// if nonce == U256::MAX {
+					// 	nonce = U256::from(0);
+					// }
 
 					use pallet_poscan::DEQUE;
 					let mut lock = DEQUE.lock();
-					let m = (*lock).pop_front();
-					if let Some(obj) = m {
-						let hashes = get_obj_hashes(&obj.pre_obj);
+					let maybe_mining_prop = (*lock).pop_front();
+					if let Some(mp) = maybe_mining_prop {
+						let hashes = get_obj_hashes(&mp.pre_obj);
 						if hashes.len() > 0 {
 							let obj_hash = hashes[0];
 							let dh = DoubleHash { pre_hash: metadata.pre_hash, obj_hash };
-							let _h = dh.calc_hash();
+							poscan_hash = Some(dh.calc_hash());
+							poscan_data = Some(PoscanData { hashes, obj: mp.pre_obj });
 						}
 					}
 				}
@@ -362,7 +375,7 @@ pub fn new_light(config: Configuration) -> Result<TaskManager, ServiceError> {
 	let pow_block_import = sc_consensus_poscan::PowBlockImport::new(
 		grandpa_block_import,
 		client.clone(),
-		MinimalSha3Algorithm,
+		PoscanAlgorithm, //::new(client.clone()),
 		0, // check inherents starting at block 0
 		select_chain,
 		inherent_data_providers.clone(),
@@ -372,7 +385,7 @@ pub fn new_light(config: Configuration) -> Result<TaskManager, ServiceError> {
 	let import_queue = sc_consensus_poscan::import_queue(
 		Box::new(pow_block_import),
 		None,
-		MinimalSha3Algorithm,
+		PoscanAlgorithm, // ::new(client.clone()),
 		inherent_data_providers,
 		&task_manager.spawn_handle(),
 		config.prometheus_registry(),

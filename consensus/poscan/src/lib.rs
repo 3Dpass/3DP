@@ -62,6 +62,7 @@ use codec::{Encode, Decode};
 use prometheus_endpoint::Registry;
 use sc_client_api;
 use log::*;
+use sp_core::H256;
 use sp_timestamp::{InherentError as TIError, TimestampInherentData};
 
 use crate::worker::UntilImportedOrTimeout;
@@ -128,7 +129,7 @@ fn aux_key<T: AsRef<[u8]>>(hash: &T) -> Vec<u8> {
 pub struct PowIntermediate<Difficulty> {
 	/// Difficulty of the block, if known.
 	pub difficulty: Option<Difficulty>,
-	pub obj: Vec<u8>,
+	// pub obj: Vec<u8>,
 }
 
 /// Intermediate key for PoW engine.
@@ -155,6 +156,19 @@ impl<Difficulty> PowAux<Difficulty> where
 			None => Ok(Self::default()),
 		}
 	}
+}
+
+
+#[derive(Clone, Encode, Decode, PartialEq, Eq, Debug)]
+pub struct PoscanData {
+	pub hashes: Vec<H256>,
+	pub obj: Vec<u8>,
+}
+
+#[derive(Clone, Encode, Decode, PartialEq, Eq, Debug)]
+pub struct PoscanData2 {
+	pub hashes: H256,
+	pub obj: u8,
 }
 
 /// Algorithm used for proof of work.
@@ -198,7 +212,7 @@ pub trait PowAlgorithm<B: BlockT> {
 		pre_digest: Option<&[u8]>,
 		seal: &Seal,
 		difficulty: Self::Difficulty,
-		obj: &[u8],
+		poscan_data: &PoscanData,
 	) -> Result<bool, Error<B>>;
 }
 
@@ -361,13 +375,18 @@ impl<B, I, C, S, Algorithm, CAW> BlockImport<B> for PowBlockImport<B, I, C, S, A
 			block.body = Some(check_block.deconstruct().1);
 		}
 
-		let inner_seal = fetch_seal::<B>(block.post_digests.last(), block.header.hash())?;
+		let inner_seal = fetch_seal::<B>(block.post_digests.get(0), block.header.hash())?;
+		let pscan_hashes = fetch_seal::<B>(block.post_digests.get(1), block.header.hash())?;
+		let pscan_obj = fetch_seal::<B>(block.post_digests.get(2), block.header.hash())?;
+
+		let h: Vec<H256> = pscan_hashes.chunks(32).map(|h| H256::from_slice(h)).collect();
+		let psdata = PoscanData{ hashes: h, obj: pscan_obj };
 
 		let intermediate = block.take_intermediate::<PowIntermediate::<Algorithm::Difficulty>>(
 			INTERMEDIATE_KEY
 		)?;
 
-		let obj = (*intermediate).obj;
+		// let obj = (*intermediate).obj;
 
 		let difficulty = match intermediate.difficulty {
 			Some(difficulty) => difficulty,
@@ -382,7 +401,7 @@ impl<B, I, C, S, Algorithm, CAW> BlockImport<B> for PowBlockImport<B, I, C, S, A
 			pre_digest.as_ref().map(|v| &v[..]),
 			&inner_seal,
 			difficulty,
-			obj.as_slice(),
+			&psdata,
 		)? {
 			return Err(Error::<B>::InvalidSeal.into())
 		}
@@ -471,7 +490,7 @@ impl<B: BlockT, Algorithm> Verifier<B> for PowVerifier<B, Algorithm> where
 
 		let intermediate = PowIntermediate::<Algorithm::Difficulty> {
 			difficulty: None,
-			obj: Vec::new(),
+			// obj: Vec::new(),
 		};
 
 		let mut import_block = BlockImportParams::new(origin, checked_header);
@@ -690,7 +709,8 @@ pub fn start_mining_worker<Block, C, S, Algorithm, E, SO, CAW>(
 					pre_hash: proposal.block.header().hash(),
 					pre_runtime: pre_runtime.clone(),
 					difficulty,
-					obj: Vec::new(),
+					// hashes: Vec::new(),
+					// obj: Vec::new(),
 				},
 				proposal,
 			};

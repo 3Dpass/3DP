@@ -23,6 +23,7 @@ use sp_consensus::{Proposal, BlockOrigin, BlockImportParams, import_queue::BoxBl
 use futures::{prelude::*, task::{Context, Poll}};
 use futures_timer::Delay;
 use log::*;
+use super::PoscanData;
 
 use crate::{INTERMEDIATE_KEY, POSCAN_ENGINE_ID, Seal, PowAlgorithm, PowIntermediate};
 
@@ -37,7 +38,8 @@ pub struct MiningMetadata<H, D> {
 	pub pre_runtime: Option<Vec<u8>>,
 	/// Mining target difficulty.
 	pub difficulty: D,
-	pub obj: Vec<u8>,
+	// pub hashes: Vec<H>,
+	// pub obj: Vec<u8>,
 }
 
 /// A build of mining, containing the metadata and the block proposal.
@@ -85,7 +87,7 @@ impl<Block, Algorithm, C> MiningWorker<Block, Algorithm, C> where
 
 	/// Submit a mined seal. The seal will be validated again. Returns true if the submission is
 	/// successful.
-	pub fn submit(&mut self, seal: Seal) -> bool {
+	pub fn submit(&mut self, seal: Seal, poscan_data: &PoscanData) -> bool {
 		if let Some(build) = self.build.take() {
 			match self.algorithm.verify(
 				&BlockId::Hash(build.metadata.best_hash),
@@ -93,7 +95,7 @@ impl<Block, Algorithm, C> MiningWorker<Block, Algorithm, C> where
 				build.metadata.pre_runtime.as_ref().map(|v| &v[..]),
 				&seal,
 				build.metadata.difficulty,
-				build.metadata.obj.as_slice(),
+				poscan_data,
 			) {
 				Ok(true) => (),
 				Ok(false) => {
@@ -114,16 +116,23 @@ impl<Block, Algorithm, C> MiningWorker<Block, Algorithm, C> where
 			}
 
 			let seal = DigestItem::Seal(POSCAN_ENGINE_ID, seal);
+			let v: Vec<u8> = poscan_data.hashes.iter().flat_map(|h| h.as_bytes().to_vec()).collect();
+			let poscan_hashes = DigestItem::Seal(POSCAN_ENGINE_ID, v);
+			let poscan_obj = DigestItem::Seal(POSCAN_ENGINE_ID, poscan_data.obj.clone());
+
 			let (header, body) = build.proposal.block.deconstruct();
 
 			let mut import_block = BlockImportParams::new(BlockOrigin::Own, header);
 			import_block.post_digests.push(seal);
+			import_block.post_digests.push(poscan_hashes);
+			import_block.post_digests.push(poscan_obj);
+
 			import_block.body = Some(body);
 			import_block.storage_changes = Some(build.proposal.storage_changes);
 
 			let intermediate = PowIntermediate::<Algorithm::Difficulty> {
 				difficulty: Some(build.metadata.difficulty),
-				obj: build.metadata.obj,
+				// obj: build.metadata.obj,
 			};
 
 			import_block.intermediates.insert(
