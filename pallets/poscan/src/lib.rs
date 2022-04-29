@@ -50,7 +50,7 @@ pub mod pallet {
     use frame_system::pallet_prelude::*;
 	use frame_support::{dispatch::DispatchResultWithPostInfo, pallet_prelude::*};
 	use sp_std::vec::Vec;
-	// use frame_support::sp_runtime::print as prn;
+	use frame_support::sp_runtime::print as prn;
 	// use frame_support::runtime_print;
 	use crate::{DEQUE, MiningProposal};
 	use super::decode_hex;
@@ -108,13 +108,13 @@ pub mod pallet {
 			// Check that the extrinsic was signed and get the signer.
 			// This function will return an error if the extrinsic is not signed.
 			// https://docs.substrate.io/v3/runtime/origins
-			let sender = ensure_signed(origin)?;
+			// let sender = ensure_signed(origin)?;
 
 			// Verify that the specified proof has not already been claimed.
-			ensure!(!Proofs::<T>::contains_key(&proof), Error::<T>::ProofAlreadyClaimed);
+			// ensure!(!Proofs::<T>::contains_key(&proof), Error::<T>::ProofAlreadyClaimed);
 
 			// Get the block number from the FRAME System pallet.
-			let _current_block = <frame_system::Pallet<T>>::block_number();
+			// let _current_block = <frame_system::Pallet<T>>::block_number();
 
 			let content = decode_hex(&proof).unwrap();
 
@@ -137,11 +137,14 @@ pub mod pallet {
 			// Store the proof with the sender and block number.
 			// Proofs::<T>::insert(&buf, (&sender, current_block, ));
 
+			prn("put_minig_obj recieved object");
+
 			let mut lock = DEQUE.lock();
 			(*lock).push_back(MiningProposal {a: 1, pre_obj: content});
 
+
 			// Emit an event that the claim was created.
-			Self::deposit_event(Event::ClaimCreated(sender, proof));
+			// Self::deposit_event(Event::ClaimCreated(sender, proof));
 
 			Ok(().into())
 		}
