@@ -20,5 +20,6 @@ sp-core = '3.0'
 sp-runtime = '3.0'
 # frame-support = { version = "3.0" }
 # frame-system = { version = "3.0" }
+log = "0.4.8"
 
 p3d = { git = "https://github.com/3Dpass/p3d", branch = "main" }
