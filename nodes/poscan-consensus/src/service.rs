@@ -17,7 +17,21 @@ use std::time::Duration;
 // use sp_runtime::generic::BlockId;
 use sc_consensus_poscan::PoscanData;
 use log::*;
-use pallet_poscan::MiningProposal;
+use sp_std::collections::vec_deque::VecDeque;
+use spin::Mutex;
+
+
+pub struct MiningProposal {
+	pub id: i32,
+	pub pre_obj: Vec<u8>,
+}
+
+lazy_static! {
+    pub static ref DEQUE: Mutex<VecDeque<MiningProposal>> = {
+        let m = VecDeque::new();
+        Mutex::new(m)
+    };
+}
 
 // Our native executor instance.
 native_executor_instance!(
@@ -195,6 +209,21 @@ pub fn new_full(config: Configuration) -> Result<TaskManager, ServiceError> {
 	let prometheus_registry = config.prometheus_registry().cloned();
 	let enable_grandpa = !config.disable_grandpa;
 
+	let rpc_extensions_builder = {
+		let client = client.clone();
+		let pool = transaction_pool.clone();
+		Box::new(move |deny_unsafe, _| {
+			let deps = crate::rpc::FullDeps {
+				client: client.clone(),
+				pool: pool.clone(),
+				deny_unsafe,
+				// command_sink: command_sink.clone(),
+			};
+
+			crate::rpc::create_full(deps)
+		})
+	};
+
 	let (_rpc_handlers, telemetry_connection_notifier) =
 		sc_service::spawn_tasks(sc_service::SpawnTasksParams {
 			network: network.clone(),
@@ -202,7 +231,7 @@ pub fn new_full(config: Configuration) -> Result<TaskManager, ServiceError> {
 			keystore: keystore_container.sync_keystore(),
 			task_manager: &mut task_manager,
 			transaction_pool: transaction_pool.clone(),
-			rpc_extensions_builder: Box::new(|_, _| ()),
+			rpc_extensions_builder, // Box::new(|_, _| ()),
 			on_demand: None,
 			remote_blockchain: None,
 			backend,
@@ -290,13 +319,12 @@ pub fn new_full(config: Configuration) -> Result<TaskManager, ServiceError> {
 					// 	nonce = U256::from(0);
 					// }
 
-					use pallet_poscan::DEQUE;
 					let mut lock = DEQUE.lock();
-					let mut maybe_mining_prop = (*lock).pop_front();
-					if maybe_mining_prop.is_none() {
-						info!(">>> Queue is empty. Use hardcoded");
-						maybe_mining_prop = Some(MiningProposal { a: 1, pre_obj: get_debug_obj() });
-					}
+					let maybe_mining_prop = (*lock).pop_front();
+					// if maybe_mining_prop.is_none() {
+					// 	info!(">>> Queue is empty. Use hardcoded");
+					// 	maybe_mining_prop = Some(MiningProposal { a: 1, pre_obj: get_debug_obj() });
+					// }
 					if let Some(mp) = maybe_mining_prop {
 						info!(">>> Object recieved in minig cycle");
 						let hashes = get_obj_hashes(&mp.pre_obj);

@@ -6,8 +6,12 @@
 mod chain_spec;
 #[macro_use]
 pub(crate) mod service;
+#[macro_use]
+extern crate lazy_static;
 mod cli;
 mod command;
+mod rpc;
+mod mining_rpc;
 
 fn main() -> sc_cli::Result<()> {
 	command::run()

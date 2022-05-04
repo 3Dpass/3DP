@@ -7,11 +7,11 @@ pub use pallet::*;
 extern crate alloc;
 use core::num::ParseIntError;
 use sp_std::vec::Vec;
-use sp_std::collections::vec_deque::VecDeque;
-use spin::Mutex;
+// use sp_std::collections::vec_deque::VecDeque;
+// use spin::Mutex;
 
-#[macro_use]
-extern crate lazy_static;
+// #[macro_use]
+// extern crate lazy_static;
 
 
 #[cfg(test)]
@@ -19,19 +19,6 @@ mod mock;
 
 #[cfg(test)]
 mod tests;
-
-pub struct MiningProposal {
-	pub a: i32,
-	pub pre_obj: Vec<u8>,
-}
-
-lazy_static! {
-    pub static ref DEQUE: Mutex<VecDeque<MiningProposal>> = {
-        let m = VecDeque::new();
-        Mutex::new(m)
-    };
-}
-
 
 #[cfg(feature = "runtime-benchmarks")]
 mod benchmarking;
@@ -52,7 +39,7 @@ pub mod pallet {
 	use sp_std::vec::Vec;
 	use frame_support::sp_runtime::print as prn;
 	// use frame_support::runtime_print;
-	use crate::{DEQUE, MiningProposal};
+	// use crate::{DEQUE, MiningProposal};
 	use super::decode_hex;
 
 	/// Configure the pallet by specifying the parameters and types on which it depends.
@@ -116,7 +103,7 @@ pub mod pallet {
 			// Get the block number from the FRAME System pallet.
 			// let _current_block = <frame_system::Pallet<T>>::block_number();
 
-			let content = decode_hex(&proof).unwrap();
+			let _content = decode_hex(&proof).unwrap();
 
 			// let mut buf: Vec<u8>;
 			// let res = p3d::p3d_process(&content, p3d::AlgoType::Grid2d, 6i16, 2i16 );
@@ -137,10 +124,10 @@ pub mod pallet {
 			// Store the proof with the sender and block number.
 			// Proofs::<T>::insert(&buf, (&sender, current_block, ));
 
-			prn("put_minig_obj recieved object");
-
-			let mut lock = DEQUE.lock();
-			(*lock).push_back(MiningProposal {a: 1, pre_obj: content});
+			// prn("put_minig_obj recieved object");
+			//
+			// let mut lock = DEQUE.lock();
+			// (*lock).push_back(MiningProposal {a: 1, pre_obj: content});
 
 
 			// Emit an event that the claim was created.
