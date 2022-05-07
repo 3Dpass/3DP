@@ -19,8 +19,6 @@ pub struct MiningRpc;
 impl PoscanMiningRpc for MiningRpc {
 	fn push(&self, obj_id: u64, obj: String) -> Result<u64> {
 		info!(">>> push_minig_obj recieved object obj_id={}", obj_id);
-		info!(">>> push_minig_obj recieved object obj={}", obj);
-
 		let mut lock = DEQUE.lock();
 		(*lock).push_back(MiningProposal {id: 1, pre_obj: obj.as_bytes().to_vec()});
 

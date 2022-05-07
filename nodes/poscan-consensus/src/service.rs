@@ -286,8 +286,6 @@ pub fn new_full(config: Configuration) -> Result<TaskManager, ServiceError> {
 			let worker = _worker.clone();
 			let metadata = worker.lock().metadata();
 			if let Some(mut metadata) = metadata {
-				// info!(">>> Mining metadata");
-
 				let compute = Compute {
 					difficulty: metadata.difficulty,
 					pre_hash: metadata.pre_hash,
@@ -334,6 +332,9 @@ pub fn new_full(config: Configuration) -> Result<TaskManager, ServiceError> {
 							poscan_hash = dh.calc_hash();
 							info!(">>>double hash is: {:#}", poscan_hash.to_string());
 							poscan_data = Some(PoscanData { hashes, obj: mp.pre_obj });
+						}
+						else {
+							warn!(">>> Empty hash set for obj {}", mp.id);
 						}
 						thread::sleep(Duration::new(1, 0));
 					}
