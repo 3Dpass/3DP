@@ -7,4 +7,4 @@ RUN git clone https://github.com/3Dpass/miner.git /app && \
 
 RUN yarn install
 
-CMD ["yarn", "miner", "--host", "node1", "--interval", "50"]
+CMD ["yarn", "miner", "--host", "127.0.0.1", "--interval", "50"]

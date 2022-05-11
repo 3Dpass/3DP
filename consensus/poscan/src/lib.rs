@@ -41,7 +41,7 @@ use std::{
 };
 use futures::{prelude::*, future::Either};
 use parking_lot::Mutex;
-use sc_client_api::{BlockOf, backend::AuxStore, BlockchainEvents};
+use sc_client_api::{BlockOf, backend::AuxStore, BlockchainEvents, BlockBackend};
 use sp_blockchain::{HeaderBackend, ProvideCache, well_known_cache_keys::Id as CacheKeyId};
 use sp_block_builder::BlockBuilder as BlockBuilderApi;
 use sp_runtime::{Justification, RuntimeString};
@@ -247,7 +247,7 @@ impl<B, I, C, S, Algorithm, CAW> PowBlockImport<B, I, C, S, Algorithm, CAW> wher
 	B: BlockT,
 	I: BlockImport<B, Transaction = sp_api::TransactionFor<C, B>> + Send + Sync,
 	I::Error: Into<ConsensusError>,
-	C: ProvideRuntimeApi<B> + Send + Sync + HeaderBackend<B> + AuxStore + ProvideCache<B> + BlockOf,
+	C: ProvideRuntimeApi<B> + Send + Sync + HeaderBackend<B> + AuxStore + ProvideCache<B> + BlockOf + BlockBackend<B>,
 	C::Api: BlockBuilderApi<B, Error = sp_blockchain::Error>,
 	Algorithm: PowAlgorithm<B>,
 	CAW: CanAuthorWith<B>,
@@ -329,7 +329,7 @@ impl<B, I, C, S, Algorithm, CAW> BlockImport<B> for PowBlockImport<B, I, C, S, A
 	I: BlockImport<B, Transaction = sp_api::TransactionFor<C, B>> + Send + Sync,
 	I::Error: Into<ConsensusError>,
 	S: SelectChain<B>,
-	C: ProvideRuntimeApi<B> + Send + Sync + HeaderBackend<B> + AuxStore + ProvideCache<B> + BlockOf,
+	C: ProvideRuntimeApi<B> + Send + Sync + HeaderBackend<B> + AuxStore + ProvideCache<B> + BlockOf + BlockBackend<B>,
 	C::Api: BlockBuilderApi<B, Error = sp_blockchain::Error>,
 	Algorithm: PowAlgorithm<B>,
 	Algorithm::Difficulty: 'static,
@@ -383,12 +383,12 @@ impl<B, I, C, S, Algorithm, CAW> BlockImport<B> for PowBlockImport<B, I, C, S, A
 		info!(">>> seal hashes: {:x?}", &pscan_hashes);
 		info!(">>> pscan_obj len: {}", pscan_obj.len());
 
-		let h: Vec<H256> = pscan_hashes.chunks(32).map(|h| H256::from_slice(h)).collect();
-		for i in h.iter() {
+		let hs: Vec<H256> = pscan_hashes.chunks(32).map(|h| H256::from_slice(h)).collect();
+		for i in hs.iter() {
 			info!(">>> hashe: {}", i.to_string());
 		}
 
-		let psdata = PoscanData{ hashes: h, obj: pscan_obj };
+		let psdata = PoscanData{ hashes: hs.clone(), obj: pscan_obj };
 
 		let intermediate = block.take_intermediate::<PowIntermediate::<Algorithm::Difficulty>>(
 			INTERMEDIATE_KEY
@@ -412,6 +412,49 @@ impl<B, I, C, S, Algorithm, CAW> BlockImport<B> for PowBlockImport<B, I, C, S, A
 			&psdata,
 		)? {
 			return Err(Error::<B>::InvalidSeal.into())
+		}
+
+		let mut prev_hash = Some(parent_hash);
+		while prev_hash.is_some() {
+			info!(">>> lookup prev_hash");
+			let num: BlockId<B> = BlockId::hash(prev_hash.unwrap());
+			match self.client.block(&num) {
+				Ok(maybe_prev_block) => {
+					match maybe_prev_block {
+						Some(signed_block) => {
+							let h = signed_block.block.header();
+							let n = h.digest().logs().len();
+							info!(">>> parent hash digest len: {}", n);
+							if n >= 3 {
+								let di = h.digest().logs()[1].clone();
+								if let DigestItem::Other(v) = di {
+									let hashes: Vec<H256> = v.chunks(32).map(|h| H256::from_slice(h)).collect();
+									for hh in hashes.iter() {
+										if hs[0..5].contains(hh) {
+											info!(">>>>>> duplicated hash found");
+											info!(">>>>>> {:x?}", hs);
+											info!(">>>>>> {:x?}", hashes);
+											return Err(Error::<B>::InvalidSeal.into());
+										}
+									}
+								}
+								else {
+									error!(">>> No poscan hashes in header");
+									return Err(Error::<B>::HeaderUnsealed(h.hash()).into())
+								}
+							}
+							prev_hash = Some(*h.parent_hash());
+						},
+						None => {
+							info!(">>> no prev block");
+							prev_hash = None
+						},
+					}
+				},
+				Err(e) => {
+					return Err(Error::<B>::InvalidSeal.into());
+				},
+			}
 		}
 
 		aux.difficulty = difficulty;

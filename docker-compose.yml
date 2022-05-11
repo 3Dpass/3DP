@@ -4,6 +4,7 @@ services:
   miner:
     container_name: "miner"
     build:
+      context: .
       dockerfile: docker/miner.Dockerfile
     links:
       - "node1:node1"
