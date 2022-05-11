@@ -302,11 +302,16 @@ impl<B: BlockT<Hash = H256>> PowAlgorithm<B> for PoscanAlgorithm
 		// Try to construct a seal object by decoding the raw seal given
 		let seal = match Seal::decode(&mut &seal[..]) {
 			Ok(seal) => seal,
-			Err(_) => return Ok(false),
+			Err(_) => {
+				info!(">>> verify: no seal");
+				return Ok(false)
+			},
 		};
 
 		// See whether the hash meets the difficulty requirement. If not, fail fast.
 		if !hash_meets_difficulty(&seal.work, difficulty) {
+			info!(">>> verify: hash_meets_difficulty - false");
+			info!(">>> work:{} poscan_hash:{} difficulty: {}", &seal.work, &seal.poscan_hash, difficulty);
 			return Ok(false);
 		}
 
@@ -318,12 +323,14 @@ impl<B: BlockT<Hash = H256>> PowAlgorithm<B> for PoscanAlgorithm
 		};
 
 		if compute.compute() != seal {
+			info!(">>> verify: compute.compute() != seal");
 			return Ok(false);
 		}
 
 		// verify poscan
 		let hashes = get_obj_hashes(&poscan_data.obj);
 		if hashes != poscan_data.hashes {
+			info!(">>> verify: hashes != poscan_data.hashes");
 			return Ok(false)
 		}
 

@@ -309,6 +309,7 @@ pub fn new_full(config: Configuration) -> Result<TaskManager, ServiceError> {
 
 					if let Some(ref psdata) = poscan_data {
 						// let _ = psdata.encode();
+						info!(">>> hash_meets_difficulty: submit it: {}, {}, {}",  &seal.work, &seal.poscan_hash, &seal.difficulty);
 						worker.submit(seal.encode(), &psdata);
 					}
 				} else {
@@ -324,13 +325,13 @@ pub fn new_full(config: Configuration) -> Result<TaskManager, ServiceError> {
 					// 	maybe_mining_prop = Some(MiningProposal { a: 1, pre_obj: get_debug_obj() });
 					// }
 					if let Some(mp) = maybe_mining_prop {
-						info!(">>> Object recieved in minig cycle");
+						// info!(">>> Object recieved in minig cycle");
 						let hashes = get_obj_hashes(&mp.pre_obj);
 						if hashes.len() > 0 {
 							let obj_hash = hashes[0];
 							let dh = DoubleHash { pre_hash: metadata.pre_hash, obj_hash };
 							poscan_hash = dh.calc_hash();
-							info!(">>>double hash is: {:#}", poscan_hash.to_string());
+							// info!(">>>double hash is: {:#}", poscan_hash.to_string());
 							poscan_data = Some(PoscanData { hashes, obj: mp.pre_obj });
 						}
 						else {

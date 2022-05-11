@@ -115,14 +115,17 @@ impl<Block, Algorithm, C> MiningWorker<Block, Algorithm, C> where
 				},
 			}
 
+			info!(">>> seal: {:x?}", &seal[0..20]);
 			let seal = DigestItem::Seal(POSCAN_ENGINE_ID, seal);
 			let v: Vec<u8> = poscan_data.hashes.iter().flat_map(|h| h.as_bytes().to_vec()).collect();
-			let poscan_hashes = DigestItem::Seal(POSCAN_ENGINE_ID, v);
-			let poscan_obj = DigestItem::Seal(POSCAN_ENGINE_ID, poscan_data.obj.clone());
+			let poscan_hashes = DigestItem::Other(v);
+			let poscan_obj = DigestItem::Other(poscan_data.obj.clone());
 
 			let (header, body) = build.proposal.block.deconstruct();
 
 			let mut import_block = BlockImportParams::new(BlockOrigin::Own, header);
+			info!(">>> pscan_obj len: {}", poscan_data.obj.len());
+
 			import_block.post_digests.push(seal);
 			import_block.post_digests.push(poscan_hashes);
 			import_block.post_digests.push(poscan_obj);

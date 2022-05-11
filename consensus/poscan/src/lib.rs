@@ -379,7 +379,15 @@ impl<B, I, C, S, Algorithm, CAW> BlockImport<B> for PowBlockImport<B, I, C, S, A
 		let pscan_hashes = fetch_seal::<B>(block.post_digests.get(1), block.header.hash())?;
 		let pscan_obj = fetch_seal::<B>(block.post_digests.get(2), block.header.hash())?;
 
+		info!(">>> seal from header len: {}", &inner_seal.len());
+		info!(">>> seal hashes: {:x?}", &pscan_hashes);
+		info!(">>> pscan_obj len: {}", pscan_obj.len());
+
 		let h: Vec<H256> = pscan_hashes.chunks(32).map(|h| H256::from_slice(h)).collect();
+		for i in h.iter() {
+			info!(">>> hashe: {}", i.to_string());
+		}
+
 		let psdata = PoscanData{ hashes: h, obj: pscan_obj };
 
 		let intermediate = block.take_intermediate::<PowIntermediate::<Algorithm::Difficulty>>(
@@ -448,29 +456,40 @@ impl<B: BlockT, Algorithm> PowVerifier<B, Algorithm> {
 	fn check_header(
 		&self,
 		mut header: B::Header,
-	) -> Result<(B::Header, DigestItem<B::Hash>), Error<B>> where
+	) -> Result<(B::Header, Vec<DigestItem<B::Hash>>), Error<B>> where
 		Algorithm: PowAlgorithm<B>,
 	{
 		let hash = header.hash();
-
-		let (seal, inner_seal) = match header.digest_mut().pop() {
-			Some(DigestItem::Seal(id, seal)) => {
-				if id == POSCAN_ENGINE_ID {
-					(DigestItem::Seal(id, seal.clone()), seal)
-				} else {
-					return Err(Error::WrongEngine(id))
-				}
-			},
-			_ => return Err(Error::HeaderUnsealed(hash)),
-		};
-
-		let pre_hash = header.hash();
-
-		if !self.algorithm.preliminary_verify(&pre_hash, &inner_seal)?.unwrap_or(true) {
-			return Err(Error::FailedPreliminaryVerify);
+		let mut digests: Vec<DigestItem<B::Hash>> = Vec::new();
+		let n = header.digest().logs().len();
+		info!(">>> digests len {}", n);
+		for _ in 0..n {
+			match header.digest_mut().pop() {
+				Some(DigestItem::Seal(id, seal)) => {
+					if id == POSCAN_ENGINE_ID {
+						info!(">>> Header in check_header ok");
+						digests.push(DigestItem::Seal(id, seal.clone()))
+					} else {
+						return Err(Error::WrongEngine(id))
+					}
+				},
+				Some(DigestItem::Other(item)) => {
+					digests.push(DigestItem::Other(item.clone()))
+				},
+				_ => {
+					error!(">>> Header unsealed in check_header");
+					return Err(Error::HeaderUnsealed(hash))
+				},
+			};
 		}
 
-		Ok((header, seal))
+		// let pre_hash = header.hash();
+		//
+		// if !self.algorithm.preliminary_verify(&pre_hash, &inner_seal)?.unwrap_or(true) {
+		// 	return Err(Error::FailedPreliminaryVerify);
+		// }
+
+		Ok((header, digests))
 	}
 }
 
@@ -486,7 +505,10 @@ impl<B: BlockT, Algorithm> Verifier<B> for PowVerifier<B, Algorithm> where
 		body: Option<Vec<B::Extrinsic>>,
 	) -> Result<(BlockImportParams<B, ()>, Option<Vec<(CacheKeyId, Vec<u8>)>>), String> {
 		let hash = header.hash();
-		let (checked_header, seal) = self.check_header(header)?;
+		let (checked_header, items) = self.check_header(header)?;
+		let seal = items[0].clone();
+		let poscan_hashes = items[1].clone();
+		let poscan_obj = items[2].clone();
 
 		let intermediate = PowIntermediate::<Algorithm::Difficulty> {
 			difficulty: None,
@@ -494,6 +516,14 @@ impl<B: BlockT, Algorithm> Verifier<B> for PowVerifier<B, Algorithm> where
 		};
 
 		let mut import_block = BlockImportParams::new(origin, checked_header);
+
+		match poscan_obj {
+			DigestItem::Other(ref s) => info!(">>> In verify: pscan_obj len: {}", s.len()),
+			_ => {}
+		}
+
+		import_block.post_digests.push(poscan_obj);
+		import_block.post_digests.push(poscan_hashes);
 		import_block.post_digests.push(seal);
 		import_block.body = body;
 		import_block.justification = justification;
@@ -749,11 +779,18 @@ fn fetch_seal<B: BlockT>(
 	match digest {
 		Some(DigestItem::Seal(id, seal)) => {
 			if id == &POSCAN_ENGINE_ID {
+				info!(">>> Header sealed ok in fetch_seal");
 				Ok(seal.clone())
 			} else {
 				return Err(Error::<B>::WrongEngine(*id).into())
 			}
 		},
-		_ => return Err(Error::<B>::HeaderUnsealed(hash).into()),
+		Some(DigestItem::Other(item)) => {
+			Ok(item.clone())
+		},
+		_ => {
+			error!(">>> Header unsealed in fetch_seal");
+			return Err(Error::<B>::HeaderUnsealed(hash).into())
+		},
 	}
 }

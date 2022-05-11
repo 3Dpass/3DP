@@ -23,7 +23,6 @@ pub struct MiningRpc;
 
 impl PoscanMiningRpc for MiningRpc {
 	fn push(&self, obj_id: u64, obj: String) -> Result<u64> {
-		info!(">>> push_minig_obj recieved object obj_id={}", obj_id);
 		let mut lock = DEQUE.lock();
 		if lock.len() >= MAX_QUEUE_LEN {
 			return Ok(RES_QUEUE_FULL)
