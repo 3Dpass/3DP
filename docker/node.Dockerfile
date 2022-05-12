@@ -20,4 +20,4 @@ COPY --from=builder /app/target/release/poscan-consensus ${APP}/p3d
 WORKDIR ${APP}
 EXPOSE 9933
 # TODO: add correct bootnodes
-CMD ["./p3d", "--unsafe-rpc-external", "--rpc-cors=all", "--validator", "--log", "--tmp"]
+CMD ["./p3d", "--unsafe-rpc-external", "--rpc-cors=all", "--validator", "--tmp"]
