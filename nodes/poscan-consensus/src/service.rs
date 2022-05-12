@@ -280,7 +280,7 @@ pub fn new_full(config: Configuration) -> Result<TaskManager, ServiceError> {
 		let	mut poscan_data: Option<PoscanData> = None;
 		let mut poscan_hash: H256 = H256::random();
 
-		info!(">>> Spawn mining loop");
+		debug!(target:"poscan", ">>> Spawn mining loop");
 
 		thread::spawn(move || loop {
 			let worker = _worker.clone();

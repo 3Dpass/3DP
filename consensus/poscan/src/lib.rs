@@ -73,9 +73,9 @@ pub enum Error<B: BlockT> {
 	WrongEngine([u8; 4]),
 	#[display(fmt = "Header {:?} is unsealed", _0)]
 	HeaderUnsealed(B::Hash),
-	#[display(fmt = "PoW validation error: invalid seal")]
+	#[display(fmt = "PoScan validation error: invalid seal")]
 	InvalidSeal,
-	#[display(fmt = "PoW validation error: preliminary verification failed")]
+	#[display(fmt = "PoScan validation error: preliminary verification failed")]
 	FailedPreliminaryVerify,
 	#[display(fmt = "Rejecting block too far in future")]
 	TooFarInFuture,
@@ -117,7 +117,7 @@ impl<B: BlockT> std::convert::From<Error<B>> for ConsensusError {
 }
 
 /// Auxiliary storage prefix for PoW engine.
-pub const POW_AUX_PREFIX: [u8; 4] = *b"PoW:";
+pub const POW_AUX_PREFIX: [u8; 4] = *b"PoSc";
 
 /// Get the auxiliary storage key used by engine to store total difficulty.
 fn aux_key<T: AsRef<[u8]>>(hash: &T) -> Vec<u8> {
@@ -133,7 +133,7 @@ pub struct PowIntermediate<Difficulty> {
 }
 
 /// Intermediate key for PoW engine.
-pub static INTERMEDIATE_KEY: &[u8] = b"pow1";
+pub static INTERMEDIATE_KEY: &[u8] = b"posc";
 
 /// Auxiliary storage data for PoW.
 #[derive(Encode, Decode, Clone, Debug, Default)]
@@ -430,7 +430,7 @@ impl<B, I, C, S, Algorithm, CAW> BlockImport<B> for PowBlockImport<B, I, C, S, A
 								if let DigestItem::Other(v) = di {
 									let hashes: Vec<H256> = v.chunks(32).map(|h| H256::from_slice(h)).collect();
 									for hh in hashes.iter() {
-										if hs[0..5].contains(hh) {
+										if hs.contains(hh) {
 											info!(">>>>>> duplicated hash found");
 											info!(">>>>>> {:x?}", hs);
 											info!(">>>>>> {:x?}", hashes);

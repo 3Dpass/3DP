@@ -22,7 +22,7 @@ use sc_service::PartialComponents;
 
 impl SubstrateCli for Cli {
 	fn impl_name() -> String {
-		"Hybrid Consensus Node (PoW and Grandpa)".into()
+		"Proof Of Scan Consensus Node (PoScan and Grandpa)".into()
 	}
 
 	fn impl_version() -> String {
