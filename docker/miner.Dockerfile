@@ -3,8 +3,8 @@ FROM node:latest
 WORKDIR /app
 
 RUN git clone https://github.com/3Dpass/miner.git /app && \
-    git checkout ccdc5a5b5e6d09431390c387f86f9ce498ab376f
+    git checkout 698c885de5ff11568b4aab1ca819391e0e05819c
 
 RUN yarn install
 
-CMD ["yarn", "miner", "--host", "127.0.0.1", "--interval", "50"]
+CMD ["yarn", "miner", "--host", "node1", "--interval", "50"]
