@@ -2,7 +2,7 @@ use runtime::{
 	genesis::{account_id_from_seed, authority_keys_from_seed, dev_genesis, testnet_genesis},
 	GenesisConfig, WASM_BINARY,
 };
-use sp_core::sr25519;
+use sp_core::{sr25519, U256};
 
 // Note this is the URL for the telemetry server
 //const STAGING_TELEMETRY_URL: &str = "wss://telemetry.polkadot.io/submit/";
@@ -57,6 +57,7 @@ pub fn local_testnet_config() -> Result<ChainSpec, String> {
 					account_id_from_seed::<sr25519::Public>("Eve//stash"),
 					account_id_from_seed::<sr25519::Public>("Ferdie//stash"),
 				],
+				U256::from(10),
 			)
 		},
 		vec![],

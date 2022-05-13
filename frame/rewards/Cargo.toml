@@ -1,0 +1,41 @@
+[package]
+name = "pallet-rewards"
+version = "2.8.0"
+authors = ["Wei Tang <wei@that.world>"]
+license = "GPL-3.0-or-later"
+edition = "2018"
+
+[dependencies]
+serde = { version = "1.0.101", optional = true }
+codec = { package = "parity-scale-codec", version = "2.1.0", default-features = false, features = ["derive"] }
+sp-runtime = { version="3.0", default-features = false }
+sp-std = { version="3.0", default-features = false }
+sp-inherents = { version="3.0", default-features = false }
+sp-consensus-pow = { version="0.9", default-features = false }
+frame-support = { version="3.0", default-features = false }
+frame-system = { version="3.0", default-features = false }
+
+# Benchmarking
+frame-benchmarking = { version="3.0", default-features = false, optional = true }
+
+[dev-dependencies]
+sp-core = { version="3.0", default-features = false }
+sp-io = { version="3.0", default-features = false }
+pallet-balances = { version="3.0", default-features = false }
+
+[features]
+default = ["std"]
+std = [
+	"serde",
+	"codec/std",
+	"sp-runtime/std",
+	"sp-std/std",
+	"sp-inherents/std",
+	"sp-consensus-pow/std",
+	"frame-support/std",
+	"frame-system/std",
+]
+runtime-benchmarks = [
+	"frame-benchmarking",
+	"frame-support/runtime-benchmarks",
+]

@@ -41,5 +41,8 @@ members = [
 	"consensus/poscan",
 	"pallets/poscan",
 	"primitives/consensus/poscan",
+
+	"frame/rewards",
+	"frame/lockdrop",
 ]
 librocksdb-sys = "6.17.3"

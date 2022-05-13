@@ -2686,6 +2686,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "kulupu-primitives"
+version = "2.8.0"
+dependencies = [
+ "parity-scale-codec 2.3.1",
+ "sp-api",
+ "sp-core",
+]
+
+[[package]]
 name = "kv-log-macro"
 version = "1.0.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3502,16 +3511,25 @@ dependencies = [
  "frame-executive",
  "frame-support",
  "frame-system",
+ "kulupu-primitives",
  "pallet-balances",
+ "pallet-bounties",
+ "pallet-collective",
+ "pallet-difficulty",
  "pallet-grandpa",
+ "pallet-lockdrop",
  "pallet-poscan",
  "pallet-randomness-collective-flip",
+ "pallet-rewards",
  "pallet-sudo",
  "pallet-timestamp",
  "pallet-transaction-payment",
+ "pallet-treasury",
  "parity-scale-codec 2.3.1",
  "serde",
+ "smallvec 1.6.1",
  "sp-api",
+ "sp-arithmetic",
  "sp-block-builder",
  "sp-consensus-poscan",
  "sp-core",
@@ -3524,6 +3542,7 @@ dependencies = [
  "sp-std",
  "sp-transaction-pool",
  "sp-version",
+ "static_assertions",
  "substrate-wasm-builder",
 ]
 
@@ -3998,6 +4017,53 @@ dependencies = [
 ]
 
 [[package]]
+name = "pallet-bounties"
+version = "3.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b0e6b704c712d51d146baa9fc0215a23215d222b8deab7c3270eb51ff2a09d1d"
+dependencies = [
+ "frame-support",
+ "frame-system",
+ "pallet-treasury",
+ "parity-scale-codec 2.3.1",
+ "serde",
+ "sp-runtime",
+ "sp-std",
+]
+
+[[package]]
+name = "pallet-collective"
+version = "3.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "fe826f3bfb984b3dd8d6675d7d156ba4c0877ee562bf59d86a4e805b7737dcb1"
+dependencies = [
+ "frame-support",
+ "frame-system",
+ "parity-scale-codec 2.3.1",
+ "serde",
+ "sp-core",
+ "sp-io",
+ "sp-runtime",
+ "sp-std",
+]
+
+[[package]]
+name = "pallet-difficulty"
+version = "2.8.0"
+dependencies = [
+ "frame-support",
+ "frame-system",
+ "kulupu-primitives",
+ "pallet-timestamp",
+ "parity-scale-codec 2.3.1",
+ "serde",
+ "sp-core",
+ "sp-runtime",
+ "sp-std",
+ "sp-timestamp",
+]
+
+[[package]]
 name = "pallet-grandpa"
 version = "3.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4037,6 +4103,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "pallet-lockdrop"
+version = "2.8.0"
+dependencies = [
+ "frame-benchmarking",
+ "frame-support",
+ "frame-system",
+ "pallet-balances",
+ "parity-scale-codec 2.3.1",
+ "serde",
+ "sp-core",
+ "sp-io",
+ "sp-runtime",
+ "sp-std",
+]
+
+[[package]]
 name = "pallet-poscan"
 version = "0.0.1"
 dependencies = [
@@ -4058,6 +4140,24 @@ dependencies = [
  "frame-system",
  "parity-scale-codec 2.3.1",
  "safe-mix",
+ "sp-runtime",
+ "sp-std",
+]
+
+[[package]]
+name = "pallet-rewards"
+version = "2.8.0"
+dependencies = [
+ "frame-benchmarking",
+ "frame-support",
+ "frame-system",
+ "pallet-balances",
+ "parity-scale-codec 2.3.1",
+ "serde",
+ "sp-consensus-pow",
+ "sp-core",
+ "sp-inherents",
+ "sp-io",
  "sp-runtime",
  "sp-std",
 ]
@@ -4129,6 +4229,22 @@ dependencies = [
  "smallvec 1.6.1",
  "sp-core",
  "sp-io",
+ "sp-runtime",
+ "sp-std",
+]
+
+[[package]]
+name = "pallet-treasury"
+version = "3.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d19f881664d42d1c33dd67e690d6bddd35d38723fcc099b19304f9723fc3070c"
+dependencies = [
+ "frame-support",
+ "frame-system",
+ "impl-trait-for-tuples",
+ "pallet-balances",
+ "parity-scale-codec 2.3.1",
+ "serde",
  "sp-runtime",
  "sp-std",
 ]

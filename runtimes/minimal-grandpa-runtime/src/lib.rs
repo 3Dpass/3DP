@@ -13,32 +13,52 @@ include!(concat!(env!("OUT_DIR"), "/wasm_binary.rs"));
 // Include the genesis helper module when building to std
 #[cfg(feature = "std")]
 pub mod genesis;
+mod fee;
+mod weights;
 
-use frame_support::{
-	traits::KeyOwnerProofSystem,
-	weights::{
-		constants::{RocksDbWeight, WEIGHT_PER_SECOND},
-		IdentityFee,
-	},
-};
 use pallet_grandpa::{AuthorityId as GrandpaId, AuthorityList as GrandpaAuthorityList};
 use pallet_transaction_payment::CurrencyAdapter;
 use sp_api::impl_runtime_apis;
 use sp_core::{crypto::KeyTypeId, OpaqueMetadata, H256};
+use sp_core::u32_trait::{_1, _2, _4, _5};
 use sp_runtime::traits::{
 	BlakeTwo256, Block as BlockT, IdentifyAccount, IdentityLookup, NumberFor, Verify,
 };
 use sp_runtime::{
 	create_runtime_str, generic, impl_opaque_keys,
 	transaction_validity::{TransactionSource, TransactionValidity},
-	ApplyExtrinsicResult, MultiSignature,
+	ApplyExtrinsicResult, MultiSignature, ModuleId,
 };
 use sp_std::prelude::*;
+use sp_std::{
+	cmp,
+	cmp::{max, min},
+	collections::btree_map::BTreeMap,
+	// prelude::*,
+};
+use sp_arithmetic::Percent;
+// use pallet_balances::NegativeImbalance;
+use kulupu_primitives::{DOLLARS, CENTS, MILLICENTS, MICROCENTS, HOURS, DAYS, BLOCK_TIME, deposit};
+
 #[cfg(feature = "std")]
 use sp_version::NativeVersion;
 use sp_version::RuntimeVersion;
 
-use frame_support::{construct_runtime, parameter_types, traits::Randomness};
+// use frame_support::{construct_runtime, parameter_types, traits::Randomness};
+
+pub use frame_support::{
+	StorageValue, StorageMap, construct_runtime, parameter_types,
+	traits::{Currency, Randomness, LockIdentifier, OnUnbalanced, InstanceFilter, KeyOwnerProofSystem},
+
+	weights::{
+		Weight, RuntimeDbWeight, DispatchClass, IdentityFee,
+		constants::{
+			WEIGHT_PER_SECOND, BlockExecutionWeight, ExtrinsicBaseWeight, RocksDbWeight
+		},
+	},
+};
+
+
 #[cfg(any(feature = "std", test))]
 pub use sp_runtime::BuildStorage;
 pub use sp_runtime::{Perbill, Permill};
@@ -226,11 +246,6 @@ impl pallet_sudo::Config for Runtime {
 	type Call = Call;
 }
 
-impl pallet_poscan::Config for Runtime {
-	type Event = Event;
-	// type MaxBytesInHash = frame_support::traits::ConstU32<64>;
-}
-
 parameter_types! {
 	pub const TransactionByteFee: u128 = 1;
 }
@@ -240,6 +255,194 @@ impl pallet_transaction_payment::Config for Runtime {
 	type TransactionByteFee = TransactionByteFee;
 	type WeightToFee = IdentityFee<Balance>;
 	type FeeMultiplierUpdate = ();
+}
+
+parameter_types! {
+	pub const ProposalBond: Permill = Permill::from_percent(5);
+	pub const ProposalBondMinimum: Balance = 20 * DOLLARS;
+	pub const SpendPeriod: BlockNumber = 6 * DAYS;
+	pub const Burn: Permill = Permill::from_percent(1);
+	pub const TreasuryModuleId: ModuleId = ModuleId(*b"py/trsry");
+
+	pub const TipCountdown: BlockNumber = 1 * DAYS;
+	pub const TipFindersFee: Percent = Percent::from_percent(20);
+	pub const TipReportDepositBase: Balance = 1 * DOLLARS;
+	pub const DataDepositPerByte: Balance = 1 * CENTS;
+	pub const BountyDepositBase: Balance = 1 * DOLLARS;
+	pub const BountyDepositPayoutDelay: BlockNumber = 8 * DAYS;
+	pub const BountyUpdatePeriod: BlockNumber = 16 * DAYS;
+	pub const MaximumReasonLength: u32 = 16384;
+	pub const BountyCuratorDeposit: Permill = Permill::from_percent(50);
+	pub const BountyValueMinimum: Balance = 10 * DOLLARS;
+}
+
+impl treasury::Config for Runtime {
+	type Currency = Balances;
+	type ApproveOrigin = frame_system::EnsureOneOf<AccountId,
+		collective::EnsureProportionMoreThan<_4, _5, AccountId, CouncilCollective>,
+		frame_system::EnsureRoot<AccountId>,
+	>;
+	type RejectOrigin = frame_system::EnsureOneOf<AccountId,
+		collective::EnsureProportionMoreThan<_1, _2, AccountId, CouncilCollective>,
+		frame_system::EnsureRoot<AccountId>,
+	>;
+	type Event = Event;
+	type OnSlash = Treasury;
+	type ProposalBond = ProposalBond;
+	type ProposalBondMinimum = ProposalBondMinimum;
+	type SpendPeriod = SpendPeriod;
+	type SpendFunds = Bounties;
+	type Burn = Burn;
+	type BurnDestination = ();
+	type ModuleId = TreasuryModuleId;
+	type WeightInfo = ();
+}
+
+type NegativeImbalance = <Balances as Currency<AccountId>>::NegativeImbalance;
+
+pub struct DealWithFees;
+impl OnUnbalanced<NegativeImbalance> for DealWithFees {
+	fn on_unbalanceds<B>(mut fees_then_tips: impl Iterator<Item=NegativeImbalance>) {
+		if let Some(fees) = fees_then_tips.next() {
+			// Burn base fees.
+			drop(fees);
+			if let Some(tips) = fees_then_tips.next() {
+				// Pay tips to miners.
+				Author::on_unbalanced(tips);
+			}
+		}
+	}
+}
+
+parameter_types! {
+	pub const CouncilMotionDuration: BlockNumber = 3 * DAYS;
+	pub const CouncilMaxProposals: u32 = 100;
+	pub const CouncilMaxMembers: u32 = 100;
+}
+
+type CouncilCollective = collective::Instance1;
+impl collective::Config<CouncilCollective> for Runtime {
+	type Origin = Origin;
+	type Proposal = Call;
+	type Event = Event;
+	type MotionDuration = CouncilMotionDuration;
+	type MaxProposals = CouncilMaxProposals;
+	type MaxMembers = CouncilMaxMembers;
+	type DefaultVote = collective::MoreThanMajorityThenPrimeDefaultVote;
+	type WeightInfo = ();
+}
+
+parameter_types! {
+	pub const TechnicalMotionDuration: BlockNumber = 3 * DAYS;
+	pub const TechnicalMaxProposals: u32 = 100;
+	pub const TechnicalMaxMembers: u32 = 100;
+}
+
+type TechnicalCollective = collective::Instance2;
+impl collective::Config<TechnicalCollective> for Runtime {
+	type Origin = Origin;
+	type Proposal = Call;
+	type Event = Event;
+	type MotionDuration = TechnicalMotionDuration;
+	type MaxProposals = TechnicalMaxProposals;
+	type MaxMembers = TechnicalMaxMembers;
+	type DefaultVote = collective::PrimeDefaultVote;
+	type WeightInfo = ();
+}
+
+impl bounties::Config for Runtime {
+	type Event = Event;
+	type BountyDepositBase = BountyDepositBase;
+	type BountyDepositPayoutDelay = BountyDepositPayoutDelay;
+	type BountyUpdatePeriod = BountyUpdatePeriod;
+	type BountyCuratorDeposit = BountyCuratorDeposit;
+	type BountyValueMinimum = BountyValueMinimum;
+	type DataDepositPerByte = DataDepositPerByte;
+	type MaximumReasonLength = MaximumReasonLength;
+	type WeightInfo = ();
+}
+
+// PoScan -->
+impl pallet_poscan::Config for Runtime {
+	type Event = Event;
+	// type MaxBytesInHash = frame_support::traits::ConstU32<64>;
+}
+
+parameter_types! {
+	pub const TargetBlockTime: u64 = BLOCK_TIME;
+}
+
+impl difficulty::Config for Runtime {
+	type TargetBlockTime = TargetBlockTime;
+}
+
+pub struct GenerateRewardLocks;
+
+impl rewards::GenerateRewardLocks<Runtime> for GenerateRewardLocks {
+	fn generate_reward_locks(
+		current_block: BlockNumber,
+		total_reward: Balance,
+		lock_parameters: Option<rewards::LockParameters>,
+	) -> BTreeMap<BlockNumber, Balance> {
+		let mut locks = BTreeMap::new();
+		let locked_reward = total_reward.saturating_sub(1 * DOLLARS);
+
+		if locked_reward > 0 {
+			let total_lock_period: BlockNumber;
+			let divide: BlockNumber;
+
+			if let Some(lock_parameters) = lock_parameters {
+				total_lock_period = u32::from(lock_parameters.period) * DAYS;
+				divide = u32::from(lock_parameters.divide);
+			} else {
+				total_lock_period = 100 * DAYS;
+				divide = 10;
+			}
+			for i in 0..divide {
+				let one_locked_reward = locked_reward / divide as u128;
+
+				let estimate_block_number =
+					current_block.saturating_add((i + 1) * (total_lock_period / divide));
+				let actual_block_number = estimate_block_number / DAYS * DAYS;
+
+				locks.insert(actual_block_number, one_locked_reward);
+			}
+		}
+
+		locks
+	}
+
+	fn max_locks(lock_bounds: rewards::LockBounds) -> u32 {
+		// Max locks when a miner mines at least one block every day till the lock period of
+		// the first mined block ends.
+		cmp::max(100, u32::from(lock_bounds.period_max))
+	}
+}
+
+parameter_types! {
+	pub DonationDestination: AccountId = Treasury::account_id();
+	pub const LockBounds: rewards::LockBounds = rewards::LockBounds {period_max: 500, period_min: 20,
+																	divide_max: 50, divide_min: 2};
+}
+
+impl rewards::Config for Runtime {
+	type Event = Event;
+	type Currency = Balances;
+	type DonationDestination = DonationDestination;
+	type GenerateRewardLocks = GenerateRewardLocks;
+	type WeightInfo = crate::weights::rewards::WeightInfo<Self>;
+	type LockParametersBounds = LockBounds;
+}
+
+pub struct Author;
+impl OnUnbalanced<NegativeImbalance> for Author {
+	fn on_nonzero_unbalanced(amount: NegativeImbalance) {
+		if let Some(author) = Rewards::author() {
+			Balances::resolve_creating(&author, amount);
+		} else {
+			drop(amount);
+		}
+	}
 }
 
 construct_runtime!(
@@ -255,9 +458,15 @@ construct_runtime!(
 		RandomnessCollectiveFlip: pallet_randomness_collective_flip::{Module, Call, Storage},
 		Sudo: pallet_sudo::{Module, Call, Config<T>, Storage, Event<T>},
 		TransactionPayment: pallet_transaction_payment::{Module, Storage},
+		Treasury: treasury::{Module, Call, Storage, Event<T>, Config},
+		Council: collective::<Instance1>::{Module, Call, Storage, Origin<T>, Event<T>, Config<T>},
+		TechnicalCommittee: collective::<Instance2>::{Module, Call, Storage, Origin<T>, Event<T>, Config<T>},
+		Bounties: bounties::{Module, Call, Storage, Event<T>},
 
 		PoScan: pallet_poscan::{Module, Call, Storage, Event<T>},
 		// PoScan: pallet_poscan::{Module},
+		Difficulty: difficulty::{Module, Call, Storage, Config},
+		Rewards: rewards::{Module, Call, Storage, Event<T>, Config<T>},
 	}
 );
 

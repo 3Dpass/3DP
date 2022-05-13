@@ -1,0 +1,35 @@
+[package]
+name = "pallet-difficulty"
+version = "2.8.0"
+authors = ["Wei Tang <wei@that.world>"]
+license = "GPL-3.0-or-later"
+edition = "2018"
+description = "Difficulty adjustment module for Kulupu."
+
+[dependencies]
+serde = { version = "1.0.101", optional = true }
+codec = { package = "parity-scale-codec", version = "2.0.1", default-features = false, features = ["derive"] }
+sp-std = { version="3.0", default-features = false }
+sp-core = { version="3.0", default-features = false }
+sp-runtime = { version="3.0", default-features = false }
+sp-timestamp = { version="3.0", default-features = false }
+frame-system = { version="3.0", default-features = false }
+frame-support = { version="3.0", default-features = false }
+pallet-timestamp = { version="3.0", default-features = false }
+
+kulupu-primitives = { path = "../../primitives/consensus/kulupu", default-features = false }
+
+[features]
+default = ["std"]
+std = [
+	"serde",
+	"codec/std",
+	"sp-std/std",
+	"sp-core/std",
+	"sp-runtime/std",
+	"sp-timestamp/std",
+	"frame-system/std",
+	"frame-support/std",
+	"pallet-timestamp/std",
+	"kulupu-primitives/std",
+]
