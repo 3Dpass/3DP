@@ -57,7 +57,7 @@ sp-transaction-pool = '3.0'
 # parity-scale-codec = '2.0'
 
 # local packages
-runtime = { package = "minimal-grandpa-runtime", path = "../../runtimes/minimal-grandpa-runtime"}
+runtime = { package = "poscan-runtime", path = "../../runtimes/poscan-runtime" }
 sha3pow = { path = '../../consensus/sha3pow' }
 sc-consensus-poscan = { version = '0.9', path = "../../consensus/poscan" }
 sp-consensus-poscan = { version = '0.9', path = "../../primitives/consensus/poscan" }
