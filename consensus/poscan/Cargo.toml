@@ -23,6 +23,7 @@ sp-block-builder = { version = "3.0.0" }
 sp-inherents = { version = "3.0.0" }
 sp-consensus-poscan = { version = "0.9.0", package = "sp-consensus-poscan", path = "../../primitives/consensus/poscan" }
 sp-consensus = { version = "0.9.0" }
+sp-application-crypto = { version = "3.0.0" }
 # frame-support = { version = "3.0" }
 # frame-system = { version = "3.0" }
 log = "0.4.8"

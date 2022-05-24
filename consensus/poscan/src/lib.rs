@@ -67,6 +67,14 @@ use sp_timestamp::{InherentError as TIError, TimestampInherentData};
 
 use crate::worker::UntilImportedOrTimeout;
 
+pub mod app {
+	use sp_application_crypto::{app_crypto, sr25519};
+	use sp_core::crypto::KeyTypeId;
+
+	pub const ID: KeyTypeId = KeyTypeId(*b"posc");
+	app_crypto!(sr25519, ID);
+}
+
 #[derive(derive_more::Display, Debug)]
 pub enum Error<B: BlockT> {
 	#[display(fmt = "Header uses the wrong engine {:?}", _0)]
@@ -355,6 +363,7 @@ impl<B, I, C, S, Algorithm, CAW> BlockImport<B> for PowBlockImport<B, I, C, S, A
 		let best_hash = best_header.hash();
 
 		let parent_hash = *block.header.parent_hash();
+		info!(">>> parent_hash: {:x?}", &parent_hash);
 		let best_aux = PowAux::read::<_, B>(self.client.as_ref(), &best_hash)?;
 		let mut aux = PowAux::read::<_, B>(self.client.as_ref(), &parent_hash)?;
 
@@ -375,13 +384,35 @@ impl<B, I, C, S, Algorithm, CAW> BlockImport<B> for PowBlockImport<B, I, C, S, A
 			block.body = Some(check_block.deconstruct().1);
 		}
 
-		let inner_seal = fetch_seal::<B>(block.post_digests.get(0), block.header.hash())?;
-		let pscan_hashes = fetch_seal::<B>(block.post_digests.get(1), block.header.hash())?;
-		let pscan_obj = fetch_seal::<B>(block.post_digests.get(2), block.header.hash())?;
+		let ll = block.post_digests.len();
+		info!(">>> block.post_digests.len() = {}", &ll);
 
-		info!(">>> seal from header len: {}", &inner_seal.len());
+		let mut dpos: usize = 0;
+		let pre_digest;
+		if ll == 4 {
+			pre_digest = fetch_seal::<B>(block.post_digests.get(dpos), block.header.hash())?;
+			info!(">>> hz len: {}", pre_digest.len());
+			info!(">>> hz: {:x?}", pre_digest);
+			dpos += 1;
+		}
+		else {
+			pre_digest = find_pre_digest::<B>(&block.header)?.unwrap(); // .as_ref().map(|v| &v[..]);
+
+		}
+
+
+		let inner_seal = fetch_seal::<B>(block.post_digests.get(dpos), block.header.hash())?;
+		info!(">>> seal from header len: {}", inner_seal.len());
+
+		let pscan_hashes = fetch_seal::<B>(block.post_digests.get(dpos + 1), block.header.hash())?;
 		info!(">>> seal hashes: {:x?}", &pscan_hashes);
+		info!(">>> seal hashes len: {:x?}", pscan_hashes.len());
+
+		let pscan_obj = fetch_seal::<B>(block.post_digests.get(dpos + 2), block.header.hash())?;
 		info!(">>> pscan_obj len: {}", pscan_obj.len());
+
+		// let hz = fetch_seal::<B>(block.post_digests.get(3), block.header.hash())?;
+		// info!(">>> hz len: {}", hz.len());
 
 		let hs: Vec<H256> = pscan_hashes.chunks(32).map(|h| H256::from_slice(h)).collect();
 		for i in hs.iter() {
@@ -402,15 +433,18 @@ impl<B, I, C, S, Algorithm, CAW> BlockImport<B> for PowBlockImport<B, I, C, S, A
 		};
 
 		let pre_hash = block.header.hash();
-		let pre_digest = find_pre_digest::<B>(&block.header)?;
+		info!("--- pre_hash: {:x?}", &pre_hash);
+
+		// let pre_digest = find_pre_digest::<B>(&block.header)?;
 		if !self.algorithm.verify(
 			&BlockId::hash(parent_hash),
 			&pre_hash,
-			pre_digest.as_ref().map(|v| &v[..]),
+			Some(pre_digest.as_slice()),
 			&inner_seal,
 			difficulty,
 			&psdata,
 		)? {
+			error!(">>> InvalidSeal after self.algorithm.verify");
 			return Err(Error::<B>::InvalidSeal.into())
 		}
 
@@ -426,11 +460,11 @@ impl<B, I, C, S, Algorithm, CAW> BlockImport<B> for PowBlockImport<B, I, C, S, A
 							let n = h.digest().logs().len();
 							info!(">>> parent hash digest len: {}", n);
 							if n >= 3 {
-								let di = h.digest().logs()[1].clone();
+								let di = h.digest().logs()[2].clone();
 								if let DigestItem::Other(v) = di {
 									let hashes: Vec<H256> = v.chunks(32).map(|h| H256::from_slice(h)).collect();
-									for hh in hashes.iter() {
-										if hs.contains(hh) {
+									for hh in hashes[..1].iter() {
+										if hs[..1].contains(hh) {
 											info!(">>>>>> duplicated hash found");
 											info!(">>>>>> {:x?}", hs);
 											info!(">>>>>> {:x?}", hashes);
@@ -506,24 +540,35 @@ impl<B: BlockT, Algorithm> PowVerifier<B, Algorithm> {
 		let mut digests: Vec<DigestItem<B::Hash>> = Vec::new();
 		let n = header.digest().logs().len();
 		info!(">>> digests len {}", n);
+		let mut pre_run: Option<DigestItem<_>> = None;
 		for _ in 0..n {
 			match header.digest_mut().pop() {
 				Some(DigestItem::Seal(id, seal)) => {
 					if id == POSCAN_ENGINE_ID {
-						info!(">>> Header in check_header ok");
+						info!(">>> Header in check_header: Seal");
 						digests.push(DigestItem::Seal(id, seal.clone()))
 					} else {
 						return Err(Error::WrongEngine(id))
 					}
 				},
 				Some(DigestItem::Other(item)) => {
+					info!(">>> Header in check_header: Other");
 					digests.push(DigestItem::Other(item.clone()))
+				},
+				Some(DigestItem::PreRuntime(id, pre_runtime)) => {
+					info!(">>> Header in check_header: PreRuntime");
+					pre_run = Some(DigestItem::PreRuntime(id, pre_runtime.clone()));
+					digests.push(DigestItem::PreRuntime(id, pre_runtime.clone()))
 				},
 				_ => {
 					error!(">>> Header unsealed in check_header");
 					return Err(Error::HeaderUnsealed(hash))
 				},
 			};
+		}
+
+		if let Some(r) = pre_run {
+			header.digest_mut().push(r);
 		}
 
 		// let pre_hash = header.hash();
@@ -547,11 +592,13 @@ impl<B: BlockT, Algorithm> Verifier<B> for PowVerifier<B, Algorithm> where
 		justification: Option<Justification>,
 		body: Option<Vec<B::Extrinsic>>,
 	) -> Result<(BlockImportParams<B, ()>, Option<Vec<(CacheKeyId, Vec<u8>)>>), String> {
-		let hash = header.hash();
+		let post_hash = header.hash();
 		let (checked_header, items) = self.check_header(header)?;
-		let seal = items[0].clone();
+		let hash = checked_header.hash();
+		let pre_runtime = items[3].clone();
+		let seal = items[2].clone();
 		let poscan_hashes = items[1].clone();
-		let poscan_obj = items[2].clone();
+		let poscan_obj = items[0].clone();
 
 		let intermediate = PowIntermediate::<Algorithm::Difficulty> {
 			difficulty: None,
@@ -565,16 +612,17 @@ impl<B: BlockT, Algorithm> Verifier<B> for PowVerifier<B, Algorithm> where
 			_ => {}
 		}
 
-		import_block.post_digests.push(poscan_obj);
-		import_block.post_digests.push(poscan_hashes);
+		// import_block.post_digests.push(pre_runtime);
 		import_block.post_digests.push(seal);
+		import_block.post_digests.push(poscan_hashes);
+		import_block.post_digests.push(poscan_obj);
 		import_block.body = body;
 		import_block.justification = justification;
 		import_block.intermediates.insert(
 			Cow::from(INTERMEDIATE_KEY),
 			Box::new(intermediate) as Box<dyn Any>
 		);
-		import_block.post_hash = Some(hash);
+		// import_block.post_hash = Some(post_hash);
 
 		Ok((import_block, None))
 	}
@@ -822,7 +870,7 @@ fn fetch_seal<B: BlockT>(
 	match digest {
 		Some(DigestItem::Seal(id, seal)) => {
 			if id == &POSCAN_ENGINE_ID {
-				info!(">>> Header sealed ok in fetch_seal");
+				info!(">>> Header sealed ok in fetch_seal (Seal)");
 				Ok(seal.clone())
 			} else {
 				return Err(Error::<B>::WrongEngine(*id).into())
@@ -830,6 +878,27 @@ fn fetch_seal<B: BlockT>(
 		},
 		Some(DigestItem::Other(item)) => {
 			Ok(item.clone())
+		},
+		Some(DigestItem::PreRuntime(id, pre_runtime)) => {
+			if id == &POSCAN_ENGINE_ID {
+				info!(">>> Header sealed ok in fetch_seal (PreRuntime)");
+				Ok(pre_runtime.clone())
+			}
+			else {
+				return Err(Error::<B>::WrongEngine(*id).into())
+			}
+		},
+		Some(DigestItem::ChangesTrieRoot(h)) => {
+			info!(">>> DigestItem::ChangesTrieRoot");
+			return Err(Error::<B>::HeaderUnsealed(hash).into())
+		},
+		Some(DigestItem::ChangesTrieSignal(h)) => {
+			info!(">>> DigestItem::ChangesTrieSignal");
+			return Err(Error::<B>::HeaderUnsealed(hash).into())
+		},
+		Some(DigestItem::Consensus(id, v)) => {
+			info!(">>> DigestItem::Consensus");
+			return Err(Error::<B>::HeaderUnsealed(hash).into())
 		},
 		_ => {
 			error!(">>> Header unsealed in fetch_seal");

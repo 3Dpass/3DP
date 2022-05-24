@@ -17,8 +17,14 @@
 use crate::chain_spec;
 use crate::cli::{Cli, Subcommand};
 use crate::service;
-use sc_cli::{ChainSpec, Role, RuntimeVersion, SubstrateCli};
-use sc_service::PartialComponents;
+
+use log::*;
+use sp_core::{hexdisplay::HexDisplay, crypto::{Pair, Ss58Codec, Ss58AddressFormat}};
+use sp_keystore::SyncCryptoStore;
+use sc_cli::{SubstrateCli, ChainSpec, Role, RuntimeVersion};
+use sc_service::{PartialComponents, config::KeystoreConfig};
+use sc_keystore::LocalKeystore;
+
 
 impl SubstrateCli for Cli {
 	fn impl_name() -> String {
@@ -131,12 +137,88 @@ pub fn run() -> sc_cli::Result<()> {
 				Ok((cmd.run(client, backend), task_manager))
 			})
 		}
+		Some(Subcommand::ImportMiningKey(cmd)) => {
+			let runner = cli.create_runner(cmd)?;
+			runner.sync_run(|config| {
+				let keystore = match &config.keystore {
+					KeystoreConfig::Path { path, password } => LocalKeystore::open(
+						path.clone(),
+						password.clone()
+					).map_err(|e| format!("Open keystore failed: {:?}", e))?,
+					KeystoreConfig::InMemory => LocalKeystore::in_memory(),
+				};
+
+				let pair = sc_consensus_poscan::app::Pair::from_string(
+					&cmd.suri,
+					None,
+				).map_err(|e| format!("Invalid seed: {:?}", e))?;
+
+				SyncCryptoStore::insert_unknown(
+					&keystore,
+					sc_consensus_poscan::app::ID,
+					&cmd.suri,
+					pair.public().as_ref(),
+				).map_err(|e| format!("Registering mining key failed: {:?}", e))?;
+
+
+
+				info!("Registered one mining key (public key 0x{}).",
+					  HexDisplay::from(&pair.public().as_ref()));
+
+				Ok(())
+			})
+		},
+		Some(Subcommand::GenerateMiningKey(cmd)) => {
+			let runner = cli.create_runner(cmd)?;
+			runner.sync_run(|config| {
+				let keystore = match &config.keystore {
+					KeystoreConfig::Path { path, password } => LocalKeystore::open(
+						path.clone(),
+						password.clone()
+					).map_err(|e| format!("Open keystore failed: {:?}", e))?,
+					KeystoreConfig::InMemory => {
+						info!(">>> in memory keystore");
+						LocalKeystore::in_memory()
+					},
+				};
+
+				let (pair, phrase, _) = sc_consensus_poscan::app::Pair::generate_with_phrase(None);
+
+				SyncCryptoStore::insert_unknown(
+					&keystore,
+					sc_consensus_poscan::app::ID,
+					&phrase,
+					pair.public().as_ref(),
+				).map_err(|e| format!("Registering mining key failed: {:?}", e))?;
+
+				info!("Generated one mining key.");
+
+				println!(
+					"Public key: 0x{}\nSecret seed: {}\nAddress: {}",
+					HexDisplay::from(&pair.public().as_ref()),
+					phrase,
+					// TODO: kulupu -> 3dp
+					pair.public().to_ss58check_with_version(Ss58AddressFormat::KulupuAccount),
+				);
+
+				let pair = keystore.key_pair::<sc_consensus_poscan::app::Pair>(
+					&pair.public(),
+				).map_err(|e|
+					format!("Unable to mine: fetch pair from author failed")
+				)?;
+
+				Ok(())
+			})
+		},
 		None => {
 			let runner = cli.create_runner(&cli.run)?;
 			runner.run_node_until_exit(|config| async move {
 				match config.role {
 					Role::Light => service::new_light(config),
-					_ => service::new_full(config),
+					_ => service::new_full(
+						config,
+						cli.author.as_ref().map(|s| s.as_str()),
+					),
 				}
 				.map_err(sc_cli::Error::Service)
 			})

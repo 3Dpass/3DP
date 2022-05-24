@@ -3,12 +3,13 @@ use sc_consensus_poscan::{Error, PoscanData, PowAlgorithm};
 use sha3::{Digest, Sha3_256};
 use sp_api::ProvideRuntimeApi;
 use sp_consensus_poscan::{DifficultyApi, Seal as RawSeal};
-use sp_core::{H256, U256};
+use sp_core::{H256, U256, crypto::Pair, hashing::blake2_256};
 use sp_runtime::generic::BlockId;
 use sp_runtime::traits::Block as BlockT;
 use std::sync::Arc;
 // use frame_support::sp_runtime::print as prn;
 // use frame_support::runtime_print;
+use sc_consensus_poscan::app;
 
 /// Determine whether the given hash satisfies the given difficulty.
 /// The test is done by multiplying the two together. If the product
@@ -29,6 +30,7 @@ pub struct Seal {
 	pub work: H256,
 	// pub nonce: U256,
 	pub poscan_hash: H256,
+	pub signature: app::Signature,
 }
 
 /// A not-yet-computed attempt to solve the proof of work. Calling the
@@ -42,15 +44,56 @@ pub struct Compute {
 }
 
 impl Compute {
-	pub fn compute(self) -> Seal {
+	// pub fn compute(self, ) -> Seal {
+	// 	let work = H256::from_slice(Sha3_256::digest(&self.encode()[..]).as_slice());
+	//
+	// 	Seal {
+	// 		difficulty: self.difficulty,
+	// 		work,
+	// 		poscan_hash: self.poscan_hash,
+	//
+	// 	}
+	// }
+
+	pub fn seal(&self, signature: app::Signature) -> Seal {
 		let work = H256::from_slice(Sha3_256::digest(&self.encode()[..]).as_slice());
 
 		Seal {
-			poscan_hash: self.poscan_hash,
 			difficulty: self.difficulty,
 			work,
+			poscan_hash: self.poscan_hash,
+			signature,
 		}
 	}
+
+	fn signing_message(&self) -> [u8; 32] {
+		let calculation = Self {
+			difficulty: self.difficulty,
+			pre_hash: self.pre_hash,
+			poscan_hash: self.poscan_hash,
+		};
+
+		blake2_256(&calculation.encode()[..])
+	}
+
+	pub fn sign(&self, pair: &app::Pair) -> app::Signature {
+		let hash = self.signing_message();
+		pair.sign(&hash[..])
+	}
+
+	pub fn verify(
+		&self,
+		signature: &app::Signature,
+		public: &app::Public,
+	) -> bool {
+		let hash = self.signing_message();
+		app::Pair::verify(
+			signature,
+			&hash[..],
+			public,
+		)
+	}
+
 }
 
 #[derive(Clone, PartialEq, Eq, Encode, Decode, Debug)]
@@ -294,7 +337,7 @@ impl<B: BlockT<Hash = H256>> PowAlgorithm<B> for PoscanAlgorithm
 		&self,
 		_parent: &BlockId<B>,
 		pre_hash: &H256,
-		_pre_digest: Option<&[u8]>,
+		pre_digest: Option<&[u8]>,
 		seal: &RawSeal,
 		difficulty: Self::Difficulty,
 		poscan_data: &PoscanData,
@@ -322,9 +365,39 @@ impl<B: BlockT<Hash = H256>> PowAlgorithm<B> for PoscanAlgorithm
 			poscan_hash: seal.poscan_hash,
 		};
 
-		if compute.compute() != seal {
+		if compute.seal(seal.signature.clone()) != seal {
 			info!(">>> verify: compute.compute() != seal");
 			return Ok(false);
+		}
+
+		let pre_digest = match pre_digest {
+			Some(pre_digest) => pre_digest,
+			None => {
+				info!(">>> verify: no pre_digest");
+				return Ok(false)
+			},
+		};
+
+		let author = match app::Public::decode(&mut &pre_digest[..]) {
+			Ok(author) => author,
+			Err(_) => {
+				info!(">>> verify: decode author failed");
+				return Ok(false)
+			},
+		};
+
+
+		if !compute.verify(&seal.signature, &author) {
+			use sp_core::Public;
+			info!(">>> pre_hash: {:x?}", &compute.pre_hash);
+			info!(">>> seal.difficulty: {}", &seal.difficulty);
+			info!(">>> seal.work: {}", &seal.work);
+			info!(">>> seal.poscan_hash: {}", &seal.poscan_hash);
+			info!(">>> seal signature is {:x?}", &seal.signature.to_vec());
+
+			info!(">>> verify: miner signature is invalid");
+			info!(">>> verify: miner author is {:x?}", &author.to_raw_vec());
+			return Ok(false)
 		}
 
 		// verify poscan
@@ -346,7 +419,10 @@ use std::str::FromStr;
 pub fn get_obj_hashes(data: &Vec<u8>) -> Vec<H256> {
 	let mut buf: Vec<H256> = Vec::new();
 	// TODO: pass params as args
-	let res = p3d::p3d_process(data, p3d::AlgoType::Grid2d, 8i16, 50i16 );
+
+	info!(">>> obj len={}", data.len());
+
+	let res = p3d::p3d_process(data, p3d::AlgoType::Grid2d, 6, 2 );
 
 	match res {
 		Ok(v) => {
