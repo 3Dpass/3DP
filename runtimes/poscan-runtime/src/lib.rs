@@ -32,13 +32,12 @@ use sp_runtime::{
 use sp_std::prelude::*;
 use sp_std::{
 	cmp,
-	cmp::{max, min},
 	collections::btree_map::BTreeMap,
 	// prelude::*,
 };
 use sp_arithmetic::Percent;
 // use pallet_balances::NegativeImbalance;
-use kulupu_primitives::{DOLLARS, CENTS, MILLICENTS, MICROCENTS, HOURS, DAYS, BLOCK_TIME, deposit};
+use sp_consensus_poscan::{DOLLARS, CENTS, DAYS, BLOCK_TIME};
 
 #[cfg(feature = "std")]
 use sp_version::NativeVersion;

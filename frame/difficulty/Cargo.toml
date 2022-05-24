@@ -16,8 +16,7 @@ sp-timestamp = { version="3.0", default-features = false }
 frame-system = { version="3.0", default-features = false }
 frame-support = { version="3.0", default-features = false }
 pallet-timestamp = { version="3.0", default-features = false }
-
-kulupu-primitives = { path = "../../primitives/consensus/kulupu", default-features = false }
+sp-consensus-poscan = { path = "../../primitives/consensus/poscan", default-features = false }
 
 [features]
 default = ["std"]
@@ -31,5 +30,5 @@ std = [
 	"frame-system/std",
 	"frame-support/std",
 	"pallet-timestamp/std",
-	"kulupu-primitives/std",
+	"sp-consensus-poscan/std",
 ]

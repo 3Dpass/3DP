@@ -40,7 +40,6 @@ pallet-poscan = { path = "../../pallets/poscan", default-features = false }
 difficulty = { package = "pallet-difficulty", path = "../../frame/difficulty", default-features = false }
 rewards = { package = "pallet-rewards", path = "../../frame/rewards", default-features = false }
 lockdrop = { package = "pallet-lockdrop", path = "../../frame/lockdrop", default-features = false }
-kulupu-primitives = { path = "../../primitives/consensus/kulupu", default-features = false }
 treasury = { package = "pallet-treasury", version="3.0", default-features = false }
 collective = { package = "pallet-collective",version="3.0", default-features = false }
 bounties = { package = "pallet-bounties", version="3.0", default-features = false }

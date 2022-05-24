@@ -1,5 +1,5 @@
 [package]
-name = 'sha3pow'
+name = 'poscan-grid2d'
 version = "3.0.0"
 edition = '2018'
 authors = ['Substrate DevHub <https://github.com/substrate-developer-hub>']

@@ -2525,15 +2525,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "kulupu-primitives"
-version = "2.8.0"
-dependencies = [
- "parity-scale-codec 2.3.1",
- "sp-api",
- "sp-core",
-]
-
-[[package]]
 name = "kv-log-macro"
 version = "1.0.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3820,10 +3811,10 @@ version = "2.8.0"
 dependencies = [
  "frame-support",
  "frame-system",
- "kulupu-primitives",
  "pallet-timestamp",
  "parity-scale-codec 2.3.1",
  "serde",
+ "sp-consensus-poscan",
  "sp-core",
  "sp-runtime",
  "sp-std",
@@ -4485,6 +4476,7 @@ dependencies = [
  "log",
  "pallet-poscan",
  "parking_lot 0.9.0",
+ "poscan-grid2d",
  "poscan-runtime",
  "sc-basic-authorship",
  "sc-cli",
@@ -4499,7 +4491,6 @@ dependencies = [
  "sc-rpc-api",
  "sc-service",
  "sc-transaction-pool",
- "sha3pow",
  "sp-api",
  "sp-block-builder",
  "sp-blockchain",
@@ -4523,13 +4514,28 @@ dependencies = [
 ]
 
 [[package]]
+name = "poscan-grid2d"
+version = "3.0.0"
+dependencies = [
+ "log",
+ "p3d",
+ "parity-scale-codec 2.3.1",
+ "rand 0.8.3",
+ "sc-consensus-poscan",
+ "sha3",
+ "sp-api",
+ "sp-consensus-poscan",
+ "sp-core",
+ "sp-runtime",
+]
+
+[[package]]
 name = "poscan-runtime"
 version = "3.0.0"
 dependencies = [
  "frame-executive",
  "frame-support",
  "frame-system",
- "kulupu-primitives",
  "pallet-balances",
  "pallet-bounties",
  "pallet-collective",
@@ -6353,22 +6359,6 @@ dependencies = [
  "digest 0.9.0",
  "keccak",
  "opaque-debug 0.3.0",
-]
-
-[[package]]
-name = "sha3pow"
-version = "3.0.0"
-dependencies = [
- "log",
- "p3d",
- "parity-scale-codec 2.3.1",
- "rand 0.8.3",
- "sc-consensus-poscan",
- "sha3",
- "sp-api",
- "sp-consensus-poscan",
- "sp-core",
- "sp-runtime",
 ]
 
 [[package]]

@@ -33,11 +33,11 @@ fn decode_hex(buf: &[u8]) -> Result<Vec<u8>, ParseIntError> {
 
 #[frame_support::pallet]
 pub mod pallet {
-	use frame_support::pallet_prelude::*;
+	// use frame_support::pallet_prelude::*;
     use frame_system::pallet_prelude::*;
 	use frame_support::{dispatch::DispatchResultWithPostInfo, pallet_prelude::*};
 	use sp_std::vec::Vec;
-	use frame_support::sp_runtime::print as prn;
+	// use frame_support::sp_runtime::print as prn;
 	// use frame_support::runtime_print;
 	// use crate::{DEQUE, MiningProposal};
 	use super::decode_hex;
@@ -89,7 +89,7 @@ pub mod pallet {
 	impl<T: Config> Pallet<T> {
 		#[pallet::weight(1_000_000_000)]
 		pub fn put_mining_object(
-			origin: OriginFor<T>,
+			_origin: OriginFor<T>,
 			proof: Vec<u8>,
 		) -> DispatchResultWithPostInfo {
 			// Check that the extrinsic was signed and get the signer.

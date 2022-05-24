@@ -1,8 +1,5 @@
-use log::*;
 use jsonrpc_core::Result;
 use jsonrpc_derive::rpc;
-use sp_std::vec::Vec;
-// use sp_core::Bytes;
 extern crate alloc;
 use alloc::string::String;
 use crate::service::{MiningProposal, DEQUE};
@@ -22,7 +19,7 @@ pub trait PoscanMiningRpc {
 pub struct MiningRpc;
 
 impl PoscanMiningRpc for MiningRpc {
-	fn push(&self, obj_id: u64, obj: String) -> Result<u64> {
+	fn push(&self, _obj_id: u64, obj: String) -> Result<u64> {
 		let mut lock = DEQUE.lock();
 		if lock.len() >= MAX_QUEUE_LEN {
 			return Ok(RES_QUEUE_FULL)

@@ -54,13 +54,10 @@ sp-runtime = '3.0'
 sp-timestamp = '3.0'
 sp-transaction-pool = '3.0'
 sp-keystore = '0.9'
-# frame-system = '3.0'
-# frame-support = '3.0'
-# parity-scale-codec = '2.0'
 
 # local packages
 runtime = { package = "poscan-runtime", path = "../../runtimes/poscan-runtime" }
-sha3pow = { path = '../../consensus/sha3pow' }
+poscan-grid2d = { path = '../../consensus/poscan_grid2d' }
 sc-consensus-poscan = { version = '0.9', path = "../../consensus/poscan" }
 sp-consensus-poscan = { version = '0.9', path = "../../primitives/consensus/poscan" }
 pallet-poscan = { path = "../../pallets/poscan", default-features = false }

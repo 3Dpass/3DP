@@ -201,9 +201,9 @@ pub fn run() -> sc_cli::Result<()> {
 					pair.public().to_ss58check_with_version(Ss58AddressFormat::KulupuAccount),
 				);
 
-				let pair = keystore.key_pair::<sc_consensus_poscan::app::Pair>(
+				let _pair = keystore.key_pair::<sc_consensus_poscan::app::Pair>(
 					&pair.public(),
-				).map_err(|e|
+				).map_err(|_e|
 					format!("Unable to mine: fetch pair from author failed")
 				)?;
 

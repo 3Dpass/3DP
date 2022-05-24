@@ -28,7 +28,7 @@ members = [
 	"pallets/weights",
 	"runtimes/poscan-runtime",
 	"nodes/poscan-consensus",
-	"consensus/sha3pow",
+    "consensus/poscan_grid2d",
 	"traits/account-set",
 	"consensus/poscan",
 	"pallets/poscan",

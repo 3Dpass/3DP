@@ -1,15 +1,15 @@
 //! Service and ServiceFactory implementation. Specialized wrapper over substrate service.
 #![allow(clippy::needless_borrow)]
 use runtime::{self, opaque::Block, RuntimeApi};
-use sc_client_api::{BlockBackend, ExecutorProvider, RemoteBackend};
+use sc_client_api::{ExecutorProvider, RemoteBackend};
 use sc_executor::native_executor_instance;
 pub use sc_executor::NativeExecutor;
 use sc_finality_grandpa::GrandpaBlockImport;
 use sc_service::{error::Error as ServiceError, Configuration, PartialComponents, TaskManager};
-use sha3pow::*;
+use poscan_grid2d::*;
 use sp_api::TransactionFor;
 use sp_consensus::import_queue::BasicQueue;
-use sp_core::{Encode, Decode, U256, H256};
+use sp_core::{Encode, Decode, H256};
 use sp_inherents::InherentDataProviders;
 use std::sync::Arc;
 use std::thread;
@@ -151,7 +151,7 @@ pub fn new_partial(
 	let pow_block_import = sc_consensus_poscan::PowBlockImport::new(
 		grandpa_block_import,
 		client.clone(),
-		sha3pow::PoscanAlgorithm, //::new(client.clone()),
+		poscan_grid2d::PoscanAlgorithm, //::new(client.clone()),
 		0, // check inherents starting at block 0
 		select_chain.clone(),
 		inherent_data_providers.clone(),
@@ -161,7 +161,7 @@ pub fn new_partial(
 	let import_queue = sc_consensus_poscan::import_queue(
 		Box::new(pow_block_import.clone()),
 		None,
-		sha3pow::PoscanAlgorithm, //::new(client.clone()),
+		poscan_grid2d::PoscanAlgorithm, //::new(client.clone()),
 		inherent_data_providers.clone(),
 		&task_manager.spawn_handle(),
 		config.prometheus_registry(),
@@ -179,39 +179,6 @@ pub fn new_partial(
 		other: (pow_block_import, grandpa_link),
 	})
 }
-
-// use sha3pow::Module;
-// use sha3pow::TT;
-//pub trait Trait: sha3pow::Trait {}
-
-
-// use frame_support::{decl_module, decl_storage};
-// // use codec::{Decode, Encode};
-//
-// // }
-//
-// // #[derive(Encode, Decode, Default)] // , RuntimeDebug)]
-// // pub struct Obj3d<Hash, Obj> {
-// // 	pub hash: Hash,
-// // 	pub obj: Obj,
-//
-// pub trait Config: frame_system::Config {}
-//
-// decl_storage! {
-//     trait Store for Module<T: Config> as ObjModule {
-//         /// The storage item for our proofs.
-// 		/// It maps a proof to the user who made the claim and when they made it.
-//         // Objs: map hasher(blake2_128_concat) Vec<u8> => (T::AccountId, T::BlockNumber);
-//         Objs: map hasher(blake2_128_concat) U256 => Vec<u8>;
-//     }
-// }
-//
-// decl_module! {
-// 		pub struct Module<T: Config> for enum Call where origin: T::Origin {
-// 		}
-// 	}
-
-
 
 /// Builds a new service for a full client.
 pub fn new_full(
@@ -326,16 +293,10 @@ pub fn new_full(
 			.spawn_blocking("pow", worker_task);
 
 		// Start Mining
-		// let mut nonce: U256 = U256::from(0);
 		let	mut poscan_data: Option<PoscanData> = None;
 		let mut poscan_hash: H256 = H256::random();
 
-
 		let pre_digest = author.encode();
-		// let pre_digest = pre_digest.ok_or(Err(ServiceError::Other(
-		// 	"Unable to mine: pre-digest not set".to_string(),
-		// )))?;
-
 		let author = sc_consensus_poscan::app::Public::decode(&mut &pre_digest[..]).map_err(|_| {
 			ServiceError::Other(
 				"Unable to mine: author pre-digest decoding failed".to_string(),
@@ -354,11 +315,9 @@ pub fn new_full(
 		).map_err(|_| ServiceError::Other(
 			"Unable to mine: fetch pair from author failed".to_string(),
 		))?;
-
 		// .ok_or(ServiceError::Other(
 		// 	"Unable to mine: key not found in keystore".to_string(),
 		// ))?;
-
 
 		debug!(target:"poscan", ">>> Spawn mining loop");
 
@@ -377,19 +336,7 @@ pub fn new_full(
 				let signature = compute.sign(&pair);
 				let seal = compute.seal(signature.clone());
 				if hash_meets_difficulty(&seal.work, seal.difficulty) {
-					// nonce = U256::from(0);
 					let mut worker = worker.lock();
-
-					// let v = vec![1, 2, 3];
-					// metadata.obj = v;
-					// // Objs::insert(nonce, v);
-					// <Module<Configuration>>::put_obj(&nonce, v);
-
-					// let b = BlockId::Hash(parent_hash);
-					// let at = runtime::block_num();
-
-					// let at = client.runtime_api();
-					// let _i = client.runtime_api().get_obj(1);
 
 					if let Some(ref psdata) = poscan_data {
 						// let _ = psdata.encode();
@@ -401,19 +348,9 @@ pub fn new_full(
 						worker.submit(seal.encode(), &psdata);
 					}
 				} else {
-					// nonce = nonce.saturating_add(U256::from(1));
-					// if nonce == U256::MAX {
-					// 	nonce = U256::from(0);
-					// }
-
 					let mut lock = DEQUE.lock();
 					let maybe_mining_prop = (*lock).pop_front();
-					// if maybe_mining_prop.is_none() {
-					// 	info!(">>> Queue is empty. Use hardcoded");
-					// 	maybe_mining_prop = Some(MiningProposal { a: 1, pre_obj: get_debug_obj() });
-					// }
 					if let Some(mp) = maybe_mining_prop {
-						// info!(">>> Object recieved in minig cycle");
 						let hashes = get_obj_hashes(&mp.pre_obj);
 						if hashes.len() > 0 {
 							let obj_hash = hashes[0];
@@ -425,7 +362,7 @@ pub fn new_full(
 						else {
 							warn!(">>> Empty hash set for obj {}", mp.id);
 						}
-						thread::sleep(Duration::new(1, 0));
+						// thread::sleep(Duration::new(1, 0));
 					}
 					else {
 						thread::sleep(Duration::new(1, 0));

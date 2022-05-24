@@ -1,13 +1,8 @@
 #![warn(missing_docs)]
 
 use std::sync::Arc;
-
-use futures::channel::mpsc::Sender;
-use runtime::{opaque::Block, Hash};
-// use sc_consensus_manual_seal::{
-// 	rpc::{ManualSeal, ManualSealApi},
-// 	EngineCommand,
-// };
+// use futures::channel::mpsc::Sender;
+use runtime::opaque::Block;
 use crate::mining_rpc::PoscanMiningRpc;
 pub use sc_rpc_api::DenyUnsafe;
 use sp_api::ProvideRuntimeApi;
@@ -24,7 +19,7 @@ pub struct FullDeps<C, P> {
 	/// Whether to deny unsafe calls
 	pub deny_unsafe: DenyUnsafe,
 	// /// A command stream to send authoring commands to manual seal consensus engine
-	// pub command_sink: Sender<EngineCommand<Hash>>,
+	// pub command_sink:Sender<EngineComman>,
 }
 
 /// Instantiate all full RPC extensions.

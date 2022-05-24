@@ -26,7 +26,7 @@ use frame_support::{
 	traits::Get,
 };
 use sp_timestamp::OnTimestampSet;
-use kulupu_primitives::{
+use sp_consensus_poscan::{
 	Difficulty, CLAMP_FACTOR, DIFFICULTY_ADJUST_WINDOW, DIFFICULTY_DAMP_FACTOR, MAX_DIFFICULTY,
 	MIN_DIFFICULTY,
 };

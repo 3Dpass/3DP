@@ -20,7 +20,7 @@ use crate::{Balance, ExtrinsicBaseWeight};
 use frame_support::weights::{
 	WeightToFeeCoefficient, WeightToFeeCoefficients, WeightToFeePolynomial,
 };
-use kulupu_primitives::CENTS;
+use sp_consensus_poscan::CENTS;
 use smallvec::smallvec;
 use sp_runtime::Perbill;
 
@@ -45,7 +45,7 @@ mod tests {
 	use super::WeightToFee;
 	use crate::{ExtrinsicBaseWeight, MAXIMUM_BLOCK_WEIGHT};
 	use frame_support::weights::WeightToFeePolynomial;
-	use kulupu_primitives::{CENTS, DOLLARS};
+	use sp_consensus_poscan::{CENTS, DOLLARS};
 
 	#[test]
 	// This function tests that the fee for `MaximumBlockWeight` of weight is correct

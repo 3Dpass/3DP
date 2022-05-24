@@ -1,12 +1,11 @@
 use parity_scale_codec::{Decode, Encode};
 use sc_consensus_poscan::{Error, PoscanData, PowAlgorithm};
 use sha3::{Digest, Sha3_256};
-use sp_api::ProvideRuntimeApi;
-use sp_consensus_poscan::{DifficultyApi, Seal as RawSeal};
+// use sp_api::ProvideRuntimeApi;
+use sp_consensus_poscan::Seal as RawSeal;
 use sp_core::{H256, U256, crypto::Pair, hashing::blake2_256};
 use sp_runtime::generic::BlockId;
 use sp_runtime::traits::Block as BlockT;
-use std::sync::Arc;
 // use frame_support::sp_runtime::print as prn;
 // use frame_support::runtime_print;
 use sc_consensus_poscan::app;

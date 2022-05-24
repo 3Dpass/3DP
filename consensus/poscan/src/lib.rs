@@ -485,7 +485,7 @@ impl<B, I, C, S, Algorithm, CAW> BlockImport<B> for PowBlockImport<B, I, C, S, A
 						},
 					}
 				},
-				Err(e) => {
+				Err(_e) => {
 					return Err(Error::<B>::InvalidSeal.into());
 				},
 			}
@@ -519,7 +519,8 @@ impl<B, I, C, S, Algorithm, CAW> BlockImport<B> for PowBlockImport<B, I, C, S, A
 
 /// A verifier for PoW blocks.
 pub struct PowVerifier<B: BlockT, Algorithm> {
-	algorithm: Algorithm,
+	// TODO:
+	_algorithm: Algorithm,
 	_marker: PhantomData<B>,
 }
 
@@ -527,7 +528,7 @@ impl<B: BlockT, Algorithm> PowVerifier<B, Algorithm> {
 	pub fn new(
 		algorithm: Algorithm,
 	) -> Self {
-		Self { algorithm, _marker: PhantomData }
+		Self { _algorithm: algorithm, _marker: PhantomData }
 	}
 
 	fn check_header(
@@ -592,17 +593,14 @@ impl<B: BlockT, Algorithm> Verifier<B> for PowVerifier<B, Algorithm> where
 		justification: Option<Justification>,
 		body: Option<Vec<B::Extrinsic>>,
 	) -> Result<(BlockImportParams<B, ()>, Option<Vec<(CacheKeyId, Vec<u8>)>>), String> {
-		let post_hash = header.hash();
 		let (checked_header, items) = self.check_header(header)?;
-		let hash = checked_header.hash();
-		let pre_runtime = items[3].clone();
+		let _pre_runtime = items[3].clone();
 		let seal = items[2].clone();
 		let poscan_hashes = items[1].clone();
 		let poscan_obj = items[0].clone();
 
 		let intermediate = PowIntermediate::<Algorithm::Difficulty> {
 			difficulty: None,
-			// obj: Vec::new(),
 		};
 
 		let mut import_block = BlockImportParams::new(origin, checked_header);
@@ -612,7 +610,6 @@ impl<B: BlockT, Algorithm> Verifier<B> for PowVerifier<B, Algorithm> where
 			_ => {}
 		}
 
-		// import_block.post_digests.push(pre_runtime);
 		import_block.post_digests.push(seal);
 		import_block.post_digests.push(poscan_hashes);
 		import_block.post_digests.push(poscan_obj);
@@ -888,15 +885,15 @@ fn fetch_seal<B: BlockT>(
 				return Err(Error::<B>::WrongEngine(*id).into())
 			}
 		},
-		Some(DigestItem::ChangesTrieRoot(h)) => {
+		Some(DigestItem::ChangesTrieRoot(_h)) => {
 			info!(">>> DigestItem::ChangesTrieRoot");
 			return Err(Error::<B>::HeaderUnsealed(hash).into())
 		},
-		Some(DigestItem::ChangesTrieSignal(h)) => {
+		Some(DigestItem::ChangesTrieSignal(_h)) => {
 			info!(">>> DigestItem::ChangesTrieSignal");
 			return Err(Error::<B>::HeaderUnsealed(hash).into())
 		},
-		Some(DigestItem::Consensus(id, v)) => {
+		Some(DigestItem::Consensus(_id, _v)) => {
 			info!(">>> DigestItem::Consensus");
 			return Err(Error::<B>::HeaderUnsealed(hash).into())
 		},

@@ -2,12 +2,12 @@
 
 use super::{
 	AccountId, BalancesConfig, GenesisConfig, GrandpaConfig, Signature, SudoConfig, SystemConfig,
-	DifficultyConfig, RewardsConfig, WASM_BINARY,
+	DifficultyConfig, RewardsConfig, // WASM_BINARY,
 };
 use sp_core::{sr25519, Pair, Public, U256};
 use sp_finality_grandpa::AuthorityId as GrandpaId;
 use sp_runtime::traits::{IdentifyAccount, Verify};
-use kulupu_primitives::DOLLARS;
+use sp_consensus_poscan::DOLLARS;
 
 /// Helper function to generate a crypto pair from seed
 fn get_from_seed<TPublic: Public>(seed: &str) -> <TPublic::Pair as Pair>::Public {
