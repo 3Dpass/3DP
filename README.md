@@ -153,7 +153,6 @@ Then run the following command to start two local nodes and a [miner](https://gi
 ```bash
 git clone https://github.com/3Dpass/3DP
 cd 3DP
-git checkout dev_recipes
 docker compose up --build
 ```
 Learn more about [how does it work](https://3dpass.org/testnet.html).
