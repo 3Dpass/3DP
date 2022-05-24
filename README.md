@@ -151,8 +151,6 @@ First, install [Docker](https://docs.docker.com/get-docker/) and
 Then run the following command to start two local nodes and a [miner](https://github.com/3Dpass/miner) in development chain:
 
 ```bash
-git clone https://github.com/3Dpass/3DP
-cd 3DP
 docker compose up --build
 ```
 Learn more about [how does it work](https://3dpass.org/testnet.html).
