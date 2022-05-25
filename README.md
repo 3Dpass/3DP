@@ -80,7 +80,7 @@ Once the project has been built, the following command can be used to explore al
 subcommands:
 
 ```sh
-./target/release/node-template -h
+./target/release/poscan-consensus -h
 ```
 
 ## Run
@@ -94,19 +94,19 @@ node.
 This command will start the single-node development chain with persistent state:
 
 ```bash
-./target/release/node-template --dev
+./target/release/poscan-consensus --dev
 ```
 
 Purge the development chain's state:
 
 ```bash
-./target/release/node-template purge-chain --dev
+./target/release/poscan-consensus purge-chain --dev
 ```
 
 Start the development chain with detailed logging:
 
 ```bash
-RUST_BACKTRACE=1 ./target/release/node-template -ldebug --dev
+RUST_BACKTRACE=1 ./target/release/poscan-consensus -ldebug --dev
 ```
 
 ### Multi-Node Local Testnet
@@ -119,7 +119,7 @@ If you want to see the multi-node consensus algorithm in action, refer to our
 
 There are several files in the `node` directory - take special note of the following:
 
-- [`chain_spec.rs`](./node/src/chain_spec.rs): A
+- [`chain_spec.rs`](./nodes/poscan-consensus/src/chain_spec.rs): A
   [chain specification](https://docs.substrate.io/v3/runtime/chain-specs) is a
   source code file that defines a chain's initial (genesis) state. Chain specifications
   are useful for development and testing, and critical when architecting the launch of a
@@ -128,7 +128,7 @@ There are several files in the `node` directory - take special note of the follo
   functions identify some
   [well-known accounts](https://docs.substrate.io/v3/tools/subkey#well-known-keys)
   and use them to configure the blockchain's initial state.
-- [`service.rs`](./node/src/service.rs): This file defines the node implementation. Take note of
+- [`service.rs`](./nodes/poscan-consensus/src/service.rs): This file defines the node implementation. Take note of
   the libraries that this file imports and the names of the functions it invokes. In particular,
   there are references to consensus-related topics, such as the
   [longest chain rule](https://docs.substrate.io/v3/advanced/consensus#longest-chain-rule),
@@ -140,7 +140,7 @@ After the node has been [built](#build), refer to the embedded documentation to 
 capabilities and configuration parameters that it exposes:
 
 ```shell
-./target/release/node-template --help
+./target/release/poscan-consensus --help
 ```
 
 ### Run the Testnet in Docker
