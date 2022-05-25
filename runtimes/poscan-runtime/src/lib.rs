@@ -143,7 +143,7 @@ parameter_types! {
 		::with_sensible_defaults(2 * WEIGHT_PER_SECOND, NORMAL_DISPATCH_RATIO);
 	pub BlockLength: frame_system::limits::BlockLength = frame_system::limits::BlockLength
 		::max_with_normal_ratio(5 * 1024 * 1024, NORMAL_DISPATCH_RATIO);
-	pub const SS58Prefix: u8 = 42;
+	pub const SS58Prefix: u8 = 16;
 }
 
 impl frame_system::Config for Runtime {
@@ -451,21 +451,21 @@ construct_runtime!(
 		UncheckedExtrinsic = UncheckedExtrinsic
 	{
 		System: frame_system::{Module, Call, Storage, Config, Event<T>},
-		Timestamp: pallet_timestamp::{Module, Call, Storage, Inherent},
-		Grandpa: pallet_grandpa::{Module, Call, Storage, Config, Event},
-		Balances: pallet_balances::{Module, Call, Storage, Config<T>, Event<T>},
 		RandomnessCollectiveFlip: pallet_randomness_collective_flip::{Module, Call, Storage},
-		Sudo: pallet_sudo::{Module, Call, Config<T>, Storage, Event<T>},
-		TransactionPayment: pallet_transaction_payment::{Module, Storage},
-		Treasury: treasury::{Module, Call, Storage, Event<T>, Config},
+		Timestamp: pallet_timestamp::{Module, Call, Storage, Inherent},
+		Balances: pallet_balances::{Module, Call, Storage, Config<T>, Event<T>},
+		Rewards: rewards::{Module, Call, Storage, Event<T>, Config<T>},
 		Council: collective::<Instance1>::{Module, Call, Storage, Origin<T>, Event<T>, Config<T>},
 		TechnicalCommittee: collective::<Instance2>::{Module, Call, Storage, Origin<T>, Event<T>, Config<T>},
+		Treasury: treasury::{Module, Call, Storage, Event<T>, Config},
 		Bounties: bounties::{Module, Call, Storage, Event<T>},
+		Grandpa: pallet_grandpa::{Module, Call, Storage, Config, Event},
+		Sudo: pallet_sudo::{Module, Call, Config<T>, Storage, Event<T>},
+		TransactionPayment: pallet_transaction_payment::{Module, Storage},
 
 		PoScan: pallet_poscan::{Module, Call, Storage, Event<T>},
 		// PoScan: pallet_poscan::{Module},
 		Difficulty: difficulty::{Module, Call, Storage, Config},
-		Rewards: rewards::{Module, Call, Storage, Event<T>, Config<T>},
 	}
 );
 

@@ -36,7 +36,7 @@ use frame_support::{
 	weights::Weight,
 };
 use frame_system::{ensure_root, ensure_signed};
-use sp_consensus_pow::POW_ENGINE_ID;
+use sp_consensus_poscan::POSCAN_ENGINE_ID;
 use sp_runtime::traits::{Saturating, Zero};
 use sp_std::{
 	collections::btree_map::BTreeMap, iter::FromIterator, ops::Bound::Included, prelude::*,
@@ -176,7 +176,7 @@ decl_module! {
 				.logs
 				.iter()
 				.filter_map(|s| s.as_pre_runtime())
-				.filter_map(|(id, mut data)| if id == POW_ENGINE_ID {
+				.filter_map(|(id, mut data)| if id == POSCAN_ENGINE_ID {
 					T::AccountId::decode(&mut data).ok()
 				} else {
 					None

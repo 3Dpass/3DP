@@ -12,6 +12,7 @@ sp-runtime = { version="3.0", default-features = false }
 sp-std = { version="3.0", default-features = false }
 sp-inherents = { version="3.0", default-features = false }
 sp-consensus-pow = { version="0.9", default-features = false }
+sp-consensus-poscan = { version = "0.9.0", package = "sp-consensus-poscan", default-features = false, path = "../../primitives/consensus/poscan" }
 frame-support = { version="3.0", default-features = false }
 frame-system = { version="3.0", default-features = false }
 
@@ -34,6 +35,7 @@ std = [
 	"sp-consensus-pow/std",
 	"frame-support/std",
 	"frame-system/std",
+	"sp-consensus-poscan/std",
 ]
 runtime-benchmarks = [
 	"frame-benchmarking",

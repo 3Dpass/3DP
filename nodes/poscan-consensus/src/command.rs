@@ -160,7 +160,13 @@ pub fn run() -> sc_cli::Result<()> {
 					pair.public().as_ref(),
 				).map_err(|e| format!("Registering mining key failed: {:?}", e))?;
 
-
+				println!(
+					"Public key: 0x{}\nSecret seed: {}\nAddress: {}",
+					HexDisplay::from(&pair.public().as_ref()),
+					cmd.suri,
+					// TODO: kulupu -> 3dp
+					pair.public().to_ss58check_with_version(Ss58AddressFormat::KulupuAccount),
+				);
 
 				info!("Registered one mining key (public key 0x{}).",
 					  HexDisplay::from(&pair.public().as_ref()));

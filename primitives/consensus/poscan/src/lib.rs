@@ -31,7 +31,7 @@ pub type Seal = Vec<u8>;
 pub type Difficulty = sp_core::U256;
 
 /// Block interval, in seconds, the network will tune its next_target for.
-pub const BLOCK_TIME_SEC: u64 = 60;
+pub const BLOCK_TIME_SEC: u64 = 15;
 /// Block time interval in milliseconds.
 pub const BLOCK_TIME: u64 = BLOCK_TIME_SEC * 1000;
 
