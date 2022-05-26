@@ -24,6 +24,7 @@ use std::str::FromStr;
 use sp_keystore::{SyncCryptoStore, SyncCryptoStorePtr};
 use sp_core::crypto::{Ss58Codec,UncheckedFrom, Ss58AddressFormat};
 use sp_core::Pair;
+use sp_consensus_poscan::POSCAN_COIN_ID;
 
 pub struct MiningProposal {
 	pub id: i32,
@@ -55,7 +56,7 @@ pub fn decode_author(
 		} else {
 			let (address, version) = sc_consensus_poscan::app::Public::from_ss58check_with_version(author)
 				.map_err(|_| "Invalid author address".to_string())?;
-			if version != Ss58AddressFormat::KulupuAccount {
+			if version != Ss58AddressFormat::Custom(POSCAN_COIN_ID.into()) {
 				return Err("Invalid author version".to_string())
 			}
 			Ok(address)
@@ -72,7 +73,7 @@ pub fn decode_author(
 			pair.public().as_ref(),
 		).map_err(|e| format!("Registering mining key failed: {:?}", e))?;
 
-		info!("Generated a mining key with address: {}", pair.public().to_ss58check_with_version(Ss58AddressFormat::KulupuAccount));
+		info!("Generated a mining key with address: {}", pair.public().to_ss58check_with_version(Ss58AddressFormat::Custom(POSCAN_COIN_ID.into())));
 
 		match keystore_path {
 			Some(path) => info!("You can go to {:?} to find the seed phrase of the mining key.", path),

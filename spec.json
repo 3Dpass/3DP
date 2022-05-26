@@ -6,8 +6,12 @@
     "/ip4/113.207.1.26/tcp/30333/p2p/12D3KooWEyoppNCUx8Yx66oV9fJnriXwCcXwDDUA2kj6vnc6iDEp"
   ],
   "telemetryEndpoints": null,
-  "protocolId": null,
-  "properties": null,
+   "protocolId": "3dp",
+  "properties": {
+    "ss58Format": 5191,
+    "tokenDecimals": 12,
+    "tokenSymbol": "3DP"
+  },
   "consensusEngine": null,
   "lightSyncState": null,
   "genesis": {

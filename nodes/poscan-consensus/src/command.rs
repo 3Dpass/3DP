@@ -24,7 +24,7 @@ use sp_keystore::SyncCryptoStore;
 use sc_cli::{SubstrateCli, ChainSpec, Role, RuntimeVersion};
 use sc_service::{PartialComponents, config::KeystoreConfig};
 use sc_keystore::LocalKeystore;
-
+use sp_consensus_poscan::POSCAN_COIN_ID;
 
 impl SubstrateCli for Cli {
 	fn impl_name() -> String {
@@ -138,6 +138,13 @@ pub fn run() -> sc_cli::Result<()> {
 			})
 		}
 		Some(Subcommand::ImportMiningKey(cmd)) => {
+
+
+
+
+
+
+
 			let runner = cli.create_runner(cmd)?;
 			runner.sync_run(|config| {
 				let keystore = match &config.keystore {
@@ -165,8 +172,14 @@ pub fn run() -> sc_cli::Result<()> {
 					HexDisplay::from(&pair.public().as_ref()),
 					cmd.suri,
 					// TODO: kulupu -> 3dp
-					pair.public().to_ss58check_with_version(Ss58AddressFormat::KulupuAccount),
+					pair.public().to_ss58check_with_version(Ss58AddressFormat::Custom(POSCAN_COIN_ID.into())),
 				);
+
+				// for i in 0..16383 {
+				// 	println!("{} - Address: 0x{}",
+				// 		i, pair.public().to_ss58check_with_version(Ss58AddressFormat::Custom(i))
+				// 	);
+				// }
 
 				info!("Registered one mining key (public key 0x{}).",
 					  HexDisplay::from(&pair.public().as_ref()));
@@ -204,7 +217,7 @@ pub fn run() -> sc_cli::Result<()> {
 					HexDisplay::from(&pair.public().as_ref()),
 					phrase,
 					// TODO: kulupu -> 3dp
-					pair.public().to_ss58check_with_version(Ss58AddressFormat::KulupuAccount),
+					pair.public().to_ss58check_with_version(Ss58AddressFormat::Custom(POSCAN_COIN_ID.into())),
 				);
 
 				let _pair = keystore.key_pair::<sc_consensus_poscan::app::Pair>(

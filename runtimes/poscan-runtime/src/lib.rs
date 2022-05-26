@@ -38,6 +38,7 @@ use sp_std::{
 use sp_arithmetic::Percent;
 // use pallet_balances::NegativeImbalance;
 use sp_consensus_poscan::{DOLLARS, CENTS, DAYS, BLOCK_TIME};
+use sp_consensus_poscan::POSCAN_COIN_ID;
 
 #[cfg(feature = "std")]
 use sp_version::NativeVersion;
@@ -143,7 +144,7 @@ parameter_types! {
 		::with_sensible_defaults(2 * WEIGHT_PER_SECOND, NORMAL_DISPATCH_RATIO);
 	pub BlockLength: frame_system::limits::BlockLength = frame_system::limits::BlockLength
 		::max_with_normal_ratio(5 * 1024 * 1024, NORMAL_DISPATCH_RATIO);
-	pub const SS58Prefix: u8 = 16;
+	pub const SS58Prefix: u8 = POSCAN_COIN_ID;
 }
 
 impl frame_system::Config for Runtime {

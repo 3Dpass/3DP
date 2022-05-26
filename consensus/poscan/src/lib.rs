@@ -68,7 +68,7 @@ pub mod app {
 	use sp_application_crypto::{app_crypto, sr25519};
 	use sp_core::crypto::KeyTypeId;
 
-	pub const ID: KeyTypeId = KeyTypeId(*b"klp2");
+	pub const ID: KeyTypeId = KeyTypeId(*b"3dpp");
 	app_crypto!(sr25519, ID);
 }
 
