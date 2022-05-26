@@ -111,9 +111,28 @@ RUST_BACKTRACE=1 ./target/release/poscan-consensus -ldebug --dev
 
 ### Multi-Node Local Testnet
 
-If you want to see the multi-node consensus algorithm in action, refer to our
-[Start a Private Network tutorial](https://docs.substrate.io/tutorials/v3/private-network).
+Clear keystore for Alice and Bob: 
 
+```bash
+rm -R /tmp/alice/ /tmp/bob/
+```
+Import mining key for Alice into the keystore: 
+```bash
+target/release/poscan-consensus import-mining-key //Alice --base-path /tmp/alice
+```
+Run the first Node with the Alice's pub key:
+```bash
+target/release/poscan-consensus --base-path /tmp/alice --chain local --alice --port 30333 --ws-port 9944 --rpc-port 9933 --unsafe-rpc-external --node-key 0000000000000000000000000000000000000000000000000000000000000001 --validator -lposcan=debug --author 0xd43593c715fdd31c61141abd04a99fd6822c8558854ccde39a5684e7a56da27d
+```
+Run the second node: 
+```bash
+target/release/poscan-consensus --base-path /tmp/bob --chain local --bob --port 30334 --ws-port 9945 --rpc-port 9934  --bootnodes /ip4/127.0.0.1/tcp/30333/p2p/12D3KooWEyoppNCUx8Yx66oV9fJnriXwCcXwDDUA2kj6vnc6iDEp --validator
+```
+Run miner:
+you have to install [miner](https://github.com/3Dpass/miner)
+
+For more details, refer to Subsrtate
+[Start a Private Network tutorial](https://docs.substrate.io/tutorials/v3/private-network).
 
 ### Specification
 
