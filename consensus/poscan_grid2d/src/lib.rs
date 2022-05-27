@@ -421,7 +421,7 @@ pub fn get_obj_hashes(data: &Vec<u8>) -> Vec<H256> {
 
 	info!(">>> obj len={}", data.len());
 
-	let res = p3d::p3d_process(data, p3d::AlgoType::Grid2d, 6, 2 );
+	let res = p3d::p3d_process(data, p3d::AlgoType::Grid2d, 8, 66);
 
 	match res {
 		Ok(v) => {
