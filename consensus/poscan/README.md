@@ -1,4 +1,4 @@
-[Proof of Scan](https://3dpass.org/proof_of_scan.html) is a kind of PoW consensus based on 3D shape recognition technology. The network Nodes will stand guard preventing assets stored on the network from copy making, even if you change the file with one dot, pixel or 1 byte. The blockchain represents the Ledger of unique things.
+[Proof of Scan](https://3dpass.org/proof_of_scan.html) is a PoW consensus based on 3D shape recognition technology. The network Nodes will stand guard preventing assets stored on the network from copy making, even if you change the file with one dot, pixel or 1 byte. The blockchain represents the Ledger of unique things.
 
 In order to propose a new block Autor has to pick up a specific-shaped 3D object all the Nodes on the network can recognize and verify. By means of comparing their [HASH IDs](https://3dpass.org/features.html#3D_object_recognition), the Nodes can reject the same shaped objects. Because of the computing power needs for recognition as well as for picking up the objects, Authors are getting engaged enough to take Authority to vote for the longest chain and maintain the network, including users assets authenticity check.
 
