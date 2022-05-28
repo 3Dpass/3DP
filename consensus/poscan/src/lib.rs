@@ -1,14 +1,14 @@
-// This file is part of Substrate.
+// This file is part of 3DPass 
 
 // Copyright (C) 2017-2021 Parity Technologies (UK) Ltd.
 // SPDX-License-Identifier: GPL-3.0-or-later WITH Classpath-exception-2.0
 
-// This program is free software: you can redistribute it and/or modify
+// 3DPass is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 
-// This program is distributed in the hope that it will be useful,
+// 3DPass is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 // GNU General Public License for more details.
@@ -16,20 +16,16 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
-//! Proof of work consensus for Substrate.
+//! Proof of scan consensus for Substrate.
 //!
-//! To use this engine, you can need to have a struct that implements
-//! `PowAlgorithm`. After that, pass an instance of the struct, along
+//! To use this engine, you might need to have a struct that implements
+//! `PoscanAlgorithm`. After that, pass an instance of the struct, along
 //! with other necessary client references to `import_queue` to setup
-//! the queue. Use the `start_mine` function for basic CPU mining.
+//! the queue. Use the mining RPC request (mining_rpc.rs) for 3D models 
+//! to be pushed into the the mining queue for basic CPU mining.
 //!
-//! The auxiliary storage for PoW engine only stores the total difficulty.
-//! For other storage requirements for particular PoW algorithm (such as
-//! the actual difficulty for each particular blocks), you can take a client
-//! reference in your `PowAlgorithm` implementation, and use a separate prefix
-//! for the auxiliary storage. It is also possible to just use the runtime
-//! as the storage, but it is not recommended as it won't work well with light
-//! clients.
+//! The auxiliary storage for PoScan engine not only stores the total difficulty,
+//! but also 3D models (in .obj format) of the objects to recognize.
 
 mod worker;
 
