@@ -1,6 +1,7 @@
 // This file is part of 3DPass 
 
 // Copyright (C) 2017-2021 Parity Technologies (UK) Ltd.
+// Copyright (C) 2022 3DPass
 // SPDX-License-Identifier: GPL-3.0-or-later WITH Classpath-exception-2.0
 
 // 3DPass is free software: you can redistribute it and/or modify
