@@ -1,15 +1,16 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-// This file is part of Kulupu.
+// This file is part of 3DPass.
 //
 // Copyright (c) 2020 Wei Tang.
 // Copyright (c) 2020 Shawn Tabrizi.
+// Copyright (c) 2022 3DPass.
 //
-// Kulupu is free software: you can redistribute it and/or modify
+// 3DPass is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 //
-// Kulupu is distributed in the hope that it will be useful,
+// 3DPass is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 // GNU General Public License for more details.
