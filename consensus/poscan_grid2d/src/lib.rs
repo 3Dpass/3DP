@@ -231,9 +231,6 @@ use std::str::FromStr;
 pub fn get_obj_hashes(data: &Vec<u8>) -> Vec<H256> {
 	let mut buf: Vec<H256> = Vec::new();
 	// TODO: pass params as args
-
-	info!(">>> obj len={}", data.len());
-
 	let res = p3d::p3d_process(data, p3d::AlgoType::Grid2d, 8, 66);
 
 	match res {

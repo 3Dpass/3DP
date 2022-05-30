@@ -36,7 +36,6 @@ use sp_std::{
 	// prelude::*,
 };
 use sp_arithmetic::Percent;
-// use pallet_balances::NegativeImbalance;
 use sp_consensus_poscan::{DOLLARS, CENTS, DAYS, BLOCK_TIME};
 use sp_consensus_poscan::POSCAN_COIN_ID;
 
@@ -44,7 +43,6 @@ use sp_consensus_poscan::POSCAN_COIN_ID;
 use sp_version::NativeVersion;
 use sp_version::RuntimeVersion;
 
-// use frame_support::{construct_runtime, parameter_types, traits::Randomness};
 
 pub use frame_support::{
 	StorageValue, StorageMap, construct_runtime, parameter_types,

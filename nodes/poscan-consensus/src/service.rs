@@ -355,7 +355,6 @@ pub fn new_full(
 							let obj_hash = hashes[0];
 							let dh = DoubleHash { pre_hash: metadata.pre_hash, obj_hash };
 							poscan_hash = dh.calc_hash();
-							info!(">>>double hash is: {:#}", poscan_hash.to_string());
 							poscan_data = Some(PoscanData { hashes, obj: mp.pre_obj });
 						}
 						else {
