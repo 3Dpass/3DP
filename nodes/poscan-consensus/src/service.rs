@@ -117,7 +117,7 @@ pub fn new_partial(
 				GrandpaBlockImport<FullBackend, Block, FullClient, FullSelectChain>,
 				FullClient,
 				FullSelectChain,
-				PoscanAlgorithm,
+				PoscanAlgorithm<FullClient>,
 				impl sp_consensus::CanAuthorWith<Block>,
 			>,
 			sc_finality_grandpa::LinkHalf<Block, FullClient, FullSelectChain>,
@@ -152,7 +152,7 @@ pub fn new_partial(
 	let pow_block_import = sc_consensus_poscan::PowBlockImport::new(
 		grandpa_block_import,
 		client.clone(),
-		poscan_grid2d::PoscanAlgorithm, //::new(client.clone()),
+		poscan_grid2d::PoscanAlgorithm::new(client.clone()),
 		0, // check inherents starting at block 0
 		select_chain.clone(),
 		inherent_data_providers.clone(),
@@ -162,7 +162,7 @@ pub fn new_partial(
 	let import_queue = sc_consensus_poscan::import_queue(
 		Box::new(pow_block_import.clone()),
 		None,
-		poscan_grid2d::PoscanAlgorithm, //::new(client.clone()),
+		poscan_grid2d::PoscanAlgorithm::new(client.clone()),
 		inherent_data_providers.clone(),
 		&task_manager.spawn_handle(),
 		config.prometheus_registry(),
@@ -271,15 +271,11 @@ pub fn new_full(
 		let can_author_with =
 			sp_consensus::CanAuthorWithNativeVersion::new(client.executor().clone());
 
-		// Parameter details:
-		//   https://substrate.dev/rustdocs/v3.0.0/sc_consensus_pow/fn.start_mining_worker.html
-		// Also refer to kulupu config:
-		//   https://github.com/kulupu/kulupu/blob/master/src/service.rs
 		let (_worker, worker_task) = sc_consensus_poscan::start_mining_worker(
 			Box::new(pow_block_import),
-			client,
+			client.clone(),
 			select_chain,
-			PoscanAlgorithm, // ::new(client.clone()),
+			PoscanAlgorithm::new(client.clone()),
 			proposer,
 			network.clone(),
 			Some(author.encode()),
@@ -444,7 +440,7 @@ pub fn new_light(config: Configuration) -> Result<TaskManager, ServiceError> {
 	let pow_block_import = sc_consensus_poscan::PowBlockImport::new(
 		grandpa_block_import,
 		client.clone(),
-		PoscanAlgorithm, //::new(client.clone()),
+		PoscanAlgorithm::new(client.clone()),
 		0, // check inherents starting at block 0
 		select_chain,
 		inherent_data_providers.clone(),
@@ -454,7 +450,7 @@ pub fn new_light(config: Configuration) -> Result<TaskManager, ServiceError> {
 	let import_queue = sc_consensus_poscan::import_queue(
 		Box::new(pow_block_import),
 		None,
-		PoscanAlgorithm, // ::new(client.clone()),
+		PoscanAlgorithm::new(client.clone()),
 		inherent_data_providers,
 		&task_manager.spawn_handle(),
 		config.prometheus_registry(),

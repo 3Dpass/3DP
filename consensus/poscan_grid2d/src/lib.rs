@@ -1,8 +1,10 @@
+use std::sync::Arc;
 use parity_scale_codec::{Decode, Encode};
 use sc_consensus_poscan::{Error, PoscanData, PowAlgorithm};
 use sha3::{Digest, Sha3_256};
-// use sp_api::ProvideRuntimeApi;
+use sp_api::ProvideRuntimeApi;
 use sp_consensus_poscan::Seal as RawSeal;
+use sp_consensus_poscan::DifficultyApi;
 use sp_core::{H256, U256, crypto::Pair, hashing::blake2_256};
 use sp_runtime::generic::BlockId;
 use sp_runtime::traits::Block as BlockT;
@@ -107,229 +109,40 @@ impl DoubleHash {
 	}
 }
 
-// /// A minimal PoW algorithm that uses Sha3 hashing.
-// /// Difficulty is fixed at 1_000_000
-// #[derive(Clone)]
-// pub struct MinimalSha3Algorithm;
-//
-// // Here we implement the general PowAlgorithm trait for our concrete Sha3Algorithm
-// impl<B: BlockT<Hash = H256>> PowAlgorithm<B> for MinimalSha3Algorithm {
-// 	type Difficulty = U256;
-//
-// 	fn difficulty(&self, _parent: B::Hash) -> Result<Self::Difficulty, Error<B>> {
-// 		// Fixed difficulty hardcoded here
-// 		Ok(U256::from(1_000_000))
-// 	}
-//
-// 	fn verify(
-// 		&self,
-// 		_parent: &BlockId<B>,
-// 		pre_hash: &H256,
-// 		_pre_digest: Option<&[u8]>,
-// 		seal: &RawSeal,
-// 		difficulty: Self::Difficulty,
-// 		_obj_hashes: &[H256],
-// 		_obj: &[u8],
-// 	) -> Result<bool, Error<B>> {
-// 		// Try to construct a seal object by decoding the raw seal given
-// 		let seal = match Seal::decode(&mut &seal[..]) {
-// 			Ok(seal) => seal,
-// 			Err(_) => return Ok(false),
-// 		};
-//
-// 		// See whether the hash meets the difficulty requirement. If not, fail fast.
-// 		if !hash_meets_difficulty(&seal.work, difficulty) {
-// 			return Ok(false);
-// 		}
-//
-// 		// Make sure the provided work actually comes from the correct pre_hash
-// 		let compute = Compute {
-// 			difficulty,
-// 			pre_hash: *pre_hash,
-// 			nonce: seal.nonce,
-// 		};
-//
-// 		// let _obj = <Module<>::get(&seal.nonce);
-//
-// 		if compute.compute() != seal {
-// 			return Ok(false);
-// 		}
-//
-// 		Ok(true)
-// 	}
-// }
-//
-// /// A complete PoW Algorithm that uses Sha3 hashing.
-// /// Needs a reference to the client so it can grab the difficulty from the runtime.
-// pub struct Sha3Algorithm<C> {
-// 	client: Arc<C>,
-// }
-//
-// impl<C> Sha3Algorithm<C> {
-// 	pub fn new(client: Arc<C>) -> Self {
-// 		Self { client }
-// 	}
-// }
-//
-// // Manually implement clone. Deriving doesn't work because
-// // it'll derive impl<C: Clone> Clone for Sha3Algorithm<C>. But C in practice isn't Clone.
-// impl<C> Clone for Sha3Algorithm<C> {
-// 	fn clone(&self) -> Self {
-// 		Self::new(self.client.clone())
-// 	}
-// }
-//
-// // Here we implement the general PowAlgorithm trait for our concrete Sha3Algorithm
-// impl<B: BlockT<Hash = H256>, C> PowAlgorithm<B> for Sha3Algorithm<C>
-// where
-// 	C: ProvideRuntimeApi<B>,
-// 	C::Api: DifficultyApi<B, U256>,
-// {
-// 	type Difficulty = U256;
-//
-// 	fn difficulty(&self, parent: B::Hash) -> Result<Self::Difficulty, Error<B>> {
-// 		let parent_id = BlockId::<B>::hash(parent);
-// 		self.client
-// 			.runtime_api()
-// 			.difficulty(&parent_id)
-// 			.map_err(|err| {
-// 				sc_consensus_poscan::Error::Environment(format!(
-// 					"Fetching difficulty from runtime failed: {:?}",
-// 					err
-// 				))
-// 			})
-// 	}
-//
-// 	fn verify(
-// 		&self,
-// 		_parent: &BlockId<B>,
-// 		pre_hash: &H256,
-// 		_pre_digest: Option<&[u8]>,
-// 		seal: &RawSeal,
-// 		difficulty: Self::Difficulty,
-// 		_obj_hashes: &[H256],
-// 		_obj: &[u8],
-// 	) -> Result<bool, Error<B>> {
-// 		// Try to construct a seal object by decoding the raw seal given
-// 		let seal = match Seal::decode(&mut &seal[..]) {
-// 			Ok(seal) => seal,
-// 			Err(_) => return Ok(false),
-// 		};
-//
-// 		// See whether the hash meets the difficulty requirement. If not, fail fast.
-// 		if !hash_meets_difficulty(&seal.work, difficulty) {
-// 			return Ok(false);
-// 		}
-//
-// 		// Make sure the provided work actually comes from the correct pre_hash
-// 		let compute = Compute {
-// 			difficulty,
-// 			pre_hash: *pre_hash,
-// 			nonce: seal.nonce,
-// 		};
-//
-// 		//let _obj = <Module<T>>::get_obj(&seal.nonce);
-//
-// 		if compute.compute() != seal {
-// 			return Ok(false);
-// 		}
-//
-// 		Ok(true)
-// 	}
-// }
+pub struct PoscanAlgorithm<C> {
+	client: Arc<C>,
+}
 
-// /// A complete PoW Algorithm that uses Sha3 hashing.
-// /// Needs a reference to the client so it can grab the difficulty from the runtime.
-// pub struct PoscanAlgorithm<C> {
-// 	client: Arc<C>,
-// }
-//
-// impl<C> PoscanAlgorithm<C> {
-// 	pub fn new(client: Arc<C>) -> Self {
-// 		Self { client }
-// 	}
-// }
-//
-// // Manually implement clone. Deriving doesn't work because
-// // it'll derive impl<C: Clone> Clone for Sha3Algorithm<C>. But C in practice isn't Clone.
-// impl<C> Clone for PoscanAlgorithm<C> {
-// 	fn clone(&self) -> Self {
-// 		Self::new(self.client.clone())
-// 	}
-// }
+impl<C> PoscanAlgorithm<C> {
+	pub fn new(client: Arc<C>) -> Self {
+		Self { client }
+	}
+}
 
-// Here we implement the general PowAlgorithm trait for our concrete Sha3Algorithm
-// impl<B: BlockT<Hash = H256>, C> PowAlgorithm<B> for PoscanAlgorithm<C>
-// 	where
-// 		C: ProvideRuntimeApi<B>,
-// 		C::Api: DifficultyApi<B, U256>,
-// {
-// 	type Difficulty = U256;
-//
-// 	fn difficulty(&self, parent: B::Hash) -> Result<Self::Difficulty, Error<B>> {
-// 		let parent_id = BlockId::<B>::hash(parent);
-// 		self.client
-// 			.runtime_api()
-// 			.difficulty(&parent_id)
-// 			.map_err(|err| {
-// 				sc_consensus_poscan::Error::Environment(format!(
-// 					"Fetching difficulty from runtime failed: {:?}",
-// 					err
-// 				))
-// 			})
-// 	}
-//
-// 	fn verify(
-// 		&self,
-// 		_parent: &BlockId<B>,
-// 		pre_hash: &H256,
-// 		_pre_digest: Option<&[u8]>,
-// 		seal: &RawSeal,
-// 		difficulty: Self::Difficulty,
-// 		poscan_data: &PoscanData,
-// 	) -> Result<bool, Error<B>> {
-// 		// Try to construct a seal object by decoding the raw seal given
-// 		let seal = match Seal::decode(&mut &seal[..]) {
-// 			Ok(seal) => seal,
-// 			Err(_) => return Ok(false),
-// 		};
-//
-// 		// See whether the hash meets the difficulty requirement. If not, fail fast.
-// 		if !hash_meets_difficulty(&seal.work, difficulty) {
-// 			return Ok(false);
-// 		}
-//
-// 		// Make sure the provided work actually comes from the correct pre_hash
-// 		let compute = Compute {
-// 			difficulty,
-// 			pre_hash: *pre_hash,
-// 			poscan_hash: seal.poscan_hash,
-// 		};
-//
-// 		if compute.compute() != seal {
-// 			return Ok(false);
-// 		}
-//
-// 		// verify poscan
-// 		let hashes = get_obj_hashes(&poscan_data.obj);
-// 		if hashes != poscan_data.hashes {
-// 			return Ok(false)
-// 		}
-//
-// 		Ok(true)
-// 	}
-// }
+impl<C> Clone for PoscanAlgorithm<C> {
+	fn clone(&self) -> Self {
+		Self::new(self.client.clone())
+	}
+}
 
-#[derive(Clone)]
-pub struct PoscanAlgorithm;
-
-impl<B: BlockT<Hash = H256>> PowAlgorithm<B> for PoscanAlgorithm
+impl<B: BlockT<Hash = H256>, C> PowAlgorithm<B> for PoscanAlgorithm<C>
+where
+	C: ProvideRuntimeApi<B>,
+	C::Api: DifficultyApi<B, U256>,
 {
 	type Difficulty = U256;
 
-	fn difficulty(&self, _parent: B::Hash) -> Result<Self::Difficulty, Error<B>> {
-		// Fixed difficulty hardcoded here
-		Ok(U256::from(10))
+	fn difficulty(&self, parent: B::Hash) -> Result<Self::Difficulty, Error<B>> {
+		let parent_id = BlockId::<B>::hash(parent);
+		self.client
+			.runtime_api()
+			.difficulty(&parent_id)
+			.map_err(|err| {
+				sc_consensus_poscan::Error::Environment(format!(
+					"Fetching difficulty from runtime failed: {:?}",
+					err
+				))
+			})
 	}
 
 	fn verify(

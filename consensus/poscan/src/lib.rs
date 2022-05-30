@@ -59,10 +59,11 @@ use codec::{Encode, Decode};
 use prometheus_endpoint::Registry;
 use sc_client_api;
 use log::*;
-use sp_core::H256;
+use sp_core::{H256, U256};
 use sp_timestamp::{InherentError as TIError, TimestampInherentData};
 
 use crate::worker::UntilImportedOrTimeout;
+use sp_consensus_poscan::{Difficulty, DifficultyApi};
 
 pub mod app {
 	use sp_application_crypto::{app_crypto, sr25519};
@@ -336,8 +337,9 @@ impl<B, I, C, S, Algorithm, CAW> BlockImport<B> for PowBlockImport<B, I, C, S, A
 	S: SelectChain<B>,
 	C: ProvideRuntimeApi<B> + Send + Sync + HeaderBackend<B> + AuxStore + ProvideCache<B> + BlockOf + BlockBackend<B>,
 	C::Api: BlockBuilderApi<B, Error = sp_blockchain::Error>,
+	C::Api: DifficultyApi<B, Difficulty>,
 	Algorithm: PowAlgorithm<B>,
-	Algorithm::Difficulty: 'static,
+	Algorithm::Difficulty: From<U256> +'static,
 	CAW: CanAuthorWith<B>,
 {
 	type Error = ConsensusError;
@@ -692,9 +694,10 @@ pub fn start_mining_worker<Block, C, S, Algorithm, E, SO, CAW>(
 ) -> (Arc<Mutex<MiningWorker<Block, Algorithm, C>>>, impl Future<Output = ()>) where
 	Block: BlockT,
 	C: ProvideRuntimeApi<Block> + BlockchainEvents<Block> + 'static,
+	C::Api: DifficultyApi<Block, Difficulty>,
 	S: SelectChain<Block> + 'static,
 	Algorithm: PowAlgorithm<Block> + Clone,
-	Algorithm::Difficulty: 'static,
+	Algorithm::Difficulty: From<U256> + 'static,
 	E: Environment<Block> + Send + Sync + 'static,
 	E::Error: std::fmt::Debug,
 	E::Proposer: Proposer<Block, Transaction = sp_api::TransactionFor<C, Block>>,
@@ -824,8 +827,6 @@ pub fn start_mining_worker<Block, C, S, Algorithm, E, SO, CAW>(
 					pre_hash: proposal.block.header().hash(),
 					pre_runtime: pre_runtime.clone(),
 					difficulty,
-					// hashes: Vec::new(),
-					// obj: Vec::new(),
 				},
 				proposal,
 			};

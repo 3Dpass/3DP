@@ -455,6 +455,7 @@ construct_runtime!(
 		RandomnessCollectiveFlip: pallet_randomness_collective_flip::{Module, Call, Storage},
 		Timestamp: pallet_timestamp::{Module, Call, Storage, Inherent},
 		Balances: pallet_balances::{Module, Call, Storage, Config<T>, Event<T>},
+		Difficulty: difficulty::{Module, Call, Storage, Config},
 		Rewards: rewards::{Module, Call, Storage, Event<T>, Config<T>},
 		Council: collective::<Instance1>::{Module, Call, Storage, Origin<T>, Event<T>, Config<T>},
 		TechnicalCommittee: collective::<Instance2>::{Module, Call, Storage, Origin<T>, Event<T>, Config<T>},
@@ -466,7 +467,6 @@ construct_runtime!(
 
 		PoScan: pallet_poscan::{Module, Call, Storage, Event<T>},
 		// PoScan: pallet_poscan::{Module},
-		Difficulty: difficulty::{Module, Call, Storage, Config},
 	}
 );
 
@@ -601,6 +601,12 @@ impl_runtime_apis! {
 			encoded: Vec<u8>,
 		) -> Option<Vec<(Vec<u8>, sp_core::crypto::KeyTypeId)>> {
 			opaque::SessionKeys::decode_into_raw_public_keys(&encoded)
+		}
+	}
+
+	impl sp_consensus_poscan::DifficultyApi<Block, sp_consensus_poscan::Difficulty> for Runtime {
+		fn difficulty() -> sp_consensus_poscan::Difficulty {
+			difficulty::Module::<Runtime>::difficulty()
 		}
 	}
 

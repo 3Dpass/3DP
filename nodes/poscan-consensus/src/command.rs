@@ -138,13 +138,6 @@ pub fn run() -> sc_cli::Result<()> {
 			})
 		}
 		Some(Subcommand::ImportMiningKey(cmd)) => {
-
-
-
-
-
-
-
 			let runner = cli.create_runner(cmd)?;
 			runner.sync_run(|config| {
 				let keystore = match &config.keystore {

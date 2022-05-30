@@ -5511,6 +5511,7 @@ dependencies = [
  "log",
  "parity-scale-codec 2.3.1",
  "parking_lot 0.11.1",
+ "poscan-runtime",
  "sc-client-api",
  "sp-api",
  "sp-application-crypto",
