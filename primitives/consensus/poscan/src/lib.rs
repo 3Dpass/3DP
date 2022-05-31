@@ -26,7 +26,7 @@ use codec::Decode;
 
 /// The `ConsensusEngineId` of PoW.
 pub const POSCAN_ENGINE_ID: ConsensusEngineId = [b'p', b'o', b's', b'c'];
-pub const POSCAN_COIN_ID: u8 = 71;
+pub const POSCAN_COIN_ID: u8 = 72;
 
 /// Type of seal.
 pub type Seal = Vec<u8>;
