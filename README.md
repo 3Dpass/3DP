@@ -44,7 +44,7 @@ This toolkit consists of stable recognition algorithms used for identification o
 
 ## Getting Started
 
-Follow the steps below to get started with the 3DPass Node Template:
+Follow the steps below to get started with the 3DPass Node:
 
 ### Using Nix
 
