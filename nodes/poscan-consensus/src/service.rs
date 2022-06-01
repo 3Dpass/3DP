@@ -22,7 +22,7 @@ use sp_std::collections::vec_deque::VecDeque;
 use spin::Mutex;
 use std::str::FromStr;
 use sp_keystore::{SyncCryptoStore, SyncCryptoStorePtr};
-use sp_core::crypto::{Ss58Codec,UncheckedFrom, Ss58AddressFormat};
+use sp_core::crypto::{Ss58Codec,UncheckedFrom, Ss58AddressFormat, set_default_ss58_version};
 use sp_core::Pair;
 use sp_consensus_poscan::POSCAN_COIN_ID;
 
@@ -125,6 +125,8 @@ pub fn new_partial(
 	>,
 	ServiceError,
 > {
+	set_default_ss58_version(Ss58AddressFormat::Custom(POSCAN_COIN_ID.into()));
+
 	let inherent_data_providers = build_inherent_data_providers()?;
 
 	let (client, backend, keystore_container, task_manager) =
