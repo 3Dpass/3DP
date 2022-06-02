@@ -462,8 +462,8 @@ impl<B, I, C, S, Algorithm, CAW> BlockImport<B> for PowBlockImport<B, I, C, S, A
 								let di = h.digest().logs()[2].clone();
 								if let DigestItem::Other(v) = di {
 									let hashes: Vec<H256> = v.chunks(32).map(|h| H256::from_slice(h)).collect();
-									for hh in hashes[..1].iter() {
-										if hs[..1].contains(hh) {
+									for hh in hashes.iter() {
+										if hs.contains(hh) {
 											info!(">>>>>> duplicated hash found");
 											info!(">>>>>> {:x?}", hs);
 											info!(">>>>>> {:x?}", hashes);
