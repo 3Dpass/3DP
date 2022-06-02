@@ -20,6 +20,7 @@ use crate::service;
 
 use log::*;
 use sp_core::{hexdisplay::HexDisplay, crypto::{Pair, Ss58Codec, Ss58AddressFormat}};
+use sp_core::crypto::set_default_ss58_version;
 use sp_keystore::SyncCryptoStore;
 use sc_cli::{SubstrateCli, ChainSpec, Role, RuntimeVersion};
 use sc_service::{PartialComponents, config::KeystoreConfig};
@@ -69,6 +70,8 @@ impl SubstrateCli for Cli {
 /// Parse and run command line arguments
 pub fn run() -> sc_cli::Result<()> {
 	let cli = Cli::from_args();
+
+	set_default_ss58_version(Ss58AddressFormat::Custom(POSCAN_COIN_ID.into()));
 
 	match &cli.subcommand {
 		Some(Subcommand::Key(cmd)) => cmd.run(&cli),
