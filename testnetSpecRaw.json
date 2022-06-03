@@ -8,7 +8,7 @@
     "/ip4/159.223.209.152/tcp/30333/p2p/12D3KooWJYLJpAs3Ls8HXaLRa3scxQdiqWv6LqyDq4GfHUMgQ86V"
   ],
   "telemetryEndpoints": null,
-  "protocolId": "proto_3dp",
+  "protocolId": null,
   "properties": {
     "ss58Format": 72,
     "tokenDecimals": 12,
