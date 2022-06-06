@@ -16,7 +16,7 @@ dependencies = [
 name = "account-set"
 version = "3.0.0"
 dependencies = [
- "sp-std",
+ "sp-std 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
 ]
 
 [[package]]
@@ -1339,8 +1339,7 @@ checksum = "3f9eec918d3f24069decb9af1554cad7c880e2da24a9afd88aca000531ab82c1"
 [[package]]
 name = "fork-tree"
 version = "3.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "632b95f97f332b2ff5bc3a42bc8e28772b067e333830e03fd046504f11cd0fb8"
+source = "git+https://github.com/3Dpass/substrate.git?branch=3dp_v3#49a4103f4bfef55be20a5c6d26e18ff3003c3353"
 dependencies = [
  "parity-scale-codec 2.3.1",
 ]
@@ -1357,38 +1356,55 @@ dependencies = [
 
 [[package]]
 name = "frame-benchmarking"
+version = "3.0.0"
+source = "git+https://github.com/3Dpass/substrate.git?branch=3dp_v3#49a4103f4bfef55be20a5c6d26e18ff3003c3353"
+dependencies = [
+ "frame-support 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
+ "frame-system 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
+ "linregress",
+ "parity-scale-codec 2.3.1",
+ "paste 1.0.5",
+ "sp-api 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
+ "sp-io 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
+ "sp-runtime 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
+ "sp-runtime-interface 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
+ "sp-std 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
+ "sp-storage 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
+]
+
+[[package]]
+name = "frame-benchmarking"
 version = "3.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "70fe99487f84579a3f2c4ba52650fec875492eea41be0e4eea8019187f105052"
 dependencies = [
- "frame-support",
- "frame-system",
+ "frame-support 3.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "frame-system 3.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "linregress",
  "parity-scale-codec 2.3.1",
  "paste 1.0.5",
- "sp-api",
- "sp-io",
- "sp-runtime",
- "sp-runtime-interface",
- "sp-std",
- "sp-storage",
+ "sp-api 3.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "sp-io 3.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "sp-runtime 3.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "sp-runtime-interface 3.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "sp-std 3.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "sp-storage 3.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
 name = "frame-executive"
 version = "3.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1da8fd471442bee91b9b3f587ec832e3f47800374fdb89b4a66591cd7c42b29f"
+source = "git+https://github.com/3Dpass/substrate.git?branch=3dp_v3#49a4103f4bfef55be20a5c6d26e18ff3003c3353"
 dependencies = [
- "frame-support",
- "frame-system",
+ "frame-support 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
+ "frame-system 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
  "parity-scale-codec 2.3.1",
  "serde",
- "sp-core",
- "sp-io",
- "sp-runtime",
- "sp-std",
- "sp-tracing",
+ "sp-core 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
+ "sp-io 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
+ "sp-runtime 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
+ "sp-std 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
+ "sp-tracing 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
 ]
 
 [[package]]
@@ -1399,8 +1415,19 @@ checksum = "073f7bef18421362441a1708f8528e442234954611f95bdc554b313fb321948e"
 dependencies = [
  "parity-scale-codec 2.3.1",
  "serde",
- "sp-core",
- "sp-std",
+ "sp-core 3.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "sp-std 3.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
+name = "frame-metadata"
+version = "13.0.0"
+source = "git+https://github.com/3Dpass/substrate.git?branch=3dp_v3#49a4103f4bfef55be20a5c6d26e18ff3003c3353"
+dependencies = [
+ "parity-scale-codec 2.3.1",
+ "serde",
+ "sp-core 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
+ "sp-std 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
 ]
 
 [[package]]
@@ -1410,8 +1437,8 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "04e521e6214615bd82ba6b5fc7fd40a9cc14fdeb40f83da5eba12aa2f8179fb8"
 dependencies = [
  "bitflags",
- "frame-metadata",
- "frame-support-procedural",
+ "frame-metadata 13.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "frame-support-procedural 3.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "impl-trait-for-tuples",
  "log",
  "once_cell",
@@ -1419,15 +1446,41 @@ dependencies = [
  "paste 1.0.5",
  "serde",
  "smallvec 1.6.1",
- "sp-arithmetic",
- "sp-core",
- "sp-inherents",
- "sp-io",
- "sp-runtime",
- "sp-staking",
- "sp-state-machine",
- "sp-std",
- "sp-tracing",
+ "sp-arithmetic 3.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "sp-core 3.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "sp-inherents 3.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "sp-io 3.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "sp-runtime 3.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "sp-staking 3.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "sp-state-machine 0.9.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "sp-std 3.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "sp-tracing 3.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
+name = "frame-support"
+version = "3.0.0"
+source = "git+https://github.com/3Dpass/substrate.git?branch=3dp_v3#49a4103f4bfef55be20a5c6d26e18ff3003c3353"
+dependencies = [
+ "bitflags",
+ "frame-metadata 13.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
+ "frame-support-procedural 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
+ "impl-trait-for-tuples",
+ "log",
+ "once_cell",
+ "parity-scale-codec 2.3.1",
+ "paste 1.0.5",
+ "serde",
+ "smallvec 1.6.1",
+ "sp-arithmetic 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
+ "sp-core 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
+ "sp-inherents 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
+ "sp-io 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
+ "sp-runtime 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
+ "sp-staking 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
+ "sp-state-machine 0.9.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
+ "sp-std 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
+ "sp-tracing 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
 ]
 
 [[package]]
@@ -1437,7 +1490,19 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2668e24cbaba7f0e91d0c92a94bd1ae425a942608ad0b775db32477f5df4da9e"
 dependencies = [
  "Inflector",
- "frame-support-procedural-tools",
+ "frame-support-procedural-tools 3.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "proc-macro2 1.0.24",
+ "quote 1.0.9",
+ "syn 1.0.64",
+]
+
+[[package]]
+name = "frame-support-procedural"
+version = "3.0.0"
+source = "git+https://github.com/3Dpass/substrate.git?branch=3dp_v3#49a4103f4bfef55be20a5c6d26e18ff3003c3353"
+dependencies = [
+ "Inflector",
+ "frame-support-procedural-tools 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
  "proc-macro2 1.0.24",
  "quote 1.0.9",
  "syn 1.0.64",
@@ -1449,7 +1514,19 @@ version = "3.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d4f88cfd111e004590f4542b75e6d3302137b9067d7e7219e4ac47a535c3b5c1"
 dependencies = [
- "frame-support-procedural-tools-derive",
+ "frame-support-procedural-tools-derive 3.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "proc-macro-crate 0.1.5",
+ "proc-macro2 1.0.24",
+ "quote 1.0.9",
+ "syn 1.0.64",
+]
+
+[[package]]
+name = "frame-support-procedural-tools"
+version = "3.0.0"
+source = "git+https://github.com/3Dpass/substrate.git?branch=3dp_v3#49a4103f4bfef55be20a5c6d26e18ff3003c3353"
+dependencies = [
+ "frame-support-procedural-tools-derive 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
  "proc-macro-crate 0.1.5",
  "proc-macro2 1.0.24",
  "quote 1.0.9",
@@ -1468,20 +1545,46 @@ dependencies = [
 ]
 
 [[package]]
+name = "frame-support-procedural-tools-derive"
+version = "3.0.0"
+source = "git+https://github.com/3Dpass/substrate.git?branch=3dp_v3#49a4103f4bfef55be20a5c6d26e18ff3003c3353"
+dependencies = [
+ "proc-macro2 1.0.24",
+ "quote 1.0.9",
+ "syn 1.0.64",
+]
+
+[[package]]
 name = "frame-system"
 version = "3.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f5fedbff05d665c00bf4e089b4377fcb15b8bd37ebc3e5fc06665474cf6e25d7"
 dependencies = [
- "frame-support",
+ "frame-support 3.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "impl-trait-for-tuples",
  "parity-scale-codec 2.3.1",
  "serde",
- "sp-core",
- "sp-io",
- "sp-runtime",
- "sp-std",
- "sp-version",
+ "sp-core 3.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "sp-io 3.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "sp-runtime 3.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "sp-std 3.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "sp-version 3.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
+name = "frame-system"
+version = "3.0.0"
+source = "git+https://github.com/3Dpass/substrate.git?branch=3dp_v3#49a4103f4bfef55be20a5c6d26e18ff3003c3353"
+dependencies = [
+ "frame-support 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
+ "impl-trait-for-tuples",
+ "parity-scale-codec 2.3.1",
+ "serde",
+ "sp-core 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
+ "sp-io 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
+ "sp-runtime 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
+ "sp-std 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
+ "sp-version 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
 ]
 
 [[package]]
@@ -3536,249 +3639,238 @@ dependencies = [
 [[package]]
 name = "pallet-authorship"
 version = "3.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "47433a94141451e7079aabf3ca28f2bde8c642d84b568be9626e9b7cae8b11b1"
+source = "git+https://github.com/3Dpass/substrate.git?branch=3dp_v3#49a4103f4bfef55be20a5c6d26e18ff3003c3353"
 dependencies = [
- "frame-support",
- "frame-system",
+ "frame-support 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
+ "frame-system 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
  "impl-trait-for-tuples",
  "parity-scale-codec 2.3.1",
  "sp-authorship",
- "sp-inherents",
- "sp-runtime",
- "sp-std",
+ "sp-inherents 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
+ "sp-runtime 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
+ "sp-std 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
 ]
 
 [[package]]
 name = "pallet-balances"
 version = "3.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "41aaeaf084e594273f82bcbf96416ef1fcab602e15dd1df04b9930eceb2eb518"
+source = "git+https://github.com/3Dpass/substrate.git?branch=3dp_v3#49a4103f4bfef55be20a5c6d26e18ff3003c3353"
 dependencies = [
- "frame-benchmarking",
- "frame-support",
- "frame-system",
+ "frame-benchmarking 3.0.0",
+ "frame-support 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
+ "frame-system 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
  "parity-scale-codec 2.3.1",
  "serde",
- "sp-runtime",
- "sp-std",
+ "sp-runtime 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
+ "sp-std 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
 ]
 
 [[package]]
 name = "pallet-bounties"
 version = "3.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b0e6b704c712d51d146baa9fc0215a23215d222b8deab7c3270eb51ff2a09d1d"
+source = "git+https://github.com/3Dpass/substrate.git?branch=3dp_v3#49a4103f4bfef55be20a5c6d26e18ff3003c3353"
 dependencies = [
- "frame-support",
- "frame-system",
+ "frame-support 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
+ "frame-system 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
  "pallet-treasury",
  "parity-scale-codec 2.3.1",
  "serde",
- "sp-runtime",
- "sp-std",
+ "sp-runtime 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
+ "sp-std 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
 ]
 
 [[package]]
 name = "pallet-collective"
 version = "3.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fe826f3bfb984b3dd8d6675d7d156ba4c0877ee562bf59d86a4e805b7737dcb1"
+source = "git+https://github.com/3Dpass/substrate.git?branch=3dp_v3#49a4103f4bfef55be20a5c6d26e18ff3003c3353"
 dependencies = [
- "frame-support",
- "frame-system",
+ "frame-support 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
+ "frame-system 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
  "parity-scale-codec 2.3.1",
  "serde",
- "sp-core",
- "sp-io",
- "sp-runtime",
- "sp-std",
+ "sp-core 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
+ "sp-io 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
+ "sp-runtime 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
+ "sp-std 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
 ]
 
 [[package]]
 name = "pallet-difficulty"
 version = "2.8.0"
 dependencies = [
- "frame-support",
- "frame-system",
+ "frame-support 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
+ "frame-system 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
  "pallet-timestamp",
  "parity-scale-codec 2.3.1",
  "serde",
  "sp-consensus-poscan",
- "sp-core",
- "sp-runtime",
- "sp-std",
+ "sp-core 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
+ "sp-runtime 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
+ "sp-std 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
  "sp-timestamp",
 ]
 
 [[package]]
 name = "pallet-grandpa"
 version = "3.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7c012cb0337ce1eaf0685be2777bce1ef8c5d7b7be77ea33916c316b40af43fa"
+source = "git+https://github.com/3Dpass/substrate.git?branch=3dp_v3#49a4103f4bfef55be20a5c6d26e18ff3003c3353"
 dependencies = [
- "frame-benchmarking",
- "frame-support",
- "frame-system",
+ "frame-benchmarking 3.0.0",
+ "frame-support 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
+ "frame-system 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
  "pallet-authorship",
  "pallet-session",
  "parity-scale-codec 2.3.1",
  "serde",
- "sp-application-crypto",
- "sp-core",
+ "sp-application-crypto 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
+ "sp-core 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
  "sp-finality-grandpa",
- "sp-runtime",
+ "sp-runtime 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
  "sp-session",
- "sp-staking",
- "sp-std",
+ "sp-staking 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
+ "sp-std 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
 ]
 
 [[package]]
 name = "pallet-lockdrop"
 version = "2.8.0"
 dependencies = [
- "frame-benchmarking",
- "frame-support",
- "frame-system",
+ "frame-benchmarking 3.1.0",
+ "frame-support 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
+ "frame-system 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
  "pallet-balances",
  "parity-scale-codec 2.3.1",
  "serde",
- "sp-core",
- "sp-io",
- "sp-runtime",
- "sp-std",
+ "sp-core 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
+ "sp-io 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
+ "sp-runtime 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
+ "sp-std 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
 ]
 
 [[package]]
 name = "pallet-poscan"
 version = "0.0.1"
 dependencies = [
- "frame-benchmarking",
- "frame-support",
- "frame-system",
+ "frame-benchmarking 3.1.0",
+ "frame-support 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
+ "frame-system 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
  "parity-scale-codec 2.3.1",
  "scale-info",
- "sp-std",
+ "sp-std 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
 ]
 
 [[package]]
 name = "pallet-randomness-collective-flip"
 version = "3.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ca3ea6fa9aa36735ec11d7ec4d97dd6472650c0656fdc6d4adaca2578bd71134"
+source = "git+https://github.com/3Dpass/substrate.git?branch=3dp_v3#49a4103f4bfef55be20a5c6d26e18ff3003c3353"
 dependencies = [
- "frame-support",
- "frame-system",
+ "frame-support 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
+ "frame-system 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
  "parity-scale-codec 2.3.1",
  "safe-mix",
- "sp-runtime",
- "sp-std",
+ "sp-runtime 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
+ "sp-std 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
 ]
 
 [[package]]
 name = "pallet-rewards"
 version = "2.8.0"
 dependencies = [
- "frame-benchmarking",
- "frame-support",
- "frame-system",
+ "frame-benchmarking 3.0.0",
+ "frame-support 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
+ "frame-system 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
  "pallet-balances",
  "parity-scale-codec 2.3.1",
  "serde",
  "sp-consensus-poscan",
  "sp-consensus-pow",
- "sp-core",
- "sp-inherents",
- "sp-io",
- "sp-runtime",
- "sp-std",
+ "sp-core 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
+ "sp-inherents 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
+ "sp-io 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
+ "sp-runtime 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
+ "sp-std 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
 ]
 
 [[package]]
 name = "pallet-session"
 version = "3.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6d243c3ccac56a4c55fade6be5c5af1de07fac374fa7856377980a76b0c193cf"
+source = "git+https://github.com/3Dpass/substrate.git?branch=3dp_v3#49a4103f4bfef55be20a5c6d26e18ff3003c3353"
 dependencies = [
- "frame-support",
- "frame-system",
+ "frame-support 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
+ "frame-system 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
  "impl-trait-for-tuples",
  "pallet-timestamp",
  "parity-scale-codec 2.3.1",
  "serde",
- "sp-core",
- "sp-io",
- "sp-runtime",
+ "sp-core 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
+ "sp-io 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
+ "sp-runtime 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
  "sp-session",
- "sp-staking",
- "sp-std",
- "sp-trie",
+ "sp-staking 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
+ "sp-std 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
+ "sp-trie 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
 ]
 
 [[package]]
 name = "pallet-sudo"
 version = "3.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c4a96774302e3824b7924c2465935ca4d558ea5f6a762c043fbc45fd2646ce89"
+source = "git+https://github.com/3Dpass/substrate.git?branch=3dp_v3#49a4103f4bfef55be20a5c6d26e18ff3003c3353"
 dependencies = [
- "frame-support",
- "frame-system",
+ "frame-support 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
+ "frame-system 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
  "parity-scale-codec 2.3.1",
  "serde",
- "sp-io",
- "sp-runtime",
- "sp-std",
+ "sp-io 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
+ "sp-runtime 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
+ "sp-std 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
 ]
 
 [[package]]
 name = "pallet-timestamp"
 version = "3.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b17dd274716a55a2c3e34d9c0ed66aaac3d7e0393ec9fd985e2b8532d697a7f3"
+source = "git+https://github.com/3Dpass/substrate.git?branch=3dp_v3#49a4103f4bfef55be20a5c6d26e18ff3003c3353"
 dependencies = [
- "frame-benchmarking",
- "frame-support",
- "frame-system",
+ "frame-benchmarking 3.0.0",
+ "frame-support 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
+ "frame-system 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
  "impl-trait-for-tuples",
  "parity-scale-codec 2.3.1",
  "serde",
- "sp-inherents",
- "sp-runtime",
- "sp-std",
+ "sp-inherents 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
+ "sp-runtime 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
+ "sp-std 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
  "sp-timestamp",
 ]
 
 [[package]]
 name = "pallet-transaction-payment"
 version = "3.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "48e10dc1a10dd3f52edb20d3885cf5b2b16f26273a4d93e61331c6691fb13ab3"
+source = "git+https://github.com/3Dpass/substrate.git?branch=3dp_v3#49a4103f4bfef55be20a5c6d26e18ff3003c3353"
 dependencies = [
- "frame-support",
- "frame-system",
+ "frame-support 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
+ "frame-system 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
  "parity-scale-codec 2.3.1",
  "serde",
  "smallvec 1.6.1",
- "sp-core",
- "sp-io",
- "sp-runtime",
- "sp-std",
+ "sp-core 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
+ "sp-io 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
+ "sp-runtime 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
+ "sp-std 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
 ]
 
 [[package]]
 name = "pallet-treasury"
 version = "3.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d19f881664d42d1c33dd67e690d6bddd35d38723fcc099b19304f9723fc3070c"
+source = "git+https://github.com/3Dpass/substrate.git?branch=3dp_v3#49a4103f4bfef55be20a5c6d26e18ff3003c3353"
 dependencies = [
- "frame-support",
- "frame-system",
+ "frame-support 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
+ "frame-system 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
  "impl-trait-for-tuples",
  "pallet-balances",
  "parity-scale-codec 2.3.1",
  "serde",
- "sp-runtime",
- "sp-std",
+ "sp-runtime 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
+ "sp-std 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
 ]
 
 [[package]]
@@ -4282,18 +4374,18 @@ dependencies = [
  "sc-rpc-api",
  "sc-service",
  "sc-transaction-pool",
- "sp-api",
+ "sp-api 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
  "sp-block-builder",
  "sp-blockchain",
  "sp-consensus",
  "sp-consensus-poscan",
- "sp-core",
+ "sp-core 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
  "sp-finality-grandpa",
- "sp-inherents",
- "sp-io",
- "sp-keystore",
- "sp-runtime",
- "sp-std",
+ "sp-inherents 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
+ "sp-io 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
+ "sp-keystore 0.9.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
+ "sp-runtime 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
+ "sp-std 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
  "sp-timestamp",
  "sp-transaction-pool",
  "spin 0.9.3",
@@ -4314,10 +4406,10 @@ dependencies = [
  "rand 0.8.3",
  "sc-consensus-poscan",
  "sha3",
- "sp-api",
+ "sp-api 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
  "sp-consensus-poscan",
- "sp-core",
- "sp-runtime",
+ "sp-core 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
+ "sp-runtime 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
 ]
 
 [[package]]
@@ -4325,8 +4417,8 @@ name = "poscan-runtime"
 version = "3.0.0"
 dependencies = [
  "frame-executive",
- "frame-support",
- "frame-system",
+ "frame-support 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
+ "frame-system 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
  "pallet-balances",
  "pallet-bounties",
  "pallet-collective",
@@ -4343,20 +4435,20 @@ dependencies = [
  "parity-scale-codec 2.3.1",
  "serde",
  "smallvec 1.6.1",
- "sp-api",
- "sp-arithmetic",
+ "sp-api 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
+ "sp-arithmetic 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
  "sp-block-builder",
  "sp-consensus-poscan",
- "sp-core",
+ "sp-core 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
  "sp-finality-grandpa",
- "sp-inherents",
- "sp-io",
+ "sp-inherents 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
+ "sp-io 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
  "sp-offchain",
- "sp-runtime",
+ "sp-runtime 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
  "sp-session",
- "sp-std",
+ "sp-std 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
  "sp-transaction-pool",
- "sp-version",
+ "sp-version 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
  "static_assertions",
  "substrate-wasm-builder",
 ]
@@ -4997,8 +5089,7 @@ dependencies = [
 [[package]]
 name = "sc-basic-authorship"
 version = "0.9.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "de86afb63617599821312bda08882451ff2b49d9c45e22513ddff5a07c6d966e"
+source = "git+https://github.com/3Dpass/substrate.git?branch=3dp_v3#49a4103f4bfef55be20a5c6d26e18ff3003c3353"
 dependencies = [
  "futures 0.3.13",
  "futures-timer 3.0.2",
@@ -5008,12 +5099,12 @@ dependencies = [
  "sc-client-api",
  "sc-proposer-metrics",
  "sc-telemetry",
- "sp-api",
+ "sp-api 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
  "sp-blockchain",
  "sp-consensus",
- "sp-core",
- "sp-inherents",
- "sp-runtime",
+ "sp-core 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
+ "sp-inherents 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
+ "sp-runtime 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
  "sp-transaction-pool",
  "substrate-prometheus-endpoint",
 ]
@@ -5021,26 +5112,24 @@ dependencies = [
 [[package]]
 name = "sc-block-builder"
 version = "0.9.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9862161f9d09d870401c7256c89ad1eb3afa56a61f7d7135c2bac76ff7152955"
+source = "git+https://github.com/3Dpass/substrate.git?branch=3dp_v3#49a4103f4bfef55be20a5c6d26e18ff3003c3353"
 dependencies = [
  "parity-scale-codec 2.3.1",
  "sc-client-api",
- "sp-api",
+ "sp-api 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
  "sp-block-builder",
  "sp-blockchain",
  "sp-consensus",
- "sp-core",
- "sp-inherents",
- "sp-runtime",
- "sp-state-machine",
+ "sp-core 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
+ "sp-inherents 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
+ "sp-runtime 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
+ "sp-state-machine 0.9.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
 ]
 
 [[package]]
 name = "sc-chain-spec"
 version = "3.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "50d97030776b49bc9c109e2d349212d8f2500637761048e1af5b7ce2dfd994c7"
+source = "git+https://github.com/3Dpass/substrate.git?branch=3dp_v3#49a4103f4bfef55be20a5c6d26e18ff3003c3353"
 dependencies = [
  "impl-trait-for-tuples",
  "parity-scale-codec 2.3.1",
@@ -5054,15 +5143,14 @@ dependencies = [
  "serde_json",
  "sp-chain-spec",
  "sp-consensus-babe",
- "sp-core",
- "sp-runtime",
+ "sp-core 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
+ "sp-runtime 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
 ]
 
 [[package]]
 name = "sc-chain-spec-derive"
 version = "3.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5f14985513db9798fcedea58bdc8a08f1c6b3a515d6546ced7467b059b7982c4"
+source = "git+https://github.com/3Dpass/substrate.git?branch=3dp_v3#49a4103f4bfef55be20a5c6d26e18ff3003c3353"
 dependencies = [
  "proc-macro-crate 0.1.5",
  "proc-macro2 1.0.24",
@@ -5073,8 +5161,7 @@ dependencies = [
 [[package]]
 name = "sc-cli"
 version = "0.9.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7ec1647b5c1483fa05f7f32e436d0e378e2f3d5696a5a30bddf66f5faf28acb4"
+source = "git+https://github.com/3Dpass/substrate.git?branch=3dp_v3#49a4103f4bfef55be20a5c6d26e18ff3003c3353"
 dependencies = [
  "chrono",
  "fdlimit",
@@ -5096,13 +5183,13 @@ dependencies = [
  "serde",
  "serde_json",
  "sp-blockchain",
- "sp-core",
+ "sp-core 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
  "sp-keyring",
- "sp-keystore",
- "sp-panic-handler",
- "sp-runtime",
+ "sp-keystore 0.9.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
+ "sp-panic-handler 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
+ "sp-runtime 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
  "sp-utils",
- "sp-version",
+ "sp-version 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
  "structopt",
  "thiserror",
  "tiny-bip39",
@@ -5112,8 +5199,7 @@ dependencies = [
 [[package]]
 name = "sc-client-api"
 version = "3.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "56d8b2c8dc0cee9ac56e87ad50c980edbdeb35bdd5b5d9da4ae90567423363be"
+source = "git+https://github.com/3Dpass/substrate.git?branch=3dp_v3#49a4103f4bfef55be20a5c6d26e18ff3003c3353"
 dependencies = [
  "derive_more 0.99.11",
  "fnv",
@@ -5125,30 +5211,29 @@ dependencies = [
  "parity-scale-codec 2.3.1",
  "parking_lot 0.11.1",
  "sc-executor",
- "sp-api",
+ "sp-api 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
  "sp-blockchain",
  "sp-consensus",
- "sp-core",
+ "sp-core 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
  "sp-database",
- "sp-externalities",
- "sp-inherents",
- "sp-keystore",
- "sp-runtime",
- "sp-state-machine",
- "sp-std",
- "sp-storage",
+ "sp-externalities 0.9.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
+ "sp-inherents 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
+ "sp-keystore 0.9.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
+ "sp-runtime 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
+ "sp-state-machine 0.9.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
+ "sp-std 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
+ "sp-storage 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
  "sp-transaction-pool",
- "sp-trie",
+ "sp-trie 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
  "sp-utils",
- "sp-version",
+ "sp-version 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
  "substrate-prometheus-endpoint",
 ]
 
 [[package]]
 name = "sc-client-db"
 version = "0.9.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5741e447d71ff36c147f961b2271b6b3fad0cc347e96936bc8b63ddffa594b27"
+source = "git+https://github.com/3Dpass/substrate.git?branch=3dp_v3#49a4103f4bfef55be20a5c6d26e18ff3003c3353"
 dependencies = [
  "blake2-rfc",
  "hash-db",
@@ -5164,34 +5249,32 @@ dependencies = [
  "sc-client-api",
  "sc-executor",
  "sc-state-db",
- "sp-arithmetic",
+ "sp-arithmetic 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
  "sp-blockchain",
  "sp-consensus",
- "sp-core",
+ "sp-core 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
  "sp-database",
- "sp-runtime",
- "sp-state-machine",
- "sp-trie",
+ "sp-runtime 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
+ "sp-state-machine 0.9.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
+ "sp-trie 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
  "substrate-prometheus-endpoint",
 ]
 
 [[package]]
 name = "sc-consensus"
 version = "0.9.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "99f20cc8b8a74e218365ac4187bce26ea631d58d221caa1797bc6ec8056dba33"
+source = "git+https://github.com/3Dpass/substrate.git?branch=3dp_v3#49a4103f4bfef55be20a5c6d26e18ff3003c3353"
 dependencies = [
  "sc-client-api",
  "sp-blockchain",
  "sp-consensus",
- "sp-runtime",
+ "sp-runtime 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
 ]
 
 [[package]]
 name = "sc-consensus-babe"
 version = "0.9.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "98d52048476e0fcb53feae8ca919a602104f1ba0b89a729b496440f36b332961"
+source = "git+https://github.com/3Dpass/substrate.git?branch=3dp_v3#49a4103f4bfef55be20a5c6d26e18ff3003c3353"
 dependencies = [
  "derive_more 0.99.11",
  "fork-tree",
@@ -5215,37 +5298,36 @@ dependencies = [
  "sc-telemetry",
  "schnorrkel",
  "serde",
- "sp-api",
- "sp-application-crypto",
+ "sp-api 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
+ "sp-application-crypto 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
  "sp-block-builder",
  "sp-blockchain",
  "sp-consensus",
  "sp-consensus-babe",
  "sp-consensus-slots",
  "sp-consensus-vrf",
- "sp-core",
- "sp-inherents",
- "sp-io",
- "sp-keystore",
- "sp-runtime",
+ "sp-core 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
+ "sp-inherents 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
+ "sp-io 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
+ "sp-keystore 0.9.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
+ "sp-runtime 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
  "sp-timestamp",
  "sp-utils",
- "sp-version",
+ "sp-version 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
  "substrate-prometheus-endpoint",
 ]
 
 [[package]]
 name = "sc-consensus-epochs"
 version = "0.9.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "326313ffb249a526e8ee8e08af9fdf0c4459cebeaa760b934e9df3985b68e4df"
+source = "git+https://github.com/3Dpass/substrate.git?branch=3dp_v3#49a4103f4bfef55be20a5c6d26e18ff3003c3353"
 dependencies = [
  "fork-tree",
  "parity-scale-codec 2.3.1",
  "parking_lot 0.11.1",
  "sc-client-api",
  "sp-blockchain",
- "sp-runtime",
+ "sp-runtime 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
 ]
 
 [[package]]
@@ -5260,15 +5342,15 @@ dependencies = [
  "parking_lot 0.11.1",
  "poscan-runtime",
  "sc-client-api",
- "sp-api",
- "sp-application-crypto",
+ "sp-api 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
+ "sp-application-crypto 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
  "sp-block-builder",
  "sp-blockchain",
  "sp-consensus",
  "sp-consensus-poscan",
- "sp-core",
- "sp-inherents",
- "sp-runtime",
+ "sp-core 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
+ "sp-inherents 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
+ "sp-runtime 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
  "sp-timestamp",
  "substrate-prometheus-endpoint",
 ]
@@ -5276,8 +5358,7 @@ dependencies = [
 [[package]]
 name = "sc-consensus-slots"
 version = "0.9.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "76e09ff8b680d449102da9717a70c3bbbbb981fd4cf1bfbafc1739d954eb0898"
+source = "git+https://github.com/3Dpass/substrate.git?branch=3dp_v3#49a4103f4bfef55be20a5c6d26e18ff3003c3353"
 dependencies = [
  "futures 0.3.13",
  "futures-timer 3.0.2",
@@ -5286,40 +5367,38 @@ dependencies = [
  "parking_lot 0.11.1",
  "sc-client-api",
  "sc-telemetry",
- "sp-api",
- "sp-application-crypto",
- "sp-arithmetic",
+ "sp-api 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
+ "sp-application-crypto 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
+ "sp-arithmetic 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
  "sp-blockchain",
  "sp-consensus",
  "sp-consensus-slots",
- "sp-core",
- "sp-inherents",
- "sp-runtime",
- "sp-state-machine",
- "sp-trie",
+ "sp-core 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
+ "sp-inherents 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
+ "sp-runtime 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
+ "sp-state-machine 0.9.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
+ "sp-trie 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
  "thiserror",
 ]
 
 [[package]]
 name = "sc-consensus-uncles"
 version = "0.9.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "37294bae6d787eecf2b15255dc75cd559b4ad813e0efcf28cd4423e218931b80"
+source = "git+https://github.com/3Dpass/substrate.git?branch=3dp_v3#49a4103f4bfef55be20a5c6d26e18ff3003c3353"
 dependencies = [
  "log",
  "sc-client-api",
  "sp-authorship",
  "sp-consensus",
- "sp-core",
- "sp-inherents",
- "sp-runtime",
+ "sp-core 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
+ "sp-inherents 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
+ "sp-runtime 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
 ]
 
 [[package]]
 name = "sc-executor"
 version = "0.9.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "bace6a35999d2da7311d8fb98a29c1e89dbf0d14e50ac14140f2c38089819f46"
+source = "git+https://github.com/3Dpass/substrate.git?branch=3dp_v3#49a4103f4bfef55be20a5c6d26e18ff3003c3353"
 dependencies = [
  "derive_more 0.99.11",
  "lazy_static",
@@ -5330,33 +5409,32 @@ dependencies = [
  "parking_lot 0.11.1",
  "sc-executor-common",
  "sc-executor-wasmi",
- "sp-api",
- "sp-core",
- "sp-externalities",
- "sp-io",
- "sp-panic-handler",
- "sp-runtime-interface",
+ "sp-api 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
+ "sp-core 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
+ "sp-externalities 0.9.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
+ "sp-io 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
+ "sp-panic-handler 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
+ "sp-runtime-interface 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
  "sp-serializer",
  "sp-tasks",
- "sp-trie",
- "sp-version",
- "sp-wasm-interface",
+ "sp-trie 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
+ "sp-version 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
+ "sp-wasm-interface 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
  "wasmi",
 ]
 
 [[package]]
 name = "sc-executor-common"
 version = "0.9.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "87004102a8e95f432f1c624c7fa7fb0edc5995db2e0fcbabbb697f1955e7c1d2"
+source = "git+https://github.com/3Dpass/substrate.git?branch=3dp_v3#49a4103f4bfef55be20a5c6d26e18ff3003c3353"
 dependencies = [
  "derive_more 0.99.11",
  "parity-scale-codec 2.3.1",
  "parity-wasm 0.41.0",
  "sp-allocator",
- "sp-core",
+ "sp-core 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
  "sp-serializer",
- "sp-wasm-interface",
+ "sp-wasm-interface 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
  "thiserror",
  "wasmi",
 ]
@@ -5364,24 +5442,22 @@ dependencies = [
 [[package]]
 name = "sc-executor-wasmi"
 version = "0.9.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2d3d7b6db2df5f2c24848883a855a8276363f00cef5b49744974f7e1203bf274"
+source = "git+https://github.com/3Dpass/substrate.git?branch=3dp_v3#49a4103f4bfef55be20a5c6d26e18ff3003c3353"
 dependencies = [
  "log",
  "parity-scale-codec 2.3.1",
  "sc-executor-common",
  "sp-allocator",
- "sp-core",
- "sp-runtime-interface",
- "sp-wasm-interface",
+ "sp-core 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
+ "sp-runtime-interface 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
+ "sp-wasm-interface 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
  "wasmi",
 ]
 
 [[package]]
 name = "sc-finality-grandpa"
 version = "0.9.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a7e87e63c57933e173a8643ff197b579e3fc5c91b16ca006096f482de8159318"
+source = "git+https://github.com/3Dpass/substrate.git?branch=3dp_v3#49a4103f4bfef55be20a5c6d26e18ff3003c3353"
 dependencies = [
  "derive_more 0.99.11",
  "finality-grandpa",
@@ -5402,16 +5478,16 @@ dependencies = [
  "sc-network-gossip",
  "sc-telemetry",
  "serde_json",
- "sp-api",
- "sp-application-crypto",
- "sp-arithmetic",
+ "sp-api 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
+ "sp-application-crypto 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
+ "sp-arithmetic 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
  "sp-blockchain",
  "sp-consensus",
- "sp-core",
+ "sp-core 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
  "sp-finality-grandpa",
- "sp-inherents",
- "sp-keystore",
- "sp-runtime",
+ "sp-inherents 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
+ "sp-keystore 0.9.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
+ "sp-runtime 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
  "sp-utils",
  "substrate-prometheus-endpoint",
 ]
@@ -5419,8 +5495,7 @@ dependencies = [
 [[package]]
 name = "sc-informant"
 version = "0.9.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4f4c8994853e1158dc4f448b014aa83eef56ced214ec0af316eecf4a6ca3268f"
+source = "git+https://github.com/3Dpass/substrate.git?branch=3dp_v3#49a4103f4bfef55be20a5c6d26e18ff3003c3353"
 dependencies = [
  "ansi_term 0.12.1",
  "futures 0.3.13",
@@ -5429,7 +5504,7 @@ dependencies = [
  "sc-client-api",
  "sc-network",
  "sp-blockchain",
- "sp-runtime",
+ "sp-runtime 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
  "sp-transaction-pool",
  "sp-utils",
  "wasm-timer",
@@ -5438,8 +5513,7 @@ dependencies = [
 [[package]]
 name = "sc-keystore"
 version = "3.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d966ed36c404eced656bd63aad8a30d2c1a14633f07cd1d7d9c11b62f75a7905"
+source = "git+https://github.com/3Dpass/substrate.git?branch=3dp_v3#49a4103f4bfef55be20a5c6d26e18ff3003c3353"
 dependencies = [
  "async-trait",
  "derive_more 0.99.11",
@@ -5450,17 +5524,16 @@ dependencies = [
  "parking_lot 0.11.1",
  "rand 0.7.3",
  "serde_json",
- "sp-application-crypto",
- "sp-core",
- "sp-keystore",
+ "sp-application-crypto 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
+ "sp-core 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
+ "sp-keystore 0.9.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
  "subtle 2.4.0",
 ]
 
 [[package]]
 name = "sc-light"
 version = "3.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "04e8dbcb2951f7cf76ddf97ed26dcef0dab79d76745de4a8f169d58236ea8704"
+source = "git+https://github.com/3Dpass/substrate.git?branch=3dp_v3#49a4103f4bfef55be20a5c6d26e18ff3003c3353"
 dependencies = [
  "hash-db",
  "lazy_static",
@@ -5468,19 +5541,18 @@ dependencies = [
  "parking_lot 0.11.1",
  "sc-client-api",
  "sc-executor",
- "sp-api",
+ "sp-api 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
  "sp-blockchain",
- "sp-core",
- "sp-externalities",
- "sp-runtime",
- "sp-state-machine",
+ "sp-core 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
+ "sp-externalities 0.9.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
+ "sp-runtime 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
+ "sp-state-machine 0.9.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
 ]
 
 [[package]]
 name = "sc-network"
 version = "0.9.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "20fb4ed5d6b86faafb0743c8c2fd1c89b52cde7697373b254c7553800efaebbf"
+source = "git+https://github.com/3Dpass/substrate.git?branch=3dp_v3#49a4103f4bfef55be20a5c6d26e18ff3003c3353"
 dependencies = [
  "async-std",
  "async-trait",
@@ -5516,11 +5588,11 @@ dependencies = [
  "serde",
  "serde_json",
  "smallvec 1.6.1",
- "sp-arithmetic",
+ "sp-arithmetic 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
  "sp-blockchain",
  "sp-consensus",
- "sp-core",
- "sp-runtime",
+ "sp-core 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
+ "sp-runtime 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
  "sp-utils",
  "substrate-prometheus-endpoint",
  "thiserror",
@@ -5533,8 +5605,7 @@ dependencies = [
 [[package]]
 name = "sc-network-gossip"
 version = "0.9.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e2cd5487d6f8051863a186e2aea4c233a07bb691780d3b117c9d6ffe1ff9a8fe"
+source = "git+https://github.com/3Dpass/substrate.git?branch=3dp_v3#49a4103f4bfef55be20a5c6d26e18ff3003c3353"
 dependencies = [
  "futures 0.3.13",
  "futures-timer 3.0.2",
@@ -5542,7 +5613,7 @@ dependencies = [
  "log",
  "lru",
  "sc-network",
- "sp-runtime",
+ "sp-runtime 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
  "substrate-prometheus-endpoint",
  "wasm-timer",
 ]
@@ -5550,8 +5621,7 @@ dependencies = [
 [[package]]
 name = "sc-offchain"
 version = "3.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7bc91fc71c128748a3393cb3421e12a7759ccffcc1cc4a9e6ff4ead6cc68ba48"
+source = "git+https://github.com/3Dpass/substrate.git?branch=3dp_v3#49a4103f4bfef55be20a5c6d26e18ff3003c3353"
 dependencies = [
  "bytes 0.5.6",
  "fnv",
@@ -5567,10 +5637,10 @@ dependencies = [
  "sc-client-api",
  "sc-keystore",
  "sc-network",
- "sp-api",
- "sp-core",
+ "sp-api 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
+ "sp-core 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
  "sp-offchain",
- "sp-runtime",
+ "sp-runtime 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
  "sp-utils",
  "threadpool",
 ]
@@ -5578,8 +5648,7 @@ dependencies = [
 [[package]]
 name = "sc-peerset"
 version = "3.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ce454e528e7797a239e734d0d66bf904d48be47aa92691ac7546a45ec32a64cf"
+source = "git+https://github.com/3Dpass/substrate.git?branch=3dp_v3#49a4103f4bfef55be20a5c6d26e18ff3003c3353"
 dependencies = [
  "futures 0.3.13",
  "libp2p",
@@ -5592,8 +5661,7 @@ dependencies = [
 [[package]]
 name = "sc-proposer-metrics"
 version = "0.9.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ecfc2c6cc5dc0ecb1109cce9773b50ad9a3cdbf239dc702ef9071949244dcf3e"
+source = "git+https://github.com/3Dpass/substrate.git?branch=3dp_v3#49a4103f4bfef55be20a5c6d26e18ff3003c3353"
 dependencies = [
  "log",
  "substrate-prometheus-endpoint",
@@ -5602,8 +5670,7 @@ dependencies = [
 [[package]]
 name = "sc-rpc"
 version = "3.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "750397c6aa5a4f922cac99599ad74a4082e3e87553d51ceb4c48abfa056ff32c"
+source = "git+https://github.com/3Dpass/substrate.git?branch=3dp_v3#49a4103f4bfef55be20a5c6d26e18ff3003c3353"
 dependencies = [
  "futures 0.3.13",
  "hash-db",
@@ -5619,26 +5686,25 @@ dependencies = [
  "sc-rpc-api",
  "sc-tracing",
  "serde_json",
- "sp-api",
+ "sp-api 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
  "sp-blockchain",
  "sp-chain-spec",
- "sp-core",
- "sp-keystore",
+ "sp-core 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
+ "sp-keystore 0.9.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
  "sp-offchain",
  "sp-rpc",
- "sp-runtime",
+ "sp-runtime 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
  "sp-session",
- "sp-state-machine",
+ "sp-state-machine 0.9.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
  "sp-transaction-pool",
  "sp-utils",
- "sp-version",
+ "sp-version 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
 ]
 
 [[package]]
 name = "sc-rpc-api"
 version = "0.9.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "dc8393410297df2885efec20d0629a9833b4fd9e4ad83a92471e1ea0c11a0a54"
+source = "git+https://github.com/3Dpass/substrate.git?branch=3dp_v3#49a4103f4bfef55be20a5c6d26e18ff3003c3353"
 dependencies = [
  "derive_more 0.99.11",
  "futures 0.3.13",
@@ -5652,18 +5718,17 @@ dependencies = [
  "serde",
  "serde_json",
  "sp-chain-spec",
- "sp-core",
+ "sp-core 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
  "sp-rpc",
- "sp-runtime",
+ "sp-runtime 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
  "sp-transaction-pool",
- "sp-version",
+ "sp-version 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
 ]
 
 [[package]]
 name = "sc-rpc-server"
 version = "3.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "17c76164897bd3b0d04c2d6aeeb4d3492c86e324b0b08f408b847ea35421b589"
+source = "git+https://github.com/3Dpass/substrate.git?branch=3dp_v3#49a4103f4bfef55be20a5c6d26e18ff3003c3353"
 dependencies = [
  "futures 0.1.31",
  "jsonrpc-core",
@@ -5674,15 +5739,14 @@ dependencies = [
  "log",
  "serde",
  "serde_json",
- "sp-runtime",
+ "sp-runtime 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
  "substrate-prometheus-endpoint",
 ]
 
 [[package]]
 name = "sc-service"
 version = "0.9.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a9315b44eb991ca4f477d889bbd649a2b4b557f963fe48ec5a36c3422518e4a0"
+source = "git+https://github.com/3Dpass/substrate.git?branch=3dp_v3#49a4103f4bfef55be20a5c6d26e18ff3003c3353"
 dependencies = [
  "directories",
  "exit-future",
@@ -5716,24 +5780,24 @@ dependencies = [
  "sc-transaction-pool",
  "serde",
  "serde_json",
- "sp-api",
- "sp-application-crypto",
+ "sp-api 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
+ "sp-application-crypto 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
  "sp-block-builder",
  "sp-blockchain",
  "sp-consensus",
- "sp-core",
- "sp-externalities",
- "sp-inherents",
- "sp-io",
- "sp-keystore",
- "sp-runtime",
+ "sp-core 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
+ "sp-externalities 0.9.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
+ "sp-inherents 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
+ "sp-io 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
+ "sp-keystore 0.9.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
+ "sp-runtime 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
  "sp-session",
- "sp-state-machine",
- "sp-tracing",
+ "sp-state-machine 0.9.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
+ "sp-tracing 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
  "sp-transaction-pool",
- "sp-trie",
+ "sp-trie 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
  "sp-utils",
- "sp-version",
+ "sp-version 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
  "substrate-prometheus-endpoint",
  "tempfile",
  "thiserror",
@@ -5745,8 +5809,7 @@ dependencies = [
 [[package]]
 name = "sc-state-db"
 version = "0.9.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8f144043d5860ce133f701fa78679d6278f2dfc698686beb5f6d892c267e9d92"
+source = "git+https://github.com/3Dpass/substrate.git?branch=3dp_v3#49a4103f4bfef55be20a5c6d26e18ff3003c3353"
 dependencies = [
  "log",
  "parity-scale-codec 2.3.1",
@@ -5754,15 +5817,14 @@ dependencies = [
  "parity-util-mem-derive",
  "parking_lot 0.11.1",
  "sc-client-api",
- "sp-core",
+ "sp-core 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
  "thiserror",
 ]
 
 [[package]]
 name = "sc-telemetry"
 version = "3.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d05040c594b331d90d7341e82c6dc6a3eb7bb2afb4e5dc9c36a79a6754166057"
+source = "git+https://github.com/3Dpass/substrate.git?branch=3dp_v3#49a4103f4bfef55be20a5c6d26e18ff3003c3353"
 dependencies = [
  "chrono",
  "futures 0.3.13",
@@ -5784,8 +5846,7 @@ dependencies = [
 [[package]]
 name = "sc-tracing"
 version = "3.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ef0a4aa327b8bc89d9c5ae57a2f493d8f54ccd706f6763614ab522559fe481d8"
+source = "git+https://github.com/3Dpass/substrate.git?branch=3dp_v3#49a4103f4bfef55be20a5c6d26e18ff3003c3353"
 dependencies = [
  "ansi_term 0.12.1",
  "atty",
@@ -5800,7 +5861,7 @@ dependencies = [
  "sc-tracing-proc-macro",
  "serde",
  "serde_json",
- "sp-tracing",
+ "sp-tracing 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
  "thiserror",
  "tracing",
  "tracing-core",
@@ -5813,8 +5874,7 @@ dependencies = [
 [[package]]
 name = "sc-tracing-proc-macro"
 version = "3.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ec18b0506911e6d624d9ea8f8cc5f503e7944a0fe7d37de95ee84033cf160ebc"
+source = "git+https://github.com/3Dpass/substrate.git?branch=3dp_v3#49a4103f4bfef55be20a5c6d26e18ff3003c3353"
 dependencies = [
  "proc-macro-crate 0.1.5",
  "proc-macro2 1.0.24",
@@ -5825,8 +5885,7 @@ dependencies = [
 [[package]]
 name = "sc-transaction-graph"
 version = "3.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "87b385b8f66cce185478c500ad3de8f4775ab0e948c31561aeac78a27bedc654"
+source = "git+https://github.com/3Dpass/substrate.git?branch=3dp_v3#49a4103f4bfef55be20a5c6d26e18ff3003c3353"
 dependencies = [
  "derive_more 0.99.11",
  "futures 0.3.13",
@@ -5837,8 +5896,8 @@ dependencies = [
  "retain_mut",
  "serde",
  "sp-blockchain",
- "sp-core",
- "sp-runtime",
+ "sp-core 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
+ "sp-runtime 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
  "sp-transaction-pool",
  "sp-utils",
  "thiserror",
@@ -5848,8 +5907,7 @@ dependencies = [
 [[package]]
 name = "sc-transaction-pool"
 version = "3.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "09f4331ea8da2ff45a9466637f90f5cc89f9d31fcd1cd20f74f2520b33bff069"
+source = "git+https://github.com/3Dpass/substrate.git?branch=3dp_v3#49a4103f4bfef55be20a5c6d26e18ff3003c3353"
 dependencies = [
  "futures 0.3.13",
  "futures-diagnose",
@@ -5860,11 +5918,11 @@ dependencies = [
  "parking_lot 0.11.1",
  "sc-client-api",
  "sc-transaction-graph",
- "sp-api",
+ "sp-api 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
  "sp-blockchain",
- "sp-core",
- "sp-runtime",
- "sp-tracing",
+ "sp-core 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
+ "sp-runtime 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
+ "sp-tracing 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
  "sp-transaction-pool",
  "sp-utils",
  "substrate-prometheus-endpoint",
@@ -6231,13 +6289,12 @@ dependencies = [
 [[package]]
 name = "sp-allocator"
 version = "3.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ec5f988ad0cabdb646318cb515a91e9d89062debc9728f9b634d73acab3f3f39"
+source = "git+https://github.com/3Dpass/substrate.git?branch=3dp_v3#49a4103f4bfef55be20a5c6d26e18ff3003c3353"
 dependencies = [
  "log",
- "sp-core",
- "sp-std",
- "sp-wasm-interface",
+ "sp-core 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
+ "sp-std 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
+ "sp-wasm-interface 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
  "thiserror",
 ]
 
@@ -6249,12 +6306,28 @@ checksum = "e63c3460d5daecf67df542c34c2bbd636214a5a200d4bddcfa2ffb9e72c346af"
 dependencies = [
  "hash-db",
  "parity-scale-codec 2.3.1",
- "sp-api-proc-macro",
- "sp-core",
- "sp-runtime",
- "sp-state-machine",
- "sp-std",
- "sp-version",
+ "sp-api-proc-macro 3.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "sp-core 3.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "sp-runtime 3.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "sp-state-machine 0.9.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "sp-std 3.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "sp-version 3.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "thiserror",
+]
+
+[[package]]
+name = "sp-api"
+version = "3.0.0"
+source = "git+https://github.com/3Dpass/substrate.git?branch=3dp_v3#49a4103f4bfef55be20a5c6d26e18ff3003c3353"
+dependencies = [
+ "hash-db",
+ "parity-scale-codec 2.3.1",
+ "sp-api-proc-macro 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
+ "sp-core 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
+ "sp-runtime 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
+ "sp-state-machine 0.9.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
+ "sp-std 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
+ "sp-version 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
  "thiserror",
 ]
 
@@ -6272,6 +6345,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "sp-api-proc-macro"
+version = "3.0.0"
+source = "git+https://github.com/3Dpass/substrate.git?branch=3dp_v3#49a4103f4bfef55be20a5c6d26e18ff3003c3353"
+dependencies = [
+ "blake2-rfc",
+ "proc-macro-crate 0.1.5",
+ "proc-macro2 1.0.24",
+ "quote 1.0.9",
+ "syn 1.0.64",
+]
+
+[[package]]
 name = "sp-application-crypto"
 version = "3.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -6279,9 +6364,21 @@ checksum = "c52e2e6d43036b97c4fce1ed87c5262c1ffdc78c655ada4d3024a3f8094bdd2c"
 dependencies = [
  "parity-scale-codec 2.3.1",
  "serde",
- "sp-core",
- "sp-io",
- "sp-std",
+ "sp-core 3.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "sp-io 3.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "sp-std 3.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
+name = "sp-application-crypto"
+version = "3.0.0"
+source = "git+https://github.com/3Dpass/substrate.git?branch=3dp_v3#49a4103f4bfef55be20a5c6d26e18ff3003c3353"
+dependencies = [
+ "parity-scale-codec 2.3.1",
+ "serde",
+ "sp-core 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
+ "sp-io 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
+ "sp-std 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
 ]
 
 [[package]]
@@ -6294,59 +6391,68 @@ dependencies = [
  "num-traits",
  "parity-scale-codec 2.3.1",
  "serde",
- "sp-debug-derive",
- "sp-std",
+ "sp-debug-derive 3.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "sp-std 3.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
+name = "sp-arithmetic"
+version = "3.0.0"
+source = "git+https://github.com/3Dpass/substrate.git?branch=3dp_v3#49a4103f4bfef55be20a5c6d26e18ff3003c3353"
+dependencies = [
+ "integer-sqrt",
+ "num-traits",
+ "parity-scale-codec 2.3.1",
+ "serde",
+ "sp-debug-derive 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
+ "sp-std 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
 ]
 
 [[package]]
 name = "sp-authorship"
 version = "3.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1ec68fb8e5a37548b06c14ee91a9c574cc330324c86d37810ec29dd4f8bc68d7"
+source = "git+https://github.com/3Dpass/substrate.git?branch=3dp_v3#49a4103f4bfef55be20a5c6d26e18ff3003c3353"
 dependencies = [
  "parity-scale-codec 2.3.1",
- "sp-inherents",
- "sp-runtime",
- "sp-std",
+ "sp-inherents 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
+ "sp-runtime 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
+ "sp-std 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
 ]
 
 [[package]]
 name = "sp-block-builder"
 version = "3.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0adc979dbe619f56d664ebd1293dce13fcad6b8a47bcdd620ed53a454d330d12"
+source = "git+https://github.com/3Dpass/substrate.git?branch=3dp_v3#49a4103f4bfef55be20a5c6d26e18ff3003c3353"
 dependencies = [
  "parity-scale-codec 2.3.1",
- "sp-api",
- "sp-inherents",
- "sp-runtime",
- "sp-std",
+ "sp-api 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
+ "sp-inherents 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
+ "sp-runtime 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
+ "sp-std 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
 ]
 
 [[package]]
 name = "sp-blockchain"
 version = "3.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e8007c1ad8e9fb6cd8eed4e0fc91504a9ca4b228e1315302a2fbb0ac7f509f1b"
+source = "git+https://github.com/3Dpass/substrate.git?branch=3dp_v3#49a4103f4bfef55be20a5c6d26e18ff3003c3353"
 dependencies = [
  "futures 0.3.13",
  "log",
  "lru",
  "parity-scale-codec 2.3.1",
  "parking_lot 0.11.1",
- "sp-api",
+ "sp-api 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
  "sp-consensus",
  "sp-database",
- "sp-runtime",
- "sp-state-machine",
+ "sp-runtime 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
+ "sp-state-machine 0.9.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
  "thiserror",
 ]
 
 [[package]]
 name = "sp-chain-spec"
 version = "3.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3a24beb11980d0c755ead0c05f3f966c490e4a3730785c04c03855fada65d697"
+source = "git+https://github.com/3Dpass/substrate.git?branch=3dp_v3#49a4103f4bfef55be20a5c6d26e18ff3003c3353"
 dependencies = [
  "serde",
  "serde_json",
@@ -6355,8 +6461,7 @@ dependencies = [
 [[package]]
 name = "sp-consensus"
 version = "0.9.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "884db6c4b03f0f2fb2993127a2db95fc740fcd3496746dcaa6829c9868e7dc75"
+source = "git+https://github.com/3Dpass/substrate.git?branch=3dp_v3#49a4103f4bfef55be20a5c6d26e18ff3003c3353"
 dependencies = [
  "futures 0.3.13",
  "futures-timer 3.0.2",
@@ -6365,15 +6470,15 @@ dependencies = [
  "parity-scale-codec 2.3.1",
  "parking_lot 0.11.1",
  "serde",
- "sp-api",
- "sp-core",
- "sp-inherents",
- "sp-runtime",
- "sp-state-machine",
- "sp-std",
- "sp-trie",
+ "sp-api 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
+ "sp-core 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
+ "sp-inherents 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
+ "sp-runtime 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
+ "sp-state-machine 0.9.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
+ "sp-std 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
+ "sp-trie 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
  "sp-utils",
- "sp-version",
+ "sp-version 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
  "substrate-prometheus-endpoint",
  "thiserror",
  "wasm-timer",
@@ -6382,21 +6487,20 @@ dependencies = [
 [[package]]
 name = "sp-consensus-babe"
 version = "0.9.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a153085b1542b5cbe23686433cd36d1a634964f1b707671d0ffb01d8d9313047"
+source = "git+https://github.com/3Dpass/substrate.git?branch=3dp_v3#49a4103f4bfef55be20a5c6d26e18ff3003c3353"
 dependencies = [
  "merlin",
  "parity-scale-codec 2.3.1",
- "sp-api",
- "sp-application-crypto",
+ "sp-api 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
+ "sp-application-crypto 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
  "sp-consensus",
  "sp-consensus-slots",
  "sp-consensus-vrf",
- "sp-core",
- "sp-inherents",
- "sp-keystore",
- "sp-runtime",
- "sp-std",
+ "sp-core 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
+ "sp-inherents 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
+ "sp-keystore 0.9.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
+ "sp-runtime 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
+ "sp-std 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
  "sp-timestamp",
 ]
 
@@ -6405,47 +6509,44 @@ name = "sp-consensus-poscan"
 version = "0.9.0"
 dependencies = [
  "parity-scale-codec 2.3.1",
- "sp-api",
- "sp-core",
- "sp-runtime",
- "sp-std",
+ "sp-api 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
+ "sp-core 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
+ "sp-runtime 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
+ "sp-std 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
 ]
 
 [[package]]
 name = "sp-consensus-pow"
 version = "0.9.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a2aa1ffa45f7ad66c613fa3906823a0cc0d33ce2d0e7495f2037c5c4c3211481"
+source = "git+https://github.com/3Dpass/substrate.git?branch=3dp_v3#49a4103f4bfef55be20a5c6d26e18ff3003c3353"
 dependencies = [
  "parity-scale-codec 2.3.1",
- "sp-api",
- "sp-core",
- "sp-runtime",
- "sp-std",
+ "sp-api 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
+ "sp-core 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
+ "sp-runtime 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
+ "sp-std 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
 ]
 
 [[package]]
 name = "sp-consensus-slots"
 version = "0.9.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "32bd501ab76c827d74f145063cd8cb993a9f634dac93c9b0d909111cd5900a6a"
+source = "git+https://github.com/3Dpass/substrate.git?branch=3dp_v3#49a4103f4bfef55be20a5c6d26e18ff3003c3353"
 dependencies = [
  "parity-scale-codec 2.3.1",
- "sp-arithmetic",
- "sp-runtime",
+ "sp-arithmetic 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
+ "sp-runtime 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
 ]
 
 [[package]]
 name = "sp-consensus-vrf"
 version = "0.9.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "030895d70bf3095c857f4727a7cce7c43af29efe3413bb547ee28700f7d78766"
+source = "git+https://github.com/3Dpass/substrate.git?branch=3dp_v3#49a4103f4bfef55be20a5c6d26e18ff3003c3353"
 dependencies = [
  "parity-scale-codec 2.3.1",
  "schnorrkel",
- "sp-core",
- "sp-runtime",
- "sp-std",
+ "sp-core 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
+ "sp-runtime 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
+ "sp-std 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
 ]
 
 [[package]]
@@ -6479,11 +6580,55 @@ dependencies = [
  "secrecy",
  "serde",
  "sha2 0.9.3",
- "sp-debug-derive",
- "sp-externalities",
- "sp-runtime-interface",
- "sp-std",
- "sp-storage",
+ "sp-debug-derive 3.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "sp-externalities 0.9.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "sp-runtime-interface 3.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "sp-std 3.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "sp-storage 3.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "substrate-bip39",
+ "thiserror",
+ "tiny-bip39",
+ "tiny-keccak",
+ "twox-hash",
+ "wasmi",
+ "zeroize",
+]
+
+[[package]]
+name = "sp-core"
+version = "3.0.0"
+source = "git+https://github.com/3Dpass/substrate.git?branch=3dp_v3#49a4103f4bfef55be20a5c6d26e18ff3003c3353"
+dependencies = [
+ "base58",
+ "blake2-rfc",
+ "byteorder",
+ "dyn-clonable",
+ "ed25519-dalek",
+ "futures 0.3.13",
+ "hash-db",
+ "hash256-std-hasher",
+ "hex",
+ "impl-serde",
+ "lazy_static",
+ "libsecp256k1",
+ "log",
+ "merlin",
+ "num-traits",
+ "parity-scale-codec 2.3.1",
+ "parity-util-mem",
+ "parking_lot 0.11.1",
+ "primitive-types",
+ "rand 0.7.3",
+ "regex",
+ "schnorrkel",
+ "secrecy",
+ "serde",
+ "sha2 0.9.3",
+ "sp-debug-derive 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
+ "sp-externalities 0.9.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
+ "sp-runtime-interface 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
+ "sp-std 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
+ "sp-storage 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
  "substrate-bip39",
  "thiserror",
  "tiny-bip39",
@@ -6496,8 +6641,7 @@ dependencies = [
 [[package]]
 name = "sp-database"
 version = "3.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c8c3f018913eef191d95c824657c5759c459d28670e654fa34f5d9bd5e6f0492"
+source = "git+https://github.com/3Dpass/substrate.git?branch=3dp_v3#49a4103f4bfef55be20a5c6d26e18ff3003c3353"
 dependencies = [
  "kvdb",
  "parking_lot 0.11.1",
@@ -6515,6 +6659,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "sp-debug-derive"
+version = "3.0.0"
+source = "git+https://github.com/3Dpass/substrate.git?branch=3dp_v3#49a4103f4bfef55be20a5c6d26e18ff3003c3353"
+dependencies = [
+ "proc-macro2 1.0.24",
+ "quote 1.0.9",
+ "syn 1.0.64",
+]
+
+[[package]]
 name = "sp-externalities"
 version = "0.9.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -6522,26 +6676,36 @@ checksum = "2fdc625f8c7b13b9a136d334888b21b5743d2081cb666cb03efca1dc9b8f74d1"
 dependencies = [
  "environmental",
  "parity-scale-codec 2.3.1",
- "sp-std",
- "sp-storage",
+ "sp-std 3.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "sp-storage 3.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
+name = "sp-externalities"
+version = "0.9.0"
+source = "git+https://github.com/3Dpass/substrate.git?branch=3dp_v3#49a4103f4bfef55be20a5c6d26e18ff3003c3353"
+dependencies = [
+ "environmental",
+ "parity-scale-codec 2.3.1",
+ "sp-std 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
+ "sp-storage 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
 ]
 
 [[package]]
 name = "sp-finality-grandpa"
 version = "3.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "702e0be150e1b557df42326ec9b82c2010366631d03be27c69912d446abbf87a"
+source = "git+https://github.com/3Dpass/substrate.git?branch=3dp_v3#49a4103f4bfef55be20a5c6d26e18ff3003c3353"
 dependencies = [
  "finality-grandpa",
  "log",
  "parity-scale-codec 2.3.1",
  "serde",
- "sp-api",
- "sp-application-crypto",
- "sp-core",
- "sp-keystore",
- "sp-runtime",
- "sp-std",
+ "sp-api 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
+ "sp-application-crypto 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
+ "sp-core 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
+ "sp-keystore 0.9.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
+ "sp-runtime 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
+ "sp-std 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
 ]
 
 [[package]]
@@ -6552,8 +6716,20 @@ checksum = "2542380b535c6941502a0a3069a657eb5abb70fd67b11afa164d4a4b038ba73a"
 dependencies = [
  "parity-scale-codec 2.3.1",
  "parking_lot 0.11.1",
- "sp-core",
- "sp-std",
+ "sp-core 3.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "sp-std 3.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "thiserror",
+]
+
+[[package]]
+name = "sp-inherents"
+version = "3.0.0"
+source = "git+https://github.com/3Dpass/substrate.git?branch=3dp_v3#49a4103f4bfef55be20a5c6d26e18ff3003c3353"
+dependencies = [
+ "parity-scale-codec 2.3.1",
+ "parking_lot 0.11.1",
+ "sp-core 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
+ "sp-std 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
  "thiserror",
 ]
 
@@ -6569,15 +6745,39 @@ dependencies = [
  "log",
  "parity-scale-codec 2.3.1",
  "parking_lot 0.11.1",
- "sp-core",
- "sp-externalities",
- "sp-keystore",
- "sp-runtime-interface",
- "sp-state-machine",
- "sp-std",
- "sp-tracing",
- "sp-trie",
- "sp-wasm-interface",
+ "sp-core 3.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "sp-externalities 0.9.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "sp-keystore 0.9.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "sp-runtime-interface 3.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "sp-state-machine 0.9.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "sp-std 3.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "sp-tracing 3.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "sp-trie 3.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "sp-wasm-interface 3.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "tracing",
+ "tracing-core",
+]
+
+[[package]]
+name = "sp-io"
+version = "3.0.0"
+source = "git+https://github.com/3Dpass/substrate.git?branch=3dp_v3#49a4103f4bfef55be20a5c6d26e18ff3003c3353"
+dependencies = [
+ "futures 0.3.13",
+ "hash-db",
+ "libsecp256k1",
+ "log",
+ "parity-scale-codec 2.3.1",
+ "parking_lot 0.11.1",
+ "sp-core 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
+ "sp-externalities 0.9.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
+ "sp-keystore 0.9.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
+ "sp-runtime-interface 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
+ "sp-state-machine 0.9.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
+ "sp-std 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
+ "sp-tracing 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
+ "sp-trie 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
+ "sp-wasm-interface 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
  "tracing",
  "tracing-core",
 ]
@@ -6585,12 +6785,11 @@ dependencies = [
 [[package]]
 name = "sp-keyring"
 version = "3.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7b59f2b0e94b2048d4984aa6eb40eef2e4c05d3adf27a083dd3c9b0fce74ef7a"
+source = "git+https://github.com/3Dpass/substrate.git?branch=3dp_v3#49a4103f4bfef55be20a5c6d26e18ff3003c3353"
 dependencies = [
  "lazy_static",
- "sp-core",
- "sp-runtime",
+ "sp-core 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
+ "sp-runtime 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
  "strum",
 ]
 
@@ -6607,20 +6806,35 @@ dependencies = [
  "parity-scale-codec 2.3.1",
  "parking_lot 0.11.1",
  "schnorrkel",
+ "sp-core 3.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "sp-externalities 0.9.0 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
+name = "sp-keystore"
+version = "0.9.0"
+source = "git+https://github.com/3Dpass/substrate.git?branch=3dp_v3#49a4103f4bfef55be20a5c6d26e18ff3003c3353"
+dependencies = [
+ "async-trait",
+ "derive_more 0.99.11",
+ "futures 0.3.13",
+ "merlin",
+ "parity-scale-codec 2.3.1",
+ "parking_lot 0.11.1",
+ "schnorrkel",
  "serde",
- "sp-core",
- "sp-externalities",
+ "sp-core 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
+ "sp-externalities 0.9.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
 ]
 
 [[package]]
 name = "sp-offchain"
 version = "3.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0bd80eedcedcc8342e77c26d59ad90b6904715a862731fa16616650773570e63"
+source = "git+https://github.com/3Dpass/substrate.git?branch=3dp_v3#49a4103f4bfef55be20a5c6d26e18ff3003c3353"
 dependencies = [
- "sp-api",
- "sp-core",
- "sp-runtime",
+ "sp-api 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
+ "sp-core 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
+ "sp-runtime 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
 ]
 
 [[package]]
@@ -6633,13 +6847,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "sp-panic-handler"
+version = "3.0.0"
+source = "git+https://github.com/3Dpass/substrate.git?branch=3dp_v3#49a4103f4bfef55be20a5c6d26e18ff3003c3353"
+dependencies = [
+ "backtrace",
+]
+
+[[package]]
 name = "sp-rpc"
 version = "3.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a2e5b1ed655d11449073b914b048895f45241e02b3919d1d0187f315435fee18"
+source = "git+https://github.com/3Dpass/substrate.git?branch=3dp_v3#49a4103f4bfef55be20a5c6d26e18ff3003c3353"
 dependencies = [
  "serde",
- "sp-core",
+ "sp-core 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
 ]
 
 [[package]]
@@ -6657,11 +6878,32 @@ dependencies = [
  "paste 1.0.5",
  "rand 0.7.3",
  "serde",
- "sp-application-crypto",
- "sp-arithmetic",
- "sp-core",
- "sp-io",
- "sp-std",
+ "sp-application-crypto 3.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "sp-arithmetic 3.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "sp-core 3.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "sp-io 3.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "sp-std 3.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
+name = "sp-runtime"
+version = "3.0.0"
+source = "git+https://github.com/3Dpass/substrate.git?branch=3dp_v3#49a4103f4bfef55be20a5c6d26e18ff3003c3353"
+dependencies = [
+ "either",
+ "hash256-std-hasher",
+ "impl-trait-for-tuples",
+ "log",
+ "parity-scale-codec 2.3.1",
+ "parity-util-mem",
+ "paste 1.0.5",
+ "rand 0.7.3",
+ "serde",
+ "sp-application-crypto 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
+ "sp-arithmetic 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
+ "sp-core 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
+ "sp-io 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
+ "sp-std 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
 ]
 
 [[package]]
@@ -6673,12 +6915,29 @@ dependencies = [
  "impl-trait-for-tuples",
  "parity-scale-codec 2.3.1",
  "primitive-types",
- "sp-externalities",
- "sp-runtime-interface-proc-macro",
- "sp-std",
- "sp-storage",
- "sp-tracing",
- "sp-wasm-interface",
+ "sp-externalities 0.9.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "sp-runtime-interface-proc-macro 3.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "sp-std 3.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "sp-storage 3.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "sp-tracing 3.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "sp-wasm-interface 3.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "static_assertions",
+]
+
+[[package]]
+name = "sp-runtime-interface"
+version = "3.0.0"
+source = "git+https://github.com/3Dpass/substrate.git?branch=3dp_v3#49a4103f4bfef55be20a5c6d26e18ff3003c3353"
+dependencies = [
+ "impl-trait-for-tuples",
+ "parity-scale-codec 2.3.1",
+ "primitive-types",
+ "sp-externalities 0.9.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
+ "sp-runtime-interface-proc-macro 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
+ "sp-std 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
+ "sp-storage 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
+ "sp-tracing 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
+ "sp-wasm-interface 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
  "static_assertions",
 ]
 
@@ -6696,10 +6955,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "sp-runtime-interface-proc-macro"
+version = "3.0.0"
+source = "git+https://github.com/3Dpass/substrate.git?branch=3dp_v3#49a4103f4bfef55be20a5c6d26e18ff3003c3353"
+dependencies = [
+ "Inflector",
+ "proc-macro-crate 0.1.5",
+ "proc-macro2 1.0.24",
+ "quote 1.0.9",
+ "syn 1.0.64",
+]
+
+[[package]]
 name = "sp-serializer"
 version = "3.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "982d793f01eb9eea9f30ffc63b821170068b9f0d9edf715d8ba77dc4de9c300f"
+source = "git+https://github.com/3Dpass/substrate.git?branch=3dp_v3#49a4103f4bfef55be20a5c6d26e18ff3003c3353"
 dependencies = [
  "serde",
  "serde_json",
@@ -6708,15 +6978,14 @@ dependencies = [
 [[package]]
 name = "sp-session"
 version = "3.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2c7cf161533725a78083b04f3269effe4c3b4b6ce5f655019b3eec3e729ba4d4"
+source = "git+https://github.com/3Dpass/substrate.git?branch=3dp_v3#49a4103f4bfef55be20a5c6d26e18ff3003c3353"
 dependencies = [
  "parity-scale-codec 2.3.1",
- "sp-api",
- "sp-core",
- "sp-runtime",
- "sp-staking",
- "sp-std",
+ "sp-api 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
+ "sp-core 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
+ "sp-runtime 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
+ "sp-staking 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
+ "sp-std 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
 ]
 
 [[package]]
@@ -6726,8 +6995,18 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "fc729eb10f8809c61a1fe439ac118a4413de004aaf863003ee8752ac0b596e73"
 dependencies = [
  "parity-scale-codec 2.3.1",
- "sp-runtime",
- "sp-std",
+ "sp-runtime 3.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "sp-std 3.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
+name = "sp-staking"
+version = "3.0.0"
+source = "git+https://github.com/3Dpass/substrate.git?branch=3dp_v3#49a4103f4bfef55be20a5c6d26e18ff3003c3353"
+dependencies = [
+ "parity-scale-codec 2.3.1",
+ "sp-runtime 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
+ "sp-std 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
 ]
 
 [[package]]
@@ -6743,11 +7022,33 @@ dependencies = [
  "parking_lot 0.11.1",
  "rand 0.7.3",
  "smallvec 1.6.1",
- "sp-core",
- "sp-externalities",
- "sp-panic-handler",
- "sp-std",
- "sp-trie",
+ "sp-core 3.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "sp-externalities 0.9.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "sp-panic-handler 3.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "sp-std 3.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "sp-trie 3.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "thiserror",
+ "trie-db",
+ "trie-root 0.16.0",
+]
+
+[[package]]
+name = "sp-state-machine"
+version = "0.9.0"
+source = "git+https://github.com/3Dpass/substrate.git?branch=3dp_v3#49a4103f4bfef55be20a5c6d26e18ff3003c3353"
+dependencies = [
+ "hash-db",
+ "log",
+ "num-traits",
+ "parity-scale-codec 2.3.1",
+ "parking_lot 0.11.1",
+ "rand 0.7.3",
+ "smallvec 1.6.1",
+ "sp-core 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
+ "sp-externalities 0.9.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
+ "sp-panic-handler 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
+ "sp-std 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
+ "sp-trie 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
  "thiserror",
  "trie-db",
  "trie-root 0.16.0",
@@ -6760,6 +7061,11 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "35391ea974fa5ee869cb094d5b437688fbf3d8127d64d1b9fed5822a1ed39b12"
 
 [[package]]
+name = "sp-std"
+version = "3.0.0"
+source = "git+https://github.com/3Dpass/substrate.git?branch=3dp_v3#49a4103f4bfef55be20a5c6d26e18ff3003c3353"
+
+[[package]]
 name = "sp-storage"
 version = "3.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -6769,36 +7075,47 @@ dependencies = [
  "parity-scale-codec 2.3.1",
  "ref-cast",
  "serde",
- "sp-debug-derive",
- "sp-std",
+ "sp-debug-derive 3.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "sp-std 3.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
+name = "sp-storage"
+version = "3.0.0"
+source = "git+https://github.com/3Dpass/substrate.git?branch=3dp_v3#49a4103f4bfef55be20a5c6d26e18ff3003c3353"
+dependencies = [
+ "impl-serde",
+ "parity-scale-codec 2.3.1",
+ "ref-cast",
+ "serde",
+ "sp-debug-derive 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
+ "sp-std 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
 ]
 
 [[package]]
 name = "sp-tasks"
 version = "3.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c585340cbee96c53a9b43fd07d81edf6cebeb80e4ca7c0ee79b856c0b1883a0e"
+source = "git+https://github.com/3Dpass/substrate.git?branch=3dp_v3#49a4103f4bfef55be20a5c6d26e18ff3003c3353"
 dependencies = [
  "log",
- "sp-core",
- "sp-externalities",
- "sp-io",
- "sp-runtime-interface",
- "sp-std",
+ "sp-core 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
+ "sp-externalities 0.9.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
+ "sp-io 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
+ "sp-runtime-interface 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
+ "sp-std 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
 ]
 
 [[package]]
 name = "sp-timestamp"
 version = "3.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "27387c541197b9f47f3d9ddcab5649a3ecdca582d2f2ea2b511af24a3d3cbf83"
+source = "git+https://github.com/3Dpass/substrate.git?branch=3dp_v3#49a4103f4bfef55be20a5c6d26e18ff3003c3353"
 dependencies = [
  "impl-trait-for-tuples",
  "parity-scale-codec 2.3.1",
- "sp-api",
- "sp-inherents",
- "sp-runtime",
- "sp-std",
+ "sp-api 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
+ "sp-inherents 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
+ "sp-runtime 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
+ "sp-std 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
  "wasm-timer",
 ]
 
@@ -6810,7 +7127,20 @@ checksum = "567382d8d4e14fb572752863b5cd57a78f9e9a6583332b590b726f061f3ea957"
 dependencies = [
  "log",
  "parity-scale-codec 2.3.1",
- "sp-std",
+ "sp-std 3.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "tracing",
+ "tracing-core",
+ "tracing-subscriber",
+]
+
+[[package]]
+name = "sp-tracing"
+version = "3.0.0"
+source = "git+https://github.com/3Dpass/substrate.git?branch=3dp_v3#49a4103f4bfef55be20a5c6d26e18ff3003c3353"
+dependencies = [
+ "log",
+ "parity-scale-codec 2.3.1",
+ "sp-std 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
  "tracing",
  "tracing-core",
  "tracing-subscriber",
@@ -6819,17 +7149,16 @@ dependencies = [
 [[package]]
 name = "sp-transaction-pool"
 version = "3.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3264d3b7ea31483eddffa2cc7f28c4d9c022598e456a985fd1cb5879a4609853"
+source = "git+https://github.com/3Dpass/substrate.git?branch=3dp_v3#49a4103f4bfef55be20a5c6d26e18ff3003c3353"
 dependencies = [
  "derive_more 0.99.11",
  "futures 0.3.13",
  "log",
  "parity-scale-codec 2.3.1",
  "serde",
- "sp-api",
+ "sp-api 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
  "sp-blockchain",
- "sp-runtime",
+ "sp-runtime 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
  "thiserror",
 ]
 
@@ -6842,8 +7171,22 @@ dependencies = [
  "hash-db",
  "memory-db",
  "parity-scale-codec 2.3.1",
- "sp-core",
- "sp-std",
+ "sp-core 3.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "sp-std 3.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "trie-db",
+ "trie-root 0.16.0",
+]
+
+[[package]]
+name = "sp-trie"
+version = "3.0.0"
+source = "git+https://github.com/3Dpass/substrate.git?branch=3dp_v3#49a4103f4bfef55be20a5c6d26e18ff3003c3353"
+dependencies = [
+ "hash-db",
+ "memory-db",
+ "parity-scale-codec 2.3.1",
+ "sp-core 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
+ "sp-std 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
  "trie-db",
  "trie-root 0.16.0",
 ]
@@ -6851,8 +7194,7 @@ dependencies = [
 [[package]]
 name = "sp-utils"
 version = "3.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b4ec2a5f924f7affd1e959f8f3c02bd87cdfa0e11c71a4cbc075f955ead8c1a1"
+source = "git+https://github.com/3Dpass/substrate.git?branch=3dp_v3#49a4103f4bfef55be20a5c6d26e18ff3003c3353"
 dependencies = [
  "futures 0.3.13",
  "futures-core",
@@ -6870,8 +7212,20 @@ dependencies = [
  "impl-serde",
  "parity-scale-codec 2.3.1",
  "serde",
- "sp-runtime",
- "sp-std",
+ "sp-runtime 3.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "sp-std 3.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
+name = "sp-version"
+version = "3.0.0"
+source = "git+https://github.com/3Dpass/substrate.git?branch=3dp_v3#49a4103f4bfef55be20a5c6d26e18ff3003c3353"
+dependencies = [
+ "impl-serde",
+ "parity-scale-codec 2.3.1",
+ "serde",
+ "sp-runtime 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
+ "sp-std 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
 ]
 
 [[package]]
@@ -6882,7 +7236,18 @@ checksum = "b214e125666a6416cf30a70cc6a5dacd34a4e5197f8a3d479f714af7e1dc7a47"
 dependencies = [
  "impl-trait-for-tuples",
  "parity-scale-codec 2.3.1",
- "sp-std",
+ "sp-std 3.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "wasmi",
+]
+
+[[package]]
+name = "sp-wasm-interface"
+version = "3.0.0"
+source = "git+https://github.com/3Dpass/substrate.git?branch=3dp_v3#49a4103f4bfef55be20a5c6d26e18ff3003c3353"
+dependencies = [
+ "impl-trait-for-tuples",
+ "parity-scale-codec 2.3.1",
+ "sp-std 3.0.0 (git+https://github.com/3Dpass/substrate.git?branch=3dp_v3)",
  "wasmi",
 ]
 
@@ -7014,8 +7379,7 @@ dependencies = [
 [[package]]
 name = "substrate-prometheus-endpoint"
 version = "0.9.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2eb561c19a121e1c89daa79dbfa67a55080f813caa47fd231833a0669696d508"
+source = "git+https://github.com/3Dpass/substrate.git?branch=3dp_v3#49a4103f4bfef55be20a5c6d26e18ff3003c3353"
 dependencies = [
  "async-std",
  "derive_more 0.99.11",

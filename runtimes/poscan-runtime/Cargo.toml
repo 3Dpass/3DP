@@ -14,36 +14,36 @@ smallvec = "1.4.0"
 static_assertions = "1.1.0"
 
 # Substrate packages
-pallet-balances = { version = '3.0', default-features = false }
-frame-executive = { version = '3.0', default-features = false }
-frame-support = { version = '3.0', default-features = false }
-frame-system = { version = '3.0', default-features = false }
-pallet-grandpa = { version = '3.0', default-features = false }
-pallet-randomness-collective-flip = { version = '3.0', default-features = false }
-sp-api = { version = '3.0', default-features = false }
-sp-block-builder = { version = '3.0', default-features = false }
-sp-core = { version = '3.0', default-features = false }
-sp-finality-grandpa = { version = '3.0', default-features = false }
-sp-inherents = { version = '3.0', default-features = false }
-sp-io = { version = '3.0', default-features = false }
-sp-offchain = { version = '3.0', default-features = false }
-sp-runtime = { version = '3.0', default-features = false }
-sp-session = { version = '3.0', default-features = false }
-sp-std = { version = '3.0', default-features = false }
-sp-transaction-pool = { version = '3.0', default-features = false }
-sp-version = { version = '3.0', default-features = false }
-pallet-sudo = { version = '3.0', default-features = false }
-pallet-timestamp = { version = '3.0', default-features = false }
-pallet-transaction-payment = { version = '3.0', default-features = false }
+pallet-balances = { version = '3.0', default-features = false, git = "https://github.com/3Dpass/substrate.git", branch = "3dp_v3" }
+frame-executive = { version = '3.0', default-features = false, git = "https://github.com/3Dpass/substrate.git", branch = "3dp_v3" }
+frame-support = { version = '3.0', default-features = false, git = "https://github.com/3Dpass/substrate.git", branch = "3dp_v3" }
+frame-system = { version = '3.0', default-features = false, git = "https://github.com/3Dpass/substrate.git", branch = "3dp_v3" }
+pallet-grandpa = { version = '3.0', default-features = false, git = "https://github.com/3Dpass/substrate.git", branch = "3dp_v3" }
+pallet-randomness-collective-flip = { version = '3.0', default-features = false, git = "https://github.com/3Dpass/substrate.git", branch = "3dp_v3" }
+sp-api = { version = '3.0', default-features = false, git = "https://github.com/3Dpass/substrate.git", branch = "3dp_v3" }
+sp-block-builder = { version = '3.0', default-features = false, git = "https://github.com/3Dpass/substrate.git", branch = "3dp_v3" }
+sp-core = { version = '3.0', default-features = false, git = "https://github.com/3Dpass/substrate.git", branch = "3dp_v3" }
+sp-finality-grandpa = { version = '3.0', default-features = false, git = "https://github.com/3Dpass/substrate.git", branch = "3dp_v3" }
+sp-inherents = { version = '3.0', default-features = false, git = "https://github.com/3Dpass/substrate.git", branch = "3dp_v3" }
+sp-io = { version = '3.0', default-features = false, git = "https://github.com/3Dpass/substrate.git", branch = "3dp_v3" }
+sp-offchain = { version = '3.0', default-features = false, git = "https://github.com/3Dpass/substrate.git", branch = "3dp_v3" }
+sp-runtime = { version = '3.0', default-features = false, git = "https://github.com/3Dpass/substrate.git", branch = "3dp_v3" }
+sp-session = { version = '3.0', default-features = false, git = "https://github.com/3Dpass/substrate.git", branch = "3dp_v3" }
+sp-std = { version = '3.0', default-features = false, git = "https://github.com/3Dpass/substrate.git", branch = "3dp_v3" }
+sp-transaction-pool = { version = '3.0', default-features = false, git = "https://github.com/3Dpass/substrate.git", branch = "3dp_v3" }
+sp-version = { version = '3.0', default-features = false, git = "https://github.com/3Dpass/substrate.git", branch = "3dp_v3" }
+pallet-sudo = { version = '3.0', default-features = false, git = "https://github.com/3Dpass/substrate.git", branch = "3dp_v3" }
+pallet-timestamp = { version = '3.0', default-features = false, git = "https://github.com/3Dpass/substrate.git", branch = "3dp_v3" }
+pallet-transaction-payment = { version = '3.0', default-features = false, git = "https://github.com/3Dpass/substrate.git", branch = "3dp_v3" }
 sp-consensus-poscan = { path = "../../primitives/consensus/poscan", default-features = false }
 pallet-poscan = { path = "../../pallets/poscan", default-features = false }
 difficulty = { package = "pallet-difficulty", path = "../../frame/difficulty", default-features = false }
 rewards = { package = "pallet-rewards", path = "../../frame/rewards", default-features = false }
 lockdrop = { package = "pallet-lockdrop", path = "../../frame/lockdrop", default-features = false }
-treasury = { package = "pallet-treasury", version="3.0", default-features = false }
-collective = { package = "pallet-collective",version="3.0", default-features = false }
-bounties = { package = "pallet-bounties", version="3.0", default-features = false }
-sp-arithmetic = { version="3.0", default-features = false }
+treasury = { package = "pallet-treasury", version="3.0", default-features = false, git = "https://github.com/3Dpass/substrate.git", branch = "3dp_v3" }
+collective = { package = "pallet-collective",version="3.0", default-features = false, git = "https://github.com/3Dpass/substrate.git", branch = "3dp_v3" }
+bounties = { package = "pallet-bounties", version="3.0", default-features = false, git = "https://github.com/3Dpass/substrate.git", branch = "3dp_v3" }
+sp-arithmetic = { version="3.0", default-features = false, git = "https://github.com/3Dpass/substrate.git", branch = "3dp_v3" }
 
 [build-dependencies]
 substrate-wasm-builder = "4.0.0"

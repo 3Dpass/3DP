@@ -15,4 +15,4 @@ std = [
 
 [dependencies]
 # Substrate packages
-sp-std = { version = '3.0', default-features = false }
+sp-std = { version = '3.0', default-features = false, git = "https://github.com/3Dpass/substrate.git", branch = "3dp_v3" }
