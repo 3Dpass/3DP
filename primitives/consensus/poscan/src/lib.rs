@@ -24,7 +24,7 @@ use sp_std::vec::Vec;
 use sp_runtime::ConsensusEngineId;
 use codec::Decode;
 
-/// The `ConsensusEngineId` of PoW.
+/// The `ConsensusEngineId` of PoScan.
 pub const POSCAN_ENGINE_ID: ConsensusEngineId = [b'p', b'o', b's', b'c'];
 pub const POSCAN_COIN_ID: u8 = 72;
 
@@ -61,11 +61,11 @@ pub const MAX_DIFFICULTY: u128 = u128::max_value();
 
 /// Value of 1 KLP.
 pub const DOLLARS: u128 = 1_000_000_000_000;
-/// Value of cents relative to KLP.
+/// Value of cents relative to 3DP.
 pub const CENTS: u128 = DOLLARS / 100;
-/// Value of millicents relative to KLP.
+/// Value of millicents relative to 3DP.
 pub const MILLICENTS: u128 = CENTS / 1_000;
-/// Value of microcents relative to RLP.
+/// Value of microcents relative to 3DP.
 pub const MICROCENTS: u128 = MILLICENTS / 1_000;
 
 pub const fn deposit(items: u32, bytes: u32) -> u128 {
