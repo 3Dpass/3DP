@@ -120,13 +120,23 @@ impl<Block, Algorithm, C> MiningWorker<Block, Algorithm, C> where
 			let seal = DigestItem::Seal(POSCAN_ENGINE_ID, seal);
 			let v: Vec<u8> = poscan_data.hashes.iter().flat_map(|h| h.as_bytes().to_vec()).collect();
 			let poscan_hashes = DigestItem::Other(v);
-			let poscan_obj = DigestItem::Other(poscan_data.obj.clone());
+
+			info!(">>> pscan_obj len: {}", poscan_data.obj.len());
+			use super::compress_obj;
+
+			let mut zip_obj = vec![b'l', b'z', b's', b's'];
+			let mut zipped = compress_obj(poscan_data.obj.as_slice());
+			zip_obj.append(&mut zipped);
+
+			info!(">>> zip_obj len: {}", zip_obj.len());
+
+			let poscan_obj = DigestItem::Other(zip_obj);
+
 			// let author = DigestItem::PreRuntime(POSCAN_ENGINE_ID, build.metadata.pre_runtime.unwrap());
 
 			let (header, body) = build.proposal.block.deconstruct();
 
 			let mut import_block = BlockImportParams::new(BlockOrigin::Own, header);
-			info!(">>> pscan_obj len: {}", poscan_data.obj.len());
 
 			// import_block.post_digests.push(author);
 			import_block.post_digests.push(seal);

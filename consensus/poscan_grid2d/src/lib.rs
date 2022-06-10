@@ -1,6 +1,6 @@
 use std::sync::Arc;
 use parity_scale_codec::{Decode, Encode};
-use sc_consensus_poscan::{Error, PoscanData, PowAlgorithm};
+use sc_consensus_poscan::{decompress_obj, Error, PoscanData, PowAlgorithm};
 use sha3::{Digest, Sha3_256};
 use sp_api::ProvideRuntimeApi;
 use sp_consensus_poscan::Seal as RawSeal;
@@ -212,8 +212,12 @@ where
 			return Ok(false)
 		}
 
-		// verify poscan
-		let hashes = get_obj_hashes(&poscan_data.obj);
+		let mut obj = poscan_data.obj.clone();
+		if poscan_data.obj[..4] == vec![b'l', b'z', b's', b's'] {
+			obj = decompress_obj(&obj[4..]);
+		}
+
+		let hashes = get_obj_hashes(&obj);
 		if hashes != poscan_data.hashes {
 			info!(">>> verify: hashes != poscan_data.hashes");
 			return Ok(false)
