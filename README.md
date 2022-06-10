@@ -82,7 +82,6 @@ subcommands:
 ```sh
 ./target/release/poscan-consensus -h
 ```
-
 ## Run
 
 The provided `cargo run` command will launch a temporary node and its state will be discarded after
@@ -134,35 +133,14 @@ you have to install [miner](https://github.com/3Dpass/miner)
 For more details, refer to Subsrtate
 [Start a Private Network tutorial](https://docs.substrate.io/tutorials/v3/private-network).
 
-### Specification
+### Join the remote Testnet
 
-There are several files in the `node` directory - take special note of the following:
+In order to join your Node to the Testnet and get rewarded follow the links down below:
 
-- [`chain_spec.rs`](./nodes/poscan-consensus/src/chain_spec.rs): A
-  [chain specification](https://docs.substrate.io/v3/runtime/chain-specs) is a
-  source code file that defines a chain's initial (genesis) state. Chain specifications
-  are useful for development and testing, and critical when architecting the launch of a
-  production chain. Take note of the `development_config` and `testnet_genesis` functions, which
-  are used to define the genesis state for the local development chain configuration. These
-  functions identify some
-  [well-known accounts](https://docs.substrate.io/v3/tools/subkey#well-known-keys)
-  and use them to configure the blockchain's initial state.
-- [`service.rs`](./nodes/poscan-consensus/src/service.rs): This file defines the node implementation. Take note of
-  the libraries that this file imports and the names of the functions it invokes. In particular,
-  there are references to consensus-related topics, such as the
-  [longest chain rule](https://docs.substrate.io/v3/advanced/consensus#longest-chain-rule),
-  the [Proof of Scan consensus](https://3dpass.org/proof_of_scan.html) and the
-  [GRANDPA](https://docs.substrate.io/v3/advanced/consensus#grandpa) finality
-  gadget.
+- [Join as a simple node](https://3dpass.org/testnet.html#how_to_join_as_a_simple_node)
+- [Join as Miner and Validator](https://3dpass.org/testnet.html#how_to_join_as_a_miner)
 
-After the node has been [built](#build), refer to the embedded documentation to learn more about the
-capabilities and configuration parameters that it exposes:
-
-```shell
-./target/release/poscan-consensus --help
-```
-
-### Run the Testnet in Docker
+### Run the local Testnet in Docker
 
 First, install [Docker](https://docs.docker.com/get-docker/) and
 [Docker Compose](https://docs.docker.com/compose/install/).
