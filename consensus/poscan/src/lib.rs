@@ -449,7 +449,6 @@ impl<B, I, C, S, Algorithm, CAW> BlockImport<B> for PowBlockImport<B, I, C, S, A
 
 		let mut prev_hash = Some(parent_hash);
 		while prev_hash.is_some() {
-			info!(">>> lookup prev_hash");
 			let num: BlockId<B> = BlockId::hash(prev_hash.unwrap());
 			match self.client.block(&num) {
 				Ok(maybe_prev_block) => {
@@ -479,7 +478,6 @@ impl<B, I, C, S, Algorithm, CAW> BlockImport<B> for PowBlockImport<B, I, C, S, A
 							prev_hash = Some(*h.parent_hash());
 						},
 						None => {
-							info!(">>> no prev block");
 							prev_hash = None
 						},
 					}
@@ -757,7 +755,14 @@ pub fn start_mining_worker<Block, C, S, Algorithm, E, SO, CAW>(
 		// the mining target is outdated and useless anyway.
 
 		let difficulty = match algorithm.difficulty(best_hash) {
-			Ok(x) => x,
+			Ok(x) => {
+				warn!(
+					target: "pow",
+					"Difficulty: {:?}",
+					x.encode(),
+				);
+				x
+			},
 			Err(err) => {
 				warn!(
 					target: "pow",
