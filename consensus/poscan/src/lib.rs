@@ -1,4 +1,4 @@
-// This file is part of 3DPass 
+// This file is part of 3DPass
 
 // Copyright (C) 2017-2021 Parity Technologies (UK) Ltd.
 // Copyright (C) 2022 3DPass
@@ -22,7 +22,7 @@
 //! To use this engine, you might need to have a struct that implements
 //! `PoscanAlgorithm`. After that, pass an instance of the struct, along
 //! with other necessary client references to `import_queue` to setup
-//! the queue. Use the mining RPC request (mining_rpc.rs) for 3D models 
+//! the queue. Use the mining RPC request (mining_rpc.rs) for 3D models
 //! to be pushed into the the mining queue for basic CPU mining.
 //!
 //! The auxiliary storage for PoScan engine not only stores the total difficulty,
@@ -457,7 +457,7 @@ impl<B, I, C, S, Algorithm, CAW> BlockImport<B> for PowBlockImport<B, I, C, S, A
 						Some(signed_block) => {
 							let h = signed_block.block.header();
 							let n = h.digest().logs().len();
-							info!(">>> parent hash digest len: {}", n);
+							// info!(">>> parent hash digest len: {}", n);
 							if n >= 3 {
 								let di = h.digest().logs()[2].clone();
 								if let DigestItem::Other(v) = di {
