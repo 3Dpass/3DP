@@ -215,7 +215,7 @@ parameter_types! {
 impl pallet_timestamp::Config for Runtime {
 	/// A timestamp: milliseconds since the unix epoch.
 	type Moment = u64;
-	type OnTimestampSet = ();
+	type OnTimestampSet = Difficulty;
 	type MinimumPeriod = MinimumPeriod;
 	type WeightInfo = ();
 }
@@ -450,8 +450,8 @@ construct_runtime!(
 		UncheckedExtrinsic = UncheckedExtrinsic
 	{
 		System: frame_system::{Module, Call, Storage, Config, Event<T>},
-		RandomnessCollectiveFlip: pallet_randomness_collective_flip::{Module, Call, Storage},
 		Timestamp: pallet_timestamp::{Module, Call, Storage, Inherent},
+		RandomnessCollectiveFlip: pallet_randomness_collective_flip::{Module, Call, Storage},
 		Balances: pallet_balances::{Module, Call, Storage, Config<T>, Event<T>},
 		Difficulty: difficulty::{Module, Call, Storage, Config},
 		Rewards: rewards::{Module, Call, Storage, Event<T>, Config<T>},
@@ -599,6 +599,12 @@ impl_runtime_apis! {
 			encoded: Vec<u8>,
 		) -> Option<Vec<(Vec<u8>, sp_core::crypto::KeyTypeId)>> {
 			opaque::SessionKeys::decode_into_raw_public_keys(&encoded)
+		}
+	}
+
+	impl sp_consensus_poscan::TimestampApi<Block, u64> for Runtime {
+		fn timestamp() -> u64 {
+			pallet_timestamp::Module::<Runtime>::get()
 		}
 	}
 
