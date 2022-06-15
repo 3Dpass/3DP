@@ -369,7 +369,7 @@ impl<B, I, C, S, Algorithm, CAW> BlockImport<B> for PowBlockImport<B, I, C, S, A
 		let block_id = BlockId::Hash(info.finalized_hash);
 		let num = self.client.block_number_from_id(&block_id).unwrap().unwrap();
 
-		if num + 1u32.into() < *best_num {
+		if num + 3u32.into() < *best_num {
 			error!(">>> Too far from finalized block");
 			return Err(Error::<B>::CheckFinalized.into())
 		}
@@ -759,7 +759,7 @@ pub fn start_mining_worker<Block, C, S, Algorithm, E, SO, CAW>(
 		let block_id = BlockId::Hash(info.finalized_hash);
 		let num = client.block_number_from_id(&block_id).unwrap().unwrap();
 
-		if num + 1u32.into() < *best_num {
+		if num + 3u32.into() < *best_num {
 			return Either::Left(future::ready(()))
 		}
 
