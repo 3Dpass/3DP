@@ -39,7 +39,7 @@ use std::{
 use futures::{prelude::*, future::Either};
 use parking_lot::Mutex;
 use sc_client_api::{BlockOf, backend::AuxStore, BlockchainEvents, BlockBackend};
-use sp_blockchain::{HeaderBackend, ProvideCache, well_known_cache_keys::Id as CacheKeyId};
+use sp_blockchain::{HeaderBackend, HeaderMetadata, ProvideCache, well_known_cache_keys::Id as CacheKeyId};
 use sp_block_builder::BlockBuilder as BlockBuilderApi;
 use sp_runtime::{Justification, RuntimeString};
 use sp_runtime::generic::{BlockId, Digest, DigestItem};
@@ -102,6 +102,8 @@ pub enum Error<B: BlockT> {
 	CreateInherents(sp_inherents::Error),
 	#[display(fmt = "Checking inherents failed: {}", _0)]
 	CheckInherents(String),
+	#[display(fmt = "Too far from finalized block")]
+	CheckFinalized,
 	#[display(fmt = "Multiple pre-runtime digests")]
 	MultiplePreRuntimeDigests,
 	Client(sp_blockchain::Error),
@@ -361,6 +363,16 @@ impl<B, I, C, S, Algorithm, CAW> BlockImport<B> for PowBlockImport<B, I, C, S, A
 		let best_header = self.select_chain.best_chain()
 			.map_err(|e| format!("Fetch best chain failed via select chain: {:?}", e))?;
 		let best_hash = best_header.hash();
+		let best_num = best_header.number();
+
+		let info = self.client.info();
+		let block_id = BlockId::Hash(info.finalized_hash);
+		let num = self.client.block_number_from_id(&block_id).unwrap().unwrap();
+
+		if num + 1u32.into() < *best_num {
+			error!(">>> Too far from finalized block");
+			return Err(Error::<B>::CheckFinalized.into())
+		}
 
 		let parent_hash = *block.header.parent_hash();
 		info!(">>> parent_hash: {:x?}", &parent_hash);
@@ -692,7 +704,7 @@ pub fn start_mining_worker<Block, C, S, Algorithm, E, SO, CAW>(
 	can_author_with: CAW,
 ) -> (Arc<Mutex<MiningWorker<Block, Algorithm, C>>>, impl Future<Output = ()>) where
 	Block: BlockT,
-	C: ProvideRuntimeApi<Block> + BlockchainEvents<Block> + 'static,
+	C: ProvideRuntimeApi<Block> + BlockchainEvents<Block> + 'static + BlockBackend<Block> + HeaderBackend<Block> + HeaderMetadata<Block, Error = sp_blockchain::Error>,
 	C::Api: DifficultyApi<Block, Difficulty>,
 	S: SelectChain<Block> + 'static,
 	Algorithm: PowAlgorithm<Block> + Clone,
@@ -702,6 +714,7 @@ pub fn start_mining_worker<Block, C, S, Algorithm, E, SO, CAW>(
 	E::Proposer: Proposer<Block, Transaction = sp_api::TransactionFor<C, Block>>,
 	SO: SyncOracle + Clone + Send + Sync + 'static,
 	CAW: CanAuthorWith<Block> + Clone + Send + 'static,
+	<<Block as BlockT>::Header as HeaderT>::Number: From<u32>,
 {
 	if let Err(_) = register_pow_inherent_data_provider(&inherent_data_providers) {
 		warn!("Registering inherent data provider for timestamp failed");
@@ -737,6 +750,18 @@ pub fn start_mining_worker<Block, C, S, Algorithm, E, SO, CAW>(
 			},
 		};
 		let best_hash = best_header.hash();
+		let best_num = best_header.number();
+
+		// let best_block_id = BlockId::Hash(best_hash);
+		// let best_num = client.block_number_from_id(&best_block_id).unwrap().unwrap();
+
+		let info = client.info();
+		let block_id = BlockId::Hash(info.finalized_hash);
+		let num = client.block_number_from_id(&block_id).unwrap().unwrap();
+
+		if num + 1u32.into() < *best_num {
+			return Either::Left(future::ready(()))
+		}
 
 		if let Err(err) = can_author_with.can_author_with(&BlockId::Hash(best_hash)) {
 			warn!(
@@ -927,3 +952,17 @@ pub fn decompress_obj(obj: &[u8]) -> Vec<u8> {
 
 	result.unwrap()
 }
+
+
+//
+// fn check_finality<Block, B>(
+// 	blockchain: &B,
+// 	block: NumberFor<Block>,
+// ) -> bool
+// 	where
+// 		Block: BlockT,
+// 		B: BlockchainBackend<Block>,
+// {
+// 	let info = blockchain.info();
+// 	info.finalized_number >= block
+// }
