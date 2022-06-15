@@ -727,7 +727,7 @@ pub fn new_full(
 
 	let grandpa_config = sc_finality_grandpa::Config {
 		gossip_duration: Duration::from_millis(333),
-		justification_period: 512,
+		justification_period: 2,
 		name: None,
 		observer_enabled: false,
 		keystore: Some(keystore_container.sync_keystore()),
