@@ -77,7 +77,7 @@ pub fn testnet_genesis(
 			initial_difficulty,
 		}),
 		rewards: Some(RewardsConfig {
-			reward: 50 * DOLLARS,
+			reward: 500 * DOLLARS,
 			mints: Default::default(),
 		}),
 		collective_Instance1: Default::default(),
