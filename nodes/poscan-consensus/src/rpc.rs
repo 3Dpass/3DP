@@ -3,7 +3,6 @@
 use std::sync::Arc;
 // use futures::channel::mpsc::Sender;
 use runtime::opaque::Block;
-use crate::mining_rpc::PoscanMiningRpc;
 pub use sc_rpc_api::DenyUnsafe;
 use sp_api::ProvideRuntimeApi;
 use sp_block_builder::BlockBuilder;
@@ -23,13 +22,13 @@ pub struct FullDeps<C, P> {
 }
 
 /// Instantiate all full RPC extensions.
-pub fn create_full<C, P>(_deps: FullDeps<C, P>) -> jsonrpc_core::IoHandler<sc_rpc::Metadata>
+pub fn create_full<C, P>(deps: FullDeps<C, P>) -> jsonrpc_core::IoHandler<sc_rpc::Metadata>
 where
 	C: ProvideRuntimeApi<Block>,
 	C: HeaderBackend<Block> + HeaderMetadata<Block, Error = BlockChainError> + 'static,
 	C: Send + Sync + 'static,
 	C::Api: BlockBuilder<Block>,
-	// C::Api: sum_storage_runtime_api::SumStorageApi<Block>,
+	C::Api: sp_consensus_poscan::PoscanApi<Block>,
 	P: TransactionPool + 'static,
 {
 	let mut io = jsonrpc_core::IoHandler::default();
@@ -40,8 +39,8 @@ where
 	// } = deps;
 
 	// Add a silly RPC that returns constant values
-	io.extend_with(crate::mining_rpc::MiningRpc::to_delegate(
-		crate::mining_rpc::MiningRpc {},
+	io.extend_with(crate::mining_rpc::PoscanMiningRpc::to_delegate(
+		crate::mining_rpc::MiningRpc::<C, Block>::new(deps.client.clone()),
 	));
 
 	// // Add a second RPC extension

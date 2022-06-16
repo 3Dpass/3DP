@@ -34,4 +34,3 @@ futures-timer = "3.0.1"
 parking_lot = "0.11.1"
 derive_more = "0.99.2"
 prometheus-endpoint = { package = "substrate-prometheus-endpoint", version = "0.9.0", git = "https://github.com/3Dpass/substrate.git", branch = "3dp_v3" }
-lzss = { version = "0.8", default-features = false, features = ["alloc"] }

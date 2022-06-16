@@ -5,13 +5,11 @@
 /// <https://docs.substrate.io/v3/runtime/frame>
 pub use pallet::*;
 extern crate alloc;
+use alloc::vec;
 use core::num::ParseIntError;
 use sp_std::vec::Vec;
-// use sp_std::collections::vec_deque::VecDeque;
-// use spin::Mutex;
-
-// #[macro_use]
-// extern crate lazy_static;
+// use frame_support::debug::info;
+use sp_runtime::generic::DigestItem;
 
 
 #[cfg(test)]
@@ -65,7 +63,7 @@ pub mod pallet {
 		/// Event emitted when a proof has been claimed. [who, claim]
 		ClaimCreated(T::AccountId, Vec<u8>),
 		/// Event emitted when a claim is revoked by the owner. [who, claim]
-		ClaimRevoked(T::AccountId, Vec<u8>),
+		GetMiningObject(Vec<u8>),
 	}
 
 	// Errors inform users that something went wrong.
@@ -88,7 +86,7 @@ pub mod pallet {
 	#[pallet::call]
 	impl<T: Config> Pallet<T> {
 		#[pallet::weight(1_000_000_000)]
-		pub fn put_mining_object(
+		pub fn put_object(
 			_origin: OriginFor<T>,
 			proof: Vec<u8>,
 		) -> DispatchResultWithPostInfo {
@@ -136,31 +134,38 @@ pub mod pallet {
 			Ok(().into())
 		}
 
-		#[pallet::weight(10_000)]
-		pub fn revoke_claim(
-			origin: OriginFor<T>,
-			proof: Vec<u8>,
+		#[pallet::weight(1_000_000_000)]
+		pub fn get_object_ext(
+			_origin: OriginFor<T>,
 		) -> DispatchResultWithPostInfo {
-			// Check that the extrinsic was signed and get the signer.
-			// This function will return an error if the extrinsic is not signed.
-			// https://docs.substrate.io/v3/runtime/origins
-			let sender = ensure_signed(origin)?;
+			// let _current_block = <frame_system::Pallet<T>>::block_number();
+			// let sender = ensure_signed(origin)?;
+			//
+			let _digest = <frame_system::Pallet<T>>::digest();
+			// let obj = digest.last().unwrap();
+			//
+			let obj = Vec::new();
+			Self::deposit_event(Event::GetMiningObject(obj));
 
-			// Verify that the specified proof has been claimed.
-			ensure!(Proofs::<T>::contains_key(&proof), Error::<T>::NoSuchProof);
-
-			// Get owner of the claim.
-			let (owner, _) = Proofs::<T>::get(&proof);
-
-			// Verify that sender of the current call is the claim owner.
-			ensure!(sender == owner, Error::<T>::NotProofOwner);
-
-			// Remove claim from storage.
-			Proofs::<T>::remove(&proof);
-
-			// Emit an event that the claim was erased.
-			Self::deposit_event(Event::ClaimRevoked(sender, proof));
 			Ok(().into())
 		}
+
 	}
 }
+
+impl<T: Config> Pallet<T> {
+	pub fn get_mining_object() -> Vec<u8> {
+		let digest = <frame_system::Pallet<T>>::digest();
+		let item = digest.logs.last().unwrap();
+		let mut obj = Vec::new();
+
+		if let DigestItem::Other(v) = item {
+			obj = v.to_vec();
+			if obj[..4] == vec![b'l', b'z', b's', b's'] {
+				obj = sp_consensus_poscan::decompress_obj(&obj[4..]);
+			}
+		}
+		obj
+	}
+}
+

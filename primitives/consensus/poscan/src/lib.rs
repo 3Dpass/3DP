@@ -23,6 +23,7 @@
 use sp_std::vec::Vec;
 use sp_runtime::ConsensusEngineId;
 use codec::Decode;
+use lzss::{Lzss, SliceReader, VecWriter};
 
 /// The `ConsensusEngineId` of PoScan.
 pub const POSCAN_ENGINE_ID: ConsensusEngineId = [b'p', b'o', b's', b'c'];
@@ -113,10 +114,30 @@ sp_api::decl_runtime_apis! {
 	}
 
 	pub trait PoscanApi {
-		fn get_obj(idx: i32) -> i32;
+		fn get_obj() -> Vec<u8>;
 	}
 
 	pub trait AlgorithmApi {
 		fn identifier() -> [u8; 8];
 	}
+}
+
+pub fn compress_obj(obj: &[u8]) -> Vec<u8> {
+	type MyLzss = Lzss<10, 4, 0x20, { 1 << 10 }, { 2 << 10 }>;
+	let result = MyLzss::compress(
+		SliceReader::new(obj),
+		VecWriter::with_capacity(4096),
+	);
+
+	result.unwrap()
+}
+
+pub fn decompress_obj(obj: &[u8]) -> Vec<u8> {
+	type MyLzss = Lzss<10, 4, 0x20, { 1 << 10 }, { 2 << 10 }>;
+	let result = MyLzss::decompress(
+		SliceReader::new(obj),
+		VecWriter::with_capacity(4096),
+	);
+
+	result.unwrap()
 }

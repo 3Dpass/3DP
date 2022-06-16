@@ -21,6 +21,7 @@ use std::{pin::Pin, time::Duration, collections::HashMap, any::Any, borrow::Cow}
 use sc_client_api::ImportNotifications;
 use sp_runtime::{DigestItem, traits::Block as BlockT, generic::BlockId};
 use sp_consensus::{Proposal, BlockOrigin, BlockImportParams, import_queue::BoxBlockImport};
+use sp_consensus_poscan::compress_obj;
 use futures::{prelude::*, task::{Context, Poll}};
 use futures_timer::Delay;
 use log::*;
@@ -122,7 +123,6 @@ impl<Block, Algorithm, C> MiningWorker<Block, Algorithm, C> where
 			let poscan_hashes = DigestItem::Other(v);
 
 			info!(">>> pscan_obj len: {}", poscan_data.obj.len());
-			use super::compress_obj;
 
 			let mut zip_obj = vec![b'l', b'z', b's', b's'];
 			let mut zipped = compress_obj(poscan_data.obj.as_slice());

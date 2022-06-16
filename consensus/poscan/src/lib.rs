@@ -61,7 +61,6 @@ use sc_client_api;
 use log::*;
 use sp_core::{H256, U256};
 use sp_timestamp::{InherentError as TIError, TimestampInherentData};
-use lzss::{Lzss, SliceReader, VecWriter};
 
 use crate::worker::UntilImportedOrTimeout;
 use sp_consensus_poscan::{Difficulty, DifficultyApi};
@@ -932,27 +931,6 @@ fn fetch_seal<B: BlockT>(
 		},
 	}
 }
-
-pub fn compress_obj(obj: &[u8]) -> Vec<u8> {
-	type MyLzss = Lzss<10, 4, 0x20, { 1 << 10 }, { 2 << 10 }>;
-	let result = MyLzss::compress(
-		SliceReader::new(obj),
-		VecWriter::with_capacity(4096),
-	);
-
-	result.unwrap()
-}
-
-pub fn decompress_obj(obj: &[u8]) -> Vec<u8> {
-	type MyLzss = Lzss<10, 4, 0x20, { 1 << 10 }, { 2 << 10 }>;
-	let result = MyLzss::decompress(
-		SliceReader::new(obj),
-		VecWriter::with_capacity(4096),
-	);
-
-	result.unwrap()
-}
-
 
 //
 // fn check_finality<Block, B>(

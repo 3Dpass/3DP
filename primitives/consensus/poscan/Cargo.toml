@@ -18,6 +18,7 @@ sp-std = { version = "3.0.0", default-features = false, git = "https://github.co
 sp-runtime = { version = "3.0.0", default-features = false, git = "https://github.com/3Dpass/substrate.git", branch = "3dp_v3" }
 sp-core = { version = "3.0.0", default-features = false, git = "https://github.com/3Dpass/substrate.git", branch = "3dp_v3" }
 codec = { package = "parity-scale-codec", version = "2.0.0", default-features = false, features = ["derive"] }
+lzss = { version = "0.8", default-features = false, features = ["alloc"] }
 
 [features]
 default = ["std"]
