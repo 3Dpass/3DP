@@ -63,7 +63,7 @@ use sp_core::{H256, U256};
 use sp_timestamp::{InherentError as TIError, TimestampInherentData};
 
 use crate::worker::UntilImportedOrTimeout;
-use sp_consensus_poscan::{Difficulty, DifficultyApi};
+use sp_consensus_poscan::{Difficulty, DifficultyApi, MAX_MINING_OBJ_LEN};
 
 pub mod app {
 	use sp_application_crypto::{app_crypto, sr25519};
@@ -421,6 +421,10 @@ impl<B, I, C, S, Algorithm, CAW> BlockImport<B> for PowBlockImport<B, I, C, S, A
 
 		let pscan_obj = fetch_seal::<B>(block.post_digests.get(dpos + 2), block.header.hash())?;
 		info!(">>> pscan_obj len: {}", pscan_obj.len());
+
+		if pscan_obj.len() > MAX_MINING_OBJ_LEN {
+			return Err(Error::<B>::Other("Mining object too large".to_string()).into());
+		}
 
 		// let hz = fetch_seal::<B>(block.post_digests.get(3), block.header.hash())?;
 		// info!(">>> hz len: {}", hz.len());

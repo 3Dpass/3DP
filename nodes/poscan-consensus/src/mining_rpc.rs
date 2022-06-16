@@ -8,11 +8,13 @@ use sp_consensus_poscan::PoscanApi;
 extern crate alloc;
 use alloc::string::String;
 use crate::service::{MiningProposal, DEQUE};
+use sp_consensus_poscan::MAX_MINING_OBJ_LEN;
 
 const MAX_QUEUE_LEN: usize = 5;
 
 const RES_OK: u64 = 0;
 const RES_QUEUE_FULL: u64 = 1;
+const RES_OBJ_MAX_LEN: u64 = 2;
 
 #[rpc]
 pub trait PoscanMiningRpc<BlockHash> {
@@ -50,6 +52,9 @@ impl<C, Block> PoscanMiningRpc<<Block as BlockT>::Hash> for MiningRpc<C, Block>
 		let mut lock = DEQUE.lock();
 		if lock.len() >= MAX_QUEUE_LEN {
 			return Ok(RES_QUEUE_FULL)
+		}
+		if obj.len() > MAX_MINING_OBJ_LEN {
+			return Ok(RES_OBJ_MAX_LEN)
 		}
 		(*lock).push_back(MiningProposal {id: 1, pre_obj: obj.as_bytes().to_vec()});
 
