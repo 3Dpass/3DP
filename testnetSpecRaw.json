@@ -3,13 +3,9 @@
   "id": "3dp",
   "chainType": "Live",
   "bootNodes": [
-    "/ip4/113.207.1.26/tcp/30333/p2p/12D3KooWSdfKXSwXxLB1DaBbCCmYHX7kkvP7cJWkwQoY7B2bWVSP",
-    "/ip4/113.207.1.27/tcp/30333/p2p/12D3KooWN6Csw8RahwRNFSyyUnQrhdgFqFfcs8Lm7P9Q9SdCHPRf",
-    "/ip4/113.207.1.28/tcp/30333/p2p/12D3KooWJYLJpAs3Ls8HXaLRa3scxQdiqWv6LqyDq4GfHUMgQ86V",
-    "/ip4/94.130.69.234/tcp/30333/p2p/12D3KooWBhrGzpnC1Lc29z7xeLyMwsCR8tuz639G3eqi3Z7PNsht",
-    "/ip4/65.108.130.174/tcp/30333/p2p/12D3KooWSRNcCfy7RbPcWV7pMaeQJbKZwGXg4Zwbp5GJs3FuXBdm",
-    "/ip4/65.108.133.126/tcp/30333/p2p/12D3KooWPaQ46SpXgBwCNPZXmnH9JrJ7Wnc1Bv6z7ZZkqeqKZuYs",
-    "/ip4/113.207.1.24/tcp/30333/p2p/12D3KooWBWSNgf5x1Gor484AYqX6tBm4NyzYTgPHCaeH493x9WDE"
+    "/ip4/159.223.209.61/tcp/30333/p2p/12D3KooWSdfKXSwXxLB1DaBbCCmYHX7kkvP7cJWkwQoY7B2bWVSP",
+    "/ip4/159.223.209.224/tcp/30333/p2p/12D3KooWN6Csw8RahwRNFSyyUnQrhdgFqFfcs8Lm7P9Q9SdCHPRf",
+    "/ip4/159.223.209.152/tcp/30333/p2p/12D3KooWJYLJpAs3Ls8HXaLRa3scxQdiqWv6LqyDq4GfHUMgQ86V",
   ],
   "telemetryEndpoints": [
     [
