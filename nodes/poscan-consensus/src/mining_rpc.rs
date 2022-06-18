@@ -6,6 +6,7 @@ use sp_api::ProvideRuntimeApi;
 use sp_consensus_poscan::PoscanApi;
 
 extern crate alloc;
+
 use alloc::string::String;
 use crate::service::{MiningProposal, DEQUE};
 use sp_consensus_poscan::MAX_MINING_OBJ_LEN;
@@ -18,10 +19,10 @@ const RES_OBJ_MAX_LEN: u64 = 2;
 
 #[rpc]
 pub trait PoscanMiningRpc<BlockHash> {
-	#[rpc(name = "push_mining_object")]
+	#[rpc(name = "poscan_pushMiningObject")]
 	fn push(&self, obj_id: u64, obj: String) -> Result<u64>;
 
-	#[rpc(name = "get_mining_object")]
+	#[rpc(name = "poscan_getMiningObject")]
 	fn get_obj(&self, at: BlockHash) -> Result<Vec<u8>>;
 }
 
@@ -31,6 +32,7 @@ pub struct MiningRpc<C, Block> {
 	_marker: std::marker::PhantomData<Block>,
 
 }
+
 impl<C, Block> MiningRpc<C, Block> {
 	pub fn new(client: Arc<C>) -> Self {
 		Self {
@@ -45,18 +47,17 @@ impl<C, Block> PoscanMiningRpc<<Block as BlockT>::Hash> for MiningRpc<C, Block>
 		Block: BlockT,
 		C: Send + Sync + 'static,
 		C: ProvideRuntimeApi<Block>,
-		// C: HeaderBackend<Block>,
 		C::Api: sp_consensus_poscan::PoscanApi<Block>,
 {
 	fn push(&self, _obj_id: u64, obj: String) -> Result<u64> {
 		let mut lock = DEQUE.lock();
 		if lock.len() >= MAX_QUEUE_LEN {
-			return Ok(RES_QUEUE_FULL)
+			return Ok(RES_QUEUE_FULL);
 		}
 		if obj.len() > MAX_MINING_OBJ_LEN {
-			return Ok(RES_OBJ_MAX_LEN)
+			return Ok(RES_OBJ_MAX_LEN);
 		}
-		(*lock).push_back(MiningProposal {id: 1, pre_obj: obj.as_bytes().to_vec()});
+		(*lock).push_back(MiningProposal { id: 1, pre_obj: obj.as_bytes().to_vec() });
 
 		Ok(RES_OK)
 	}
