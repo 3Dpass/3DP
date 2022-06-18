@@ -374,7 +374,6 @@ impl<B, I, C, S, Algorithm, CAW> BlockImport<B> for PowBlockImport<B, I, C, S, A
 		}
 
 		let parent_hash = *block.header.parent_hash();
-		info!(">>> parent_hash: {:x?}", &parent_hash);
 		let best_aux = PowAux::read::<_, B>(self.client.as_ref(), &best_hash)?;
 		let mut aux = PowAux::read::<_, B>(self.client.as_ref(), &parent_hash)?;
 
@@ -396,7 +395,6 @@ impl<B, I, C, S, Algorithm, CAW> BlockImport<B> for PowBlockImport<B, I, C, S, A
 		}
 
 		let ll = block.post_digests.len();
-		info!(">>> block.post_digests.len() = {}", &ll);
 
 		let mut dpos: usize = 0;
 		let pre_digest;
@@ -413,26 +411,14 @@ impl<B, I, C, S, Algorithm, CAW> BlockImport<B> for PowBlockImport<B, I, C, S, A
 
 
 		let inner_seal = fetch_seal::<B>(block.post_digests.get(dpos), block.header.hash())?;
-		info!(">>> seal from header len: {}", inner_seal.len());
-
 		let pscan_hashes = fetch_seal::<B>(block.post_digests.get(dpos + 1), block.header.hash())?;
-		info!(">>> seal hashes: {:x?}", &pscan_hashes);
-		info!(">>> seal hashes len: {:x?}", pscan_hashes.len());
-
 		let pscan_obj = fetch_seal::<B>(block.post_digests.get(dpos + 2), block.header.hash())?;
-		info!(">>> pscan_obj len: {}", pscan_obj.len());
 
 		if pscan_obj.len() > MAX_MINING_OBJ_LEN {
 			return Err(Error::<B>::Other("Mining object too large".to_string()).into());
 		}
 
-		// let hz = fetch_seal::<B>(block.post_digests.get(3), block.header.hash())?;
-		// info!(">>> hz len: {}", hz.len());
-
 		let hs: Vec<H256> = pscan_hashes.chunks(32).map(|h| H256::from_slice(h)).collect();
-		for i in hs.iter() {
-			info!(">>> hashe: {}", i.to_string());
-		}
 
 		let psdata = PoscanData{ hashes: hs.clone(), obj: pscan_obj };
 
@@ -440,15 +426,12 @@ impl<B, I, C, S, Algorithm, CAW> BlockImport<B> for PowBlockImport<B, I, C, S, A
 			INTERMEDIATE_KEY
 		)?;
 
-		// let obj = (*intermediate).obj;
-
 		let difficulty = match intermediate.difficulty {
 			Some(difficulty) => difficulty,
 			None => self.algorithm.difficulty(parent_hash)?,
 		};
 
 		let pre_hash = block.header.hash();
-		info!("--- pre_hash: {:x?}", &pre_hash);
 
 		// let pre_digest = find_pre_digest::<B>(&block.header)?;
 		if !self.algorithm.verify(
@@ -553,24 +536,20 @@ impl<B: BlockT, Algorithm> PowVerifier<B, Algorithm> {
 		let hash = header.hash();
 		let mut digests: Vec<DigestItem<B::Hash>> = Vec::new();
 		let n = header.digest().logs().len();
-		info!(">>> digests len {}", n);
 		let mut pre_run: Option<DigestItem<_>> = None;
 		for _ in 0..n {
 			match header.digest_mut().pop() {
 				Some(DigestItem::Seal(id, seal)) => {
 					if id == POSCAN_ENGINE_ID {
-						info!(">>> Header in check_header: Seal");
 						digests.push(DigestItem::Seal(id, seal.clone()))
 					} else {
 						return Err(Error::WrongEngine(id))
 					}
 				},
 				Some(DigestItem::Other(item)) => {
-					info!(">>> Header in check_header: Other");
 					digests.push(DigestItem::Other(item.clone()))
 				},
 				Some(DigestItem::PreRuntime(id, pre_runtime)) => {
-					info!(">>> Header in check_header: PreRuntime");
 					pre_run = Some(DigestItem::PreRuntime(id, pre_runtime.clone()));
 					digests.push(DigestItem::PreRuntime(id, pre_runtime.clone()))
 				},
@@ -617,11 +596,6 @@ impl<B: BlockT, Algorithm> Verifier<B> for PowVerifier<B, Algorithm> where
 		};
 
 		let mut import_block = BlockImportParams::new(origin, checked_header);
-
-		match poscan_obj {
-			DigestItem::Other(ref s) => info!(">>> In verify: pscan_obj len: {}", s.len()),
-			_ => {}
-		}
 
 		import_block.post_digests.push(seal);
 		import_block.post_digests.push(poscan_hashes);
@@ -899,7 +873,6 @@ fn fetch_seal<B: BlockT>(
 	match digest {
 		Some(DigestItem::Seal(id, seal)) => {
 			if id == &POSCAN_ENGINE_ID {
-				info!(">>> Header sealed ok in fetch_seal (Seal)");
 				Ok(seal.clone())
 			} else {
 				return Err(Error::<B>::WrongEngine(*id).into())
@@ -910,7 +883,6 @@ fn fetch_seal<B: BlockT>(
 		},
 		Some(DigestItem::PreRuntime(id, pre_runtime)) => {
 			if id == &POSCAN_ENGINE_ID {
-				info!(">>> Header sealed ok in fetch_seal (PreRuntime)");
 				Ok(pre_runtime.clone())
 			}
 			else {
