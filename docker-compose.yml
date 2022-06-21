@@ -7,21 +7,15 @@ services:
       context: .
       dockerfile: docker/miner.Dockerfile
     links:
-      - "node1:node1"
+      - "node:node"
 
-  node1:
-    container_name: "node1"
+  node:
+    container_name: "node"
     build:
       context: .
       dockerfile: docker/node.Dockerfile
-
-
-  node2:
-    container_name: "node2"
-    build:
-      context: .
-      dockerfile: docker/node.Dockerfile
-
-networks:
-  node1_net:
-  node2_net:
+    volumes:
+      - /var/chain
+    ports:
+      - "9944:9944"
+      - "9933:9933"

@@ -1,0 +1,7 @@
+version: "3.9"
+
+services:
+  node:
+    environment:
+      - MEMO_SEED=[PLACE MEMO SEED HERE]
+      - ADDRESS=[PLACE MINER ADDRESS HERE]

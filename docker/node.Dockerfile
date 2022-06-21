@@ -17,7 +17,11 @@ RUN --mount=type=cache,target=/usr/local/cargo/registry \
 FROM ubuntu:kinetic
 ARG APP=/usr/src/app
 COPY --from=builder /app/target/release/poscan-consensus ${APP}/p3d
+COPY ./testnetSpecRaw.json ${APP}/testnetSpecRaw.json
+COPY ./docker/node.sh ${APP}/node.sh
+RUN chmod +x ${APP}/node.sh
 WORKDIR ${APP}
 EXPOSE 9933
-# TODO: add correct bootnodes
-CMD ["./p3d", "--unsafe-rpc-external", "--rpc-cors=all", "--validator", "--tmp"]
+EXPOSE 9944
+
+CMD ["./node.sh"]
