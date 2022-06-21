@@ -23,5 +23,6 @@ RUN chmod +x ${APP}/node.sh
 WORKDIR ${APP}
 EXPOSE 9933
 EXPOSE 9944
+EXPOSE 30333
 
 CMD ["./node.sh"]
