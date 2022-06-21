@@ -10,6 +10,10 @@ Every object, transformed by 3DPass, has its own unique and stable identity call
 3D Pass NODE is one layer blockchain based on [Substrate](https://www.substrate.io/) with brandnew consensus [Proof of Scan](https://3dpass.org/proof_of_scan.html) using 3D object shape recognition algorithm called [Grid2d](https://3dpass.org/grid2d.html), which is implemented into the Node with the recognition tool [pass3d](https://github.com/3Dpass/pass3d). [Proof of Scan](https://3dpass.org/proof_of_scan.html) is a kind of non-conventional PoW consensus because of the computing power is used for 3D shape recognition. 3Dpass NODEs are designed to provide objects authenticity check. You might call it The Ledger of unique things, which allows to utilize them within smart-contracts and dApps. The network nodes will stand guard preventing assets from copy making.
 
 ## Mining with Docker
+First, install [Docker](https://docs.docker.com/get-docker/) and
+[Docker Compose](https://docs.docker.com/compose/install/).
+
+Run the following command to run the Node and a [miner](https://github.com/3Dpass/miner):
 
 ```shell
 cp docker-compose.override.yml.example docker-compose.override.yml
