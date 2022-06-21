@@ -614,20 +614,4 @@ impl_runtime_apis! {
 		}
 	}
 
-	impl sp_consensus_poscan::PoscanApi<Block> for Runtime {
-		fn get_obj() -> Vec<u8> {
-			pallet_poscan::Module::<Runtime>::get_mining_object()
-		}
-	}
-
-	// impl sp_consensus_poscan::PoscanApi<Block> for Runtime {
-	// 	fn get_obj(idx: i32) -> i32 {
-	// 		1 // PoScan::get_obj(idx)
-	// 		// PoScan::get_obj(idx)
-	// 	}
-	// }
 }
-
-// pub fn block_num<B: BlockT>() -> B::BlockNumber {
-// 	System::block_number()
-// }

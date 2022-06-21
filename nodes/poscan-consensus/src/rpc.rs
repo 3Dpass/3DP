@@ -28,7 +28,6 @@ where
 	C: HeaderBackend<Block> + HeaderMetadata<Block, Error = BlockChainError> + 'static,
 	C: Send + Sync + 'static,
 	C::Api: BlockBuilder<Block>,
-	C::Api: sp_consensus_poscan::PoscanApi<Block>,
 	P: TransactionPool + 'static,
 {
 	let mut io = jsonrpc_core::IoHandler::default();

@@ -5,12 +5,9 @@
 /// <https://docs.substrate.io/v3/runtime/frame>
 pub use pallet::*;
 extern crate alloc;
-use alloc::vec;
 use core::num::ParseIntError;
 use sp_std::vec::Vec;
 // use frame_support::debug::info;
-use sp_runtime::generic::DigestItem;
-
 
 #[cfg(test)]
 mod mock;
@@ -153,19 +150,23 @@ pub mod pallet {
 	}
 }
 
-impl<T: Config> Pallet<T> {
-	pub fn get_mining_object() -> Vec<u8> {
-		let digest = <frame_system::Pallet<T>>::digest();
-		let item = digest.logs.last().unwrap();
-		let mut obj = Vec::new();
-
-		if let DigestItem::Other(v) = item {
-			obj = v.to_vec();
-			if obj[..4] == vec![b'l', b'z', b's', b's'] {
-				obj = sp_consensus_poscan::decompress_obj(&obj[4..]);
-			}
-		}
-		obj
-	}
-}
+// impl<T: Config> Pallet<T> {
+// 	pub fn get_mining_object() -> Vec<u8> {
+// 		let digest = <frame_system::Pallet<T>>::digest();
+// 		let ll: u8 = digest.logs.len() as u8;
+// 		// let item = digest.logs.last().unwrap();
+// 		// let mut obj = Vec::new();
+// 		//
+// 		// if let DigestItem::Other(v) = item {
+// 		// 	obj = v.to_vec();
+// 		// 	if obj[..4] == vec![b'l', b'z', b's', b's'] {
+// 		// 		obj = sp_consensus_poscan::decompress_obj(&obj[4..]);
+// 		// 	}
+// 		// }
+// 		// obj
+// 		let mut v = Vec::new();
+// 		// v.push(ll);
+// 		v
+// 	}
+// }
 

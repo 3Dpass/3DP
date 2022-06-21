@@ -115,10 +115,6 @@ sp_api::decl_runtime_apis! {
 		fn difficulty() -> Difficulty;
 	}
 
-	pub trait PoscanApi {
-		fn get_obj() -> Vec<u8>;
-	}
-
 	pub trait AlgorithmApi {
 		fn identifier() -> [u8; 8];
 	}

@@ -3,7 +3,10 @@ use jsonrpc_derive::rpc;
 use jsonrpc_core::{Error as RpcError, ErrorCode, Result};
 use sp_runtime::{generic::BlockId, traits::Block as BlockT};
 use sp_api::ProvideRuntimeApi;
-use sp_consensus_poscan::PoscanApi;
+use sp_runtime::generic::DigestItem;
+use sp_blockchain::HeaderBackend;
+use sp_runtime::traits::Header;
+use sp_consensus_poscan::decompress_obj;
 
 extern crate alloc;
 
@@ -47,7 +50,7 @@ impl<C, Block> PoscanMiningRpc<<Block as BlockT>::Hash> for MiningRpc<C, Block>
 		Block: BlockT,
 		C: Send + Sync + 'static,
 		C: ProvideRuntimeApi<Block>,
-		C::Api: sp_consensus_poscan::PoscanApi<Block>,
+		C: ProvideRuntimeApi<Block> + Send + Sync + HeaderBackend<Block>,
 {
 	fn push(&self, _obj_id: u64, obj: String) -> Result<u64> {
 		let mut lock = DEQUE.lock();
@@ -63,14 +66,45 @@ impl<C, Block> PoscanMiningRpc<<Block as BlockT>::Hash> for MiningRpc<C, Block>
 	}
 
 	fn get_obj(&self, at: <Block as BlockT>::Hash) -> Result<Vec<u8>> {
-		let api = self.client.runtime_api();
+		let block_id = BlockId::Hash(at.into());
+		let h = self.client.header(block_id)
+			.map_err(|_e| RpcError {
+				code: ErrorCode::ServerError(1),
+				message: "Unknown header".to_string(), data: None,
+			})?;
 
-		let h = BlockId::Hash(at.into());
-		let runtime_api_result = api.get_obj(&h);
-		runtime_api_result.map_err(|e| RpcError {
-			code: ErrorCode::ServerError(9876), // No real reason for this value
-			message: "Something wrong".into(),
-			data: Some(format!("{:?}", e).into()),
-		})
+		let h = match h {
+			Some(h) => h,
+			None => return Err(RpcError {
+				code: ErrorCode::ServerError(2),
+				message: "Empty header".to_string(),
+				data: None,
+			}),
+		};
+
+		let di = match h.digest().logs.last() {
+			Some(di) => di,
+			None => { return Err(jsonrpc_core::Error {
+					code: ErrorCode::ServerError(3),
+					message: "Empty header".to_string(),
+					data: None,
+				})
+			},
+		};
+
+		if let DigestItem::Other(obj) = di {
+			let mut obj = obj.to_vec();
+			if obj[..4] == vec![b'l', b'z', b's', b's'] {
+				obj = decompress_obj(&obj[4..]);
+			}
+			Ok(obj)
+		}
+		else {
+			Err(RpcError {
+				code: ErrorCode::ServerError(3),
+				message: "Invalid digest type".to_string(),
+				data: None,
+			})
+		}
 	}
 }
