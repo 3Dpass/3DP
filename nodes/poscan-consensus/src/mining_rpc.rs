@@ -26,7 +26,7 @@ pub trait PoscanMiningRpc<BlockHash> {
 	fn push(&self, obj_id: u64, obj: String) -> Result<u64>;
 
 	#[rpc(name = "poscan_getMiningObject")]
-	fn get_obj(&self, at: BlockHash) -> Result<Vec<u8>>;
+	fn get_obj(&self, at: BlockHash) -> Result<String>;
 }
 
 /// A struct that implements the `SillyRpc`
@@ -65,7 +65,7 @@ impl<C, Block> PoscanMiningRpc<<Block as BlockT>::Hash> for MiningRpc<C, Block>
 		Ok(RES_OK)
 	}
 
-	fn get_obj(&self, at: <Block as BlockT>::Hash) -> Result<Vec<u8>> {
+	fn get_obj(&self, at: <Block as BlockT>::Hash) -> Result<String> {
 		let block_id = BlockId::Hash(at.into());
 		let h = self.client.header(block_id)
 			.map_err(|_e| RpcError {
@@ -97,11 +97,16 @@ impl<C, Block> PoscanMiningRpc<<Block as BlockT>::Hash> for MiningRpc<C, Block>
 			if obj[..4] == vec![b'l', b'z', b's', b's'] {
 				obj = decompress_obj(&obj[4..]);
 			}
-			Ok(obj)
+			let s = String::from_utf8(obj)
+				.map_err(|_e| RpcError {
+					code: ErrorCode::ServerError(3),
+					message: "Can't convert object to utf8".to_string(), data: None,
+				})?;
+			Ok(s)
 		}
 		else {
 			Err(RpcError {
-				code: ErrorCode::ServerError(3),
+				code: ErrorCode::ServerError(4),
 				message: "Invalid digest type".to_string(),
 				data: None,
 			})
