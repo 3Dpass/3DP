@@ -1,13 +1,15 @@
 // Reads in the type definitions from all pallets in the runtime and the runtime's own tpes
 // Naively aggregates types and writes them to disk.
 
-const fs = require('fs');
+// const fs = require('fs');
+import fs from 'fs';
 
 // A list of all the installed recipe pallets' folder names.
 // Does not include system pallets because Apps already supports them.
 // Redundant with construct_runtime!
 const pallets = [
-  "weights",
+  "difficulty",
+  "rewards",
 ]
 
 // Types that are native to the runtime itself (ie come from lib.rs)

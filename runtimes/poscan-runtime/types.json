@@ -3,5 +3,21 @@
   "Address": "AccountId",
   "LookupSource": "AccountId",
   "Weight": "u32",
-  "AccountInfo": "AccountInfoWithDualRefCount"
+  "Difficulty": "u256",
+  "DifficultyAndTimestamp": {
+    "difficulty": "Difficulty",
+    "timestamp": "u64"
+  },
+  "LockParameters": {
+    "period": "u16",
+    "divide": "u16"
+  },
+  "StorageVersion": {
+    "_enum": [
+      "V0",
+      "V1"
+    ],
+    "V0": "u8",
+    "V1": "u8"
+  }
 }

@@ -1,0 +1,7 @@
+{
+    "Difficulty": "u256",
+    "DifficultyAndTimestamp": {
+        "difficulty": "Difficulty",
+        "timestamp": "u64"
+    }
+}
