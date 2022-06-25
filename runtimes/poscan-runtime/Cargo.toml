@@ -37,9 +37,9 @@ pallet-timestamp = { version = '3.0', default-features = false, git = "https://g
 pallet-transaction-payment = { version = '3.0', default-features = false, git = "https://github.com/3Dpass/substrate.git", branch = "3dp_v3" }
 sp-consensus-poscan = { path = "../../primitives/consensus/poscan", default-features = false }
 pallet-poscan = { path = "../../pallets/poscan", default-features = false }
-difficulty = { package = "pallet-difficulty", path = "../../frame/difficulty", default-features = false }
-rewards = { package = "pallet-rewards", path = "../../frame/rewards", default-features = false }
-lockdrop = { package = "pallet-lockdrop", path = "../../frame/lockdrop", default-features = false }
+difficulty = { package = "pallet-difficulty", path = "../../pallets/difficulty", default-features = false }
+rewards = { package = "pallet-rewards", path = "../../pallets/rewards", default-features = false }
+lockdrop = { package = "pallet-lockdrop", path = "../../pallets/lockdrop", default-features = false }
 treasury = { package = "pallet-treasury", version="3.0", default-features = false, git = "https://github.com/3Dpass/substrate.git", branch = "3dp_v3" }
 collective = { package = "pallet-collective",version="3.0", default-features = false, git = "https://github.com/3Dpass/substrate.git", branch = "3dp_v3" }
 bounties = { package = "pallet-bounties", version="3.0", default-features = false, git = "https://github.com/3Dpass/substrate.git", branch = "3dp_v3" }
