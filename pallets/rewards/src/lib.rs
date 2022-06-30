@@ -66,6 +66,8 @@ pub trait GenerateRewardLocks<T: Config> {
 	) -> BTreeMap<T::BlockNumber, BalanceOf<T>>;
 
 	fn max_locks(lock_bounds: LockBounds) -> u32;
+
+	fn calc_rewards(when: T::BlockNumber) -> BalanceOf<T>;
 }
 
 impl<T: Config> GenerateRewardLocks<T> for () {
@@ -79,6 +81,10 @@ impl<T: Config> GenerateRewardLocks<T> for () {
 
 	fn max_locks(_lock_bounds: LockBounds) -> u32 {
 		0
+	}
+
+	fn calc_rewards(_when: T::BlockNumber) -> BalanceOf<T>{
+		0u32.into()
 	}
 }
 
@@ -149,23 +155,6 @@ decl_storage! {
 	}
 }
 
-decl_event! {
-	pub enum Event<T> where AccountId = <T as frame_system::Config>::AccountId, Balance = BalanceOf<T> {
-		/// A new schedule has been set.
-		ScheduleSet,
-		/// Reward has been sent.
-		Rewarded(AccountId, Balance),
-		/// Reward has been changed.
-		RewardChanged(Balance),
-		/// Mint has been sent.
-		Minted(AccountId, Balance),
-		/// Mint has been changed.
-		MintsChanged(BTreeMap<AccountId, Balance>),
-		/// Lock Parameters have been changed.
-		LockParamsChanged(LockParameters),
-	}
-}
-
 decl_module! {
 	pub struct Module<T: Config> for enum Call where origin: T::Origin {
 		type Error = Error<T>;
@@ -187,6 +176,10 @@ decl_module! {
 			if let Some(author) = author {
 				<Self as Store>::Author::put(author);
 			}
+
+			let cur_block_number = <frame_system::Pallet<T>>::block_number();
+			let cur_reward = T::GenerateRewardLocks::calc_rewards(cur_block_number);
+			Reward::<T>::set(cur_reward);
 
 			RewardChanges::<T>::mutate(|reward_changes| {
 				let mut removing = Vec::new();
@@ -306,9 +299,33 @@ decl_module! {
 	}
 }
 
+decl_event! {
+	pub enum Event<T> where AccountId = <T as frame_system::Config>::AccountId, Balance = BalanceOf<T> {
+		/// A new schedule has been set.
+		ScheduleSet,
+		/// Reward has been sent.
+		Rewarded(AccountId, Balance),
+		/// Reward has been changed.
+		RewardChanged(Balance),
+		/// Mint has been sent.
+		Minted(AccountId, Balance),
+		/// Mint has been changed.
+		MintsChanged(BTreeMap<AccountId, Balance>),
+		/// Lock Parameters have been changed.
+		LockParamsChanged(LockParameters),
+	}
+}
+
 const REWARDS_ID: LockIdentifier = *b"rewards ";
 
 impl<T: Config> Module<T> {
+	// fn calc_reward(when: T::BlockNumber) -> BalanceOf<T> {
+	// 	// let (_, cur_reward) = REWARDS_CHANGES.range((Included(0), Included(when))).last().unwrap();
+	// 	let cur_reward = 500 * DOLLARS;
+	// 	//(*cur_reward).saturated_into::<BalanceOf<T>>()
+	// 	cur_reward.saturated_into::<BalanceOf<T>>()
+	// }
+
 	fn do_reward(author: &T::AccountId, reward: BalanceOf<T>, when: T::BlockNumber) {
 		let miner_total = reward;
 
