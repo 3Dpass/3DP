@@ -49,8 +49,8 @@ pub mod pallet {
 	pub struct Pallet<T>(_);
 
 	// The pallet's runtime storage items.
-	#[pallet::storage]
-	pub(super) type Proofs<T: Config> = StorageMap<_, Blake2_128Concat, Vec<u8>, (T::AccountId, T::BlockNumber), ValueQuery>;
+	// #[pallet::storage]
+	// pub(super) type Proofs<T: Config> = StorageMap<_, Blake2_128Concat, Vec<u8>, (T::AccountId, T::BlockNumber), ValueQuery>;
 
 	// Pallets use events to inform users when important changes are made.
 	// https://docs.substrate.io/v3/runtime/events-and-errors

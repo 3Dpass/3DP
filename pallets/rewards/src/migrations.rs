@@ -24,11 +24,12 @@ use frame_support::storage::StorageValue;
 use serde::{Deserialize, Serialize};
 use sp_runtime::{Perbill, RuntimeDebug};
 use sp_std::{collections::btree_map::BTreeMap, prelude::*};
+use scale_info::TypeInfo;
 
 /// A value placed in storage that represents the current version of the Scheduler storage.
 /// This value is used by the `on_runtime_upgrade` logic to determine whether we run
 /// storage migration logic.
-#[derive(Encode, Decode, Clone, Copy, PartialEq, Eq, RuntimeDebug)]
+#[derive(Encode, Decode, Clone, Copy, PartialEq, Eq, RuntimeDebug, TypeInfo)]
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
 pub enum StorageVersion {
 	V0 = 0,

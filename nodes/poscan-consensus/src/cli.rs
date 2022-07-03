@@ -1,21 +1,24 @@
 use sc_cli::RunCmd;
-use structopt::StructOpt;
+// use std::str::FromStr;
+// use structopt::StructOpt;
 
-#[derive(Debug, StructOpt)]
+
+#[derive(Debug, clap::Parser)]
 pub struct Cli {
-	#[structopt(subcommand)]
+	#[clap(subcommand)]
 	pub subcommand: Option<Subcommand>,
 
-	#[structopt(flatten)]
+	#[clap(flatten)]
 	pub run: RunCmd,
 
-	#[structopt(long)]
+	#[clap(long)]
 	pub author: Option<String>,
 }
 
-#[derive(Debug, StructOpt)]
+#[derive(Debug, clap::Parser)]
 pub enum Subcommand {
 	/// Key management cli utilities
+	#[clap(subcommand)]
 	Key(sc_cli::KeySubcommand),
 
 	/// Build a chain specification.
@@ -39,24 +42,24 @@ pub enum Subcommand {
 	/// Revert the chain to a previous state.
 	Revert(sc_cli::RevertCmd),
 
-	#[structopt(name = "import-mining-key")]
+	#[clap(name = "import-mining-key")]
 	ImportMiningKey(ImportMiningKeyCommand),
 
-	#[structopt(name = "generate-mining-key")]
+	#[clap(name = "generate-mining-key")]
 	GenerateMiningKey(GenerateMiningKeyCommand),
 }
 
-#[derive(Debug, StructOpt)]
+#[derive(Debug, clap::Parser)]
 pub struct ImportMiningKeyCommand {
-	#[structopt()]
+	#[clap()]
 	pub suri: String,
 
 	#[allow(missing_docs)]
-	#[structopt(flatten)]
+	#[clap(flatten)]
 	pub shared_params: sc_cli::SharedParams,
 
 	#[allow(missing_docs)]
-	#[structopt(flatten)]
+	#[clap(flatten)]
 	pub keystore_params: sc_cli::KeystoreParams,
 }
 
@@ -65,14 +68,14 @@ impl sc_cli::CliConfiguration for ImportMiningKeyCommand {
 	fn keystore_params(&self) -> Option<&sc_cli::KeystoreParams> { Some(&self.keystore_params) }
 }
 
-#[derive(Debug, StructOpt)]
+#[derive(Debug, clap::Parser)]
 pub struct GenerateMiningKeyCommand {
 	#[allow(missing_docs)]
-	#[structopt(flatten)]
+	#[clap(flatten)]
 	pub shared_params: sc_cli::SharedParams,
 
 	#[allow(missing_docs)]
-	#[structopt(flatten)]
+	#[clap(flatten)]
 	pub keystore_params: sc_cli::KeystoreParams,
 }
 

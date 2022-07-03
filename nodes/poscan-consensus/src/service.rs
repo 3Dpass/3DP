@@ -1,30 +1,30 @@
 //! Service and ServiceFactory implementation. Specialized wrapper over substrate service.
 #![allow(clippy::needless_borrow)]
 use runtime::{self, opaque::Block, RuntimeApi};
-use sc_client_api::{ExecutorProvider, RemoteBackend};
-use sc_executor::native_executor_instance;
-pub use sc_executor::NativeExecutor;
+use sc_client_api::{ExecutorProvider, BlockBackend};
+// use sc_executor::native_executor_instance;
+use sc_executor::NativeElseWasmExecutor;
+use sc_consensus::DefaultImportQueue;
 use sc_finality_grandpa::{GrandpaBlockImport, grandpa_peers_set_config};
 use sc_service::{error::Error as ServiceError, Configuration, PartialComponents, TaskManager};
+use sc_telemetry::{Telemetry, TelemetryWorker};
 use poscan_grid2d::*;
-use sp_api::TransactionFor;
-use sp_consensus::import_queue::BasicQueue;
 use sp_core::{Encode, Decode, H256};
-use sp_inherents::InherentDataProviders;
 use std::sync::Arc;
 use std::thread;
 use std::time::Duration;
 use std::path::PathBuf;
-// use sp_runtime::generic::BlockId;
 use sc_consensus_poscan::PoscanData;
 use log::*;
 use sp_std::collections::vec_deque::VecDeque;
 use spin::Mutex;
 use std::str::FromStr;
 use sp_keystore::{SyncCryptoStore, SyncCryptoStorePtr};
+use sp_runtime::traits::Block as BlockT;
 use sp_core::crypto::{Ss58Codec,UncheckedFrom, Ss58AddressFormat, set_default_ss58_version};
 use sp_core::Pair;
 use sp_consensus_poscan::POSCAN_COIN_ID;
+use async_trait::async_trait;
 
 pub struct MiningProposal {
 	pub id: i32,
@@ -39,11 +39,25 @@ lazy_static! {
 }
 
 // Our native executor instance.
-native_executor_instance!(
-	pub Executor,
-	runtime::api::dispatch,
-	runtime::native_version,
-);
+// native_executor_instance!(
+// 	pub Executor,
+// 	runtime::api::dispatch,
+// 	runtime::native_version,
+// );
+
+pub struct ExecutorDispatch;
+
+impl sc_executor::NativeExecutionDispatch for ExecutorDispatch {
+   type ExtendHostFunctions = frame_benchmarking::benchmarking::HostFunctions;
+
+   fn dispatch(method: &str, data: &[u8]) -> Option<Vec<u8>> {
+			   runtime::api::dispatch(method, data)
+   }
+
+   fn native_version() -> sc_executor::NativeVersion {
+			   runtime::native_version()
+	}
+}
 
 pub fn decode_author(
 	author: Option<&str>, keystore: SyncCryptoStorePtr, keystore_path: Option<PathBuf>,
@@ -56,7 +70,7 @@ pub fn decode_author(
 		} else {
 			let (address, version) = sc_consensus_poscan::app::Public::from_ss58check_with_version(author)
 				.map_err(|_| "Invalid author address".to_string())?;
-			if version != Ss58AddressFormat::Custom(POSCAN_COIN_ID.into()) {
+			if version != Ss58AddressFormat::from(POSCAN_COIN_ID) {
 				return Err("Invalid author version".to_string())
 			}
 			Ok(address)
@@ -73,7 +87,7 @@ pub fn decode_author(
 			pair.public().as_ref(),
 		).map_err(|e| format!("Registering mining key failed: {:?}", e))?;
 
-		info!("Generated a mining key with address: {}", pair.public().to_ss58check_with_version(Ss58AddressFormat::Custom(POSCAN_COIN_ID.into())));
+		info!("Generated a mining key with address: {}", pair.public().to_ss58check_with_version(Ss58AddressFormat::from(POSCAN_COIN_ID)));
 
 		match keystore_path {
 			Some(path) => info!("You can go to {:?} to find the seed phrase of the mining key.", path),
@@ -84,32 +98,55 @@ pub fn decode_author(
 	}
 }
 
-type FullClient = sc_service::TFullClient<Block, RuntimeApi, Executor>;
+// type FullClient = sc_service::TFullClient<Block, RuntimeApi, Executor>;
+type FullClient =
+       sc_service::TFullClient<Block, RuntimeApi, NativeElseWasmExecutor<ExecutorDispatch>>;
+
 type FullBackend = sc_service::TFullBackend<Block>;
 type FullSelectChain = sc_consensus::LongestChain<FullBackend, Block>;
 
-pub fn build_inherent_data_providers() -> Result<InherentDataProviders, ServiceError> {
-	let providers = InherentDataProviders::new();
+// pub fn build_inherent_data_providers() -> Result<InherentDataProviders, ServiceError> {
+// 	let providers = InherentDataProviders::new();
+//
+// 	providers
+// 		.register_provider(sp_timestamp::InherentDataProvider)
+// 		.map_err(Into::into)
+// 		.map_err(sp_consensus::error::Error::InherentData)?;
+//
+// 	Ok(providers)
+// }
 
-	providers
-		.register_provider(sp_timestamp::InherentDataProvider)
-		.map_err(Into::into)
-		.map_err(sp_consensus::error::Error::InherentData)?;
+pub struct CreateInherentDataProviders;
 
-	Ok(providers)
+#[async_trait]
+impl sp_inherents::CreateInherentDataProviders<Block, ()> for CreateInherentDataProviders {
+	type InherentDataProviders = sp_timestamp::InherentDataProvider;
+
+	async fn create_inherent_data_providers(
+		&self,
+		_parent: <Block as BlockT>::Hash,
+		_extra_args: (),
+	) -> Result<Self::InherentDataProviders, Box<dyn std::error::Error + Send + Sync>> {
+		Ok(sp_timestamp::InherentDataProvider::from_system_time())
+	}
 }
 
+// use sc_network::{
+//
 /// Returns most parts of a service. Not enough to run a full chain,
 /// But enough to perform chain operations like purge-chain
 #[allow(clippy::type_complexity)]
 pub fn new_partial(
 	config: &Configuration,
+	// check_inherents_after: u32,
+	// enable_weak_subjectivity: bool,
 ) -> Result<
 	PartialComponents<
 		FullClient,
 		FullBackend,
 		FullSelectChain,
-		BasicQueue<Block, TransactionFor<FullClient, Block>>,
+		// BasicQueue<Block, TransactionFor<FullClient, Block>>,
+		DefaultImportQueue<Block, FullClient>,
 		sc_transaction_pool::FullPool<Block, FullClient>,
 		(
 			sc_consensus_poscan::PowBlockImport<
@@ -119,19 +156,49 @@ pub fn new_partial(
 				FullSelectChain,
 				PoscanAlgorithm<FullClient>,
 				impl sp_consensus::CanAuthorWith<Block>,
+				CreateInherentDataProviders,
 			>,
 			sc_finality_grandpa::LinkHalf<Block, FullClient, FullSelectChain>,
+			sc_finality_grandpa::SharedVoterState,
+			Option<Telemetry>,
 		),
 	>,
 	ServiceError,
 > {
-	set_default_ss58_version(Ss58AddressFormat::Custom(POSCAN_COIN_ID.into()));
+	let telemetry = config
+		.telemetry_endpoints
+		.clone()
+		.filter(|x| !x.is_empty())
+		.map(|endpoints| -> Result<_, sc_telemetry::Error> {
+			let worker = TelemetryWorker::new(16)?;
+			let telemetry = worker.handle().new_telemetry(endpoints);
+			Ok((worker, telemetry))
+		})
+		.transpose()?;
 
-	let inherent_data_providers = build_inherent_data_providers()?;
+	set_default_ss58_version(Ss58AddressFormat::from(POSCAN_COIN_ID));
+
+	// let inherent_data_providers = build_inherent_data_providers()?;
+	let executor = NativeElseWasmExecutor::<ExecutorDispatch>::new(
+		config.wasm_method,
+		config.default_heap_pages,
+		config.max_runtime_instances,
+		config.runtime_cache_size
+	);
 
 	let (client, backend, keystore_container, task_manager) =
-		sc_service::new_full_parts::<Block, RuntimeApi, Executor>(&config)?;
+		// sc_service::new_full_parts::<Block, RuntimeApi, Executor>(&config)?;
+		sc_service::new_full_parts(
+			&config,
+			telemetry.as_ref().map(|(_, telemetry)| telemetry.handle()),
+			executor,
+		)?;
 	let client = Arc::new(client);
+
+	let telemetry = telemetry.map(|(worker, telemetry)| {
+		task_manager.spawn_handle().spawn("telemetry", None, worker.run());
+		telemetry
+	});
 
 	let select_chain = sc_consensus::LongestChain::new(backend.clone());
 
@@ -139,14 +206,15 @@ pub fn new_partial(
 		config.transaction_pool.clone(),
 		config.role.is_authority().into(),
 		config.prometheus_registry(),
-		task_manager.spawn_handle(),
+		task_manager.spawn_essential_handle(),
 		client.clone(),
 	);
 
 	let (grandpa_block_import, grandpa_link) = sc_finality_grandpa::block_import(
 		client.clone(),
-		&(client.clone() as std::sync::Arc<_>),
+		&(client.clone() as Arc<_>),
 		select_chain.clone(),
+		telemetry.as_ref().map(|x| x.handle()),
 	)?;
 
 	let can_author_with = sp_consensus::CanAuthorWithNativeVersion::new(client.executor().clone());
@@ -157,7 +225,7 @@ pub fn new_partial(
 		poscan_grid2d::PoscanAlgorithm::new(client.clone()),
 		0, // check inherents starting at block 0
 		select_chain.clone(),
-		inherent_data_providers.clone(),
+		CreateInherentDataProviders,
 		can_author_with,
 	);
 
@@ -165,10 +233,11 @@ pub fn new_partial(
 		Box::new(pow_block_import.clone()),
 		None,
 		poscan_grid2d::PoscanAlgorithm::new(client.clone()),
-		inherent_data_providers.clone(),
-		&task_manager.spawn_handle(),
+		&task_manager.spawn_essential_handle(),
 		config.prometheus_registry(),
 	)?;
+	let shared_voter_state = sc_finality_grandpa::SharedVoterState::empty();
+	let rpc_setup = shared_voter_state.clone();
 
 	Ok(PartialComponents {
 		client,
@@ -178,12 +247,9 @@ pub fn new_partial(
 		task_manager,
 		transaction_pool,
 		select_chain,
-		inherent_data_providers,
-		other: (pow_block_import, grandpa_link),
+		other: (pow_block_import, grandpa_link, rpc_setup, telemetry),
 	})
 }
-//
-// use sc_network::{
 // 	NetworkService,
 //
 // };
@@ -535,11 +601,8 @@ pub fn new_full(
 		keystore_container,
 		select_chain,
 		transaction_pool,
-		inherent_data_providers,
-		other: (pow_block_import, grandpa_link),
+		other: (pow_block_import, grandpa_link, shared_voter_state, mut telemetry),
 	} = new_partial(&config)?;
-
-	config.network.extra_sets.push(grandpa_peers_set_config());
 
 	// let mut proto = sc_finality_grandpa_warp_sync::request_response_config_for_chain(
 	// 	&config, task_manager.spawn_handle(), backend.clone(),
@@ -551,15 +614,25 @@ pub fn new_full(
 	// let mut cfg = sc_network::block_request_handler::generate_protocol_config(&config.protocol_id());
 	// cfg.max_response_size = 64 * 1024 * 1024;
 
-	let (network, network_status_sinks, system_rpc_tx, network_starter) =
+	let grandpa_protocol_name = sc_finality_grandpa::protocol_standard_name(
+		&client.block_hash(0).ok().flatten().expect("Genesis block exists; qed"),
+		&config.chain_spec,
+	);
+	config
+
+		.network
+		.extra_sets
+		.push(grandpa_peers_set_config(grandpa_protocol_name.clone()));
+
+	let (network, system_rpc_tx, network_starter) =
 		sc_service::build_network(sc_service::BuildNetworkParams {
 			config: &config,
 			client: client.clone(),
 			transaction_pool: transaction_pool.clone(),
 			spawn_handle: task_manager.spawn_handle(),
 			import_queue,
-			on_demand: None,
 			block_announce_validator_builder: None,
+			warp_sync: None,
 		})?;
 
 	// let _ = network.request_response_protocols;
@@ -567,13 +640,14 @@ pub fn new_full(
 	if config.offchain_worker.enabled {
 		sc_service::build_offchain_workers(
 			&config,
-			backend.clone(),
+			// backend.clone(),
 			task_manager.spawn_handle(),
 			client.clone(),
 			network.clone(),
 		);
 	}
 
+	let role = config.role.clone();
 	let is_authority = config.role.is_authority();
 	let prometheus_registry = config.prometheus_registry().cloned();
 	let enable_grandpa = !config.disable_grandpa;
@@ -589,13 +663,13 @@ pub fn new_full(
 				// command_sink: command_sink.clone(),
 			};
 
-			crate::rpc::create_full(deps)
+			Ok(crate::rpc::create_full(deps))
 		})
 	};
 
 	let keystore_path = config.keystore.path().map(|p| p.to_owned());
 
-	let (_rpc_handlers, telemetry_connection_notifier) =
+	let _rpc_handlers =
 		sc_service::spawn_tasks(sc_service::SpawnTasksParams {
 			network: network.clone(),
 			client: client.clone(),
@@ -603,12 +677,11 @@ pub fn new_full(
 			task_manager: &mut task_manager,
 			transaction_pool: transaction_pool.clone(),
 			rpc_extensions_builder, // Box::new(|_, _| ()),
-			on_demand: None,
-			remote_blockchain: None,
 			backend,
-			network_status_sinks,
+			// network_status_sinks,
 			system_rpc_tx,
 			config,
+			telemetry: telemetry.as_mut(),
 		})?;
 
 	if is_authority {
@@ -619,6 +692,7 @@ pub fn new_full(
 			client.clone(),
 			transaction_pool,
 			prometheus_registry.as_ref(),
+			telemetry.as_ref().map(|x| x.handle()),
 		);
 
 		let can_author_with =
@@ -631,8 +705,9 @@ pub fn new_full(
 			PoscanAlgorithm::new(client.clone()),
 			proposer,
 			network.clone(),
+			network.clone(),
 			Some(author.encode()),
-			inherent_data_providers,
+			CreateInherentDataProviders,
 			// time to wait for a new block before starting to mine a new one
 			Duration::from_secs(10),
 			// how long to take to actually build the block (i.e. executing extrinsics)
@@ -642,7 +717,7 @@ pub fn new_full(
 
 		task_manager
 			.spawn_essential_handle()
-			.spawn_blocking("pow", worker_task);
+			.spawn_blocking("poscan", None,  worker_task);
 
 		// Start Mining
 		let	mut poscan_data: Option<PoscanData> = None;
@@ -666,16 +741,16 @@ pub fn new_full(
 			&author,
 		).map_err(|_| ServiceError::Other(
 			"Unable to mine: fetch pair from author failed".to_string(),
+		))?
+		.ok_or(ServiceError::Other(
+		 	"Unable to mine: key not found in keystore".to_string(),
 		))?;
-		// .ok_or(ServiceError::Other(
-		// 	"Unable to mine: key not found in keystore".to_string(),
-		// ))?;
 
 		debug!(target:"poscan", ">>> Spawn mining loop");
 
 		thread::spawn(move || loop {
 			let worker = _worker.clone();
-			let metadata = worker.lock().metadata();
+			let metadata = worker.metadata();
 			if let Some(metadata) = metadata {
 
 				// info!(">>> poscan_hash: compute: {:x?}", &poscan_hash);
@@ -688,7 +763,7 @@ pub fn new_full(
 				let signature = compute.sign(&pair);
 				let seal = compute.seal(signature.clone());
 				if hash_meets_difficulty(&seal.work, seal.difficulty) {
-					let mut worker = worker.lock();
+					// let mut worker = worker.lock();
 
 					if let Some(ref psdata) = poscan_data {
 						// let _ = psdata.encode();
@@ -697,7 +772,8 @@ pub fn new_full(
 						info!(">>> signature: {:x?}", &signature.to_vec());
 						info!(">>> pre_hsash: {:x?}", compute.pre_hash);
 						info!(">>> check verify: {}", compute.verify(&signature.clone(), &author));
-						worker.submit(seal.encode(), &psdata);
+						let _ = futures::executor::block_on(worker.submit(seal.encode(), &psdata));
+						// worker.submit(seal.encode(), &psdata);
 					}
 				} else {
 					let mut lock = DEQUE.lock();
@@ -731,7 +807,9 @@ pub fn new_full(
 		name: None,
 		observer_enabled: false,
 		keystore: Some(keystore_container.sync_keystore()),
-		is_authority,
+		local_role: role,
+		telemetry: telemetry.as_ref().map(|x| x.handle()),
+		protocol_name: grandpa_protocol_name,
 	};
 
 	if enable_grandpa {
@@ -745,16 +823,17 @@ pub fn new_full(
 			config: grandpa_config,
 			link: grandpa_link,
 			network,
-			telemetry_on_connect: telemetry_connection_notifier.map(|x| x.on_connect_stream()),
 			voting_rule: sc_finality_grandpa::VotingRulesBuilder::default().build(),
 			prometheus_registry,
-			shared_voter_state: sc_finality_grandpa::SharedVoterState::empty(),
+			shared_voter_state,
+			telemetry: telemetry.as_ref().map(|x| x.handle()),
 		};
 
 		// the GRANDPA voter task is considered infallible, i.e.
 		// if it fails we take down the service with it.
 		task_manager.spawn_essential_handle().spawn_blocking(
 			"grandpa-voter",
+			None,
 			sc_finality_grandpa::run_grandpa_voter(grandpa_config)?,
 		);
 	}
@@ -763,88 +842,109 @@ pub fn new_full(
 	Ok(task_manager)
 }
 
-/// Builds a new service for a light client.
-pub fn new_light(config: Configuration) -> Result<TaskManager, ServiceError> {
-	let inherent_data_providers = build_inherent_data_providers()?;
-
-	let (client, backend, keystore_container, mut task_manager, on_demand) =
-		sc_service::new_light_parts::<Block, RuntimeApi, Executor>(&config)?;
-
-	let transaction_pool = Arc::new(sc_transaction_pool::BasicPool::new_light(
-		config.transaction_pool.clone(),
-		config.prometheus_registry(),
-		task_manager.spawn_handle(),
-		client.clone(),
-		on_demand.clone(),
-	));
-
-	let select_chain = sc_consensus::LongestChain::new(backend.clone());
-
-	let (grandpa_block_import, _) = sc_finality_grandpa::block_import(
-		client.clone(),
-		&(client.clone() as Arc<_>),
-		select_chain.clone(),
-	)?;
-
-	// FixMe #375
-	let _can_author_with = sp_consensus::CanAuthorWithNativeVersion::new(client.executor().clone());
-
-	let pow_block_import = sc_consensus_poscan::PowBlockImport::new(
-		grandpa_block_import,
-		client.clone(),
-		PoscanAlgorithm::new(client.clone()),
-		0, // check inherents starting at block 0
-		select_chain,
-		inherent_data_providers.clone(),
-		sp_consensus::AlwaysCanAuthor,
-	);
-
-	let import_queue = sc_consensus_poscan::import_queue(
-		Box::new(pow_block_import),
-		None,
-		PoscanAlgorithm::new(client.clone()),
-		inherent_data_providers,
-		&task_manager.spawn_handle(),
-		config.prometheus_registry(),
-	)?;
-
-	let (network, network_status_sinks, system_rpc_tx, network_starter) =
-		sc_service::build_network(sc_service::BuildNetworkParams {
-			config: &config,
-			client: client.clone(),
-			transaction_pool: transaction_pool.clone(),
-			spawn_handle: task_manager.spawn_handle(),
-			import_queue,
-			on_demand: Some(on_demand.clone()),
-			block_announce_validator_builder: None,
-		})?;
-
-	if config.offchain_worker.enabled {
-		sc_service::build_offchain_workers(
-			&config,
-			backend.clone(),
-			task_manager.spawn_handle(),
-			client.clone(),
-			network.clone(),
-		);
-	}
-
-	sc_service::spawn_tasks(sc_service::SpawnTasksParams {
-		remote_blockchain: Some(backend.remote_blockchain()),
-		transaction_pool,
-		task_manager: &mut task_manager,
-		on_demand: Some(on_demand),
-		rpc_extensions_builder: Box::new(|_, _| ()),
-		config,
-		client,
-		keystore: keystore_container.sync_keystore(),
-		backend,
-		network,
-		network_status_sinks,
-		system_rpc_tx,
-	})?;
-
-	network_starter.start_network();
-
-	Ok(task_manager)
-}
+// /// Builds a new service for a light client.
+// pub fn new_light(config: Configuration) -> Result<TaskManager, ServiceError> {
+// 	// let inherent_data_providers = build_inherent_data_providers()?;
+// 	let telemetry = config
+// 		.telemetry_endpoints
+// 		.clone()
+// 		.filter(|x| !x.is_empty())
+// 		.map(|endpoints| -> Result<_, sc_telemetry::Error> {
+// 			let worker = TelemetryWorker::new(16)?;
+// 			let telemetry = worker.handle().new_telemetry(endpoints);
+// 			Ok((worker, telemetry))
+// 		})
+// 		.transpose()?;
+//
+// 	let executor = NativeElseWasmExecutor::<ExecutorDispatch>::new(
+// 	   config.wasm_method,
+// 	   config.default_heap_pages,
+// 	   config.max_runtime_instances,
+// 	);
+//
+// 	let (client, backend, keystore_container, mut task_manager, on_demand) =
+// 		// sc_service::new_light_parts::<Block, RuntimeApi, Executor>(&config)?;
+// 		sc_service::new_light_parts::<Block, RuntimeApi, _>(
+// 			&config,
+// 			telemetry.as_ref().map(|(_, telemetry)| telemetry.handle()),
+// 		    executor,
+// 	)?;
+//
+// 	let transaction_pool = Arc::new(sc_transaction_pool::BasicPool::new_light(
+// 		config.transaction_pool.clone(),
+// 		config.prometheus_registry(),
+// 		task_manager.spawn_essential_handle(),
+// 		client.clone(),
+// 		on_demand.clone(),
+// 	));
+//
+// 	let select_chain = sc_consensus::LongestChain::new(backend.clone());
+//
+// 	let (grandpa_block_import, _) = sc_finality_grandpa::block_import(
+// 		client.clone(),
+// 		&(client.clone() as Arc<_>),
+// 		select_chain.clone(),
+// 	)?;
+//
+// 	// FixMe #375
+// 	let _can_author_with = sp_consensus::CanAuthorWithNativeVersion::new(client.executor().clone());
+//
+// 	let pow_block_import = sc_consensus_poscan::PowBlockImport::new(
+// 		grandpa_block_import,
+// 		client.clone(),
+// 		PoscanAlgorithm::new(client.clone()),
+// 		0, // check inherents starting at block 0
+// 		select_chain.clone(),
+// 		CreateInherentDataProviders,
+// 		sp_consensus::AlwaysCanAuthor,
+// 	);
+//
+// 	let import_queue = sc_consensus_poscan::import_queue(
+// 		Box::new(pow_block_import),
+// 		None,
+// 		PoscanAlgorithm::new(client.clone()),
+// 		// inherent_data_providers,
+// 		&task_manager.spawn_handle(),
+// 		config.prometheus_registry(),
+// 	)?;
+//
+// 	let (network, system_rpc_tx, network_starter) =
+// 		sc_service::build_network(sc_service::BuildNetworkParams {
+// 			config: &config,
+// 			client: client.clone(),
+// 			transaction_pool: transaction_pool.clone(),
+// 			spawn_handle: task_manager.spawn_handle(),
+// 			import_queue,
+// 			on_demand: Some(on_demand.clone()),
+// 			block_announce_validator_builder: None,
+// 			warp_sync: None,
+// 		})?;
+//
+// 	if config.offchain_worker.enabled {
+// 		sc_service::build_offchain_workers(
+// 			&config,
+// 			backend.clone(),
+// 			task_manager.spawn_handle(),
+// 			client.clone(),
+// 			network.clone(),
+// 		);
+// 	}
+//
+// 	sc_service::spawn_tasks(sc_service::SpawnTasksParams {
+// 		remote_blockchain: Some(backend.remote_blockchain()),
+// 		transaction_pool,
+// 		task_manager: &mut task_manager,
+// 		on_demand: Some(on_demand),
+// 		rpc_extensions_builder: Box::new(|_, _| Ok(())),
+// 		config,
+// 		client,
+// 		keystore: keystore_container.sync_keystore(),
+// 		backend,
+// 		network,
+// 		system_rpc_tx,
+// 	})?;
+//
+// 	network_starter.start_network();
+//
+// 	Ok(task_manager)
+// }

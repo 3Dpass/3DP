@@ -24,18 +24,18 @@
 use codec::{Decode, Encode};
 use frame_support::{
 	decl_module, decl_storage,
-	traits::Get,
+	traits::{Get, OnTimestampSet},
 };
-use sp_timestamp::OnTimestampSet;
 use sp_consensus_poscan::{
 	Difficulty, CLAMP_FACTOR, DIFFICULTY_ADJUST_WINDOW, DIFFICULTY_DAMP_FACTOR, MAX_DIFFICULTY,
 	MIN_DIFFICULTY,
 };
+use scale_info::TypeInfo;
 use sp_core::U256;
 use sp_runtime::traits::UniqueSaturatedInto;
 use sp_std::cmp::{max, min};
 
-#[derive(Encode, Decode, Clone, Copy, Eq, PartialEq, Debug)]
+#[derive(Encode, Decode, TypeInfo, Clone, Copy, Eq, PartialEq, Debug)]
 pub struct DifficultyAndTimestamp<M> {
 	pub difficulty: Difficulty,
 	pub timestamp: M,

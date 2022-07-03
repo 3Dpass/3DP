@@ -13,54 +13,60 @@ path = "src/main.rs"
 
 [dependencies]
 ctrlc = { version = "3.1.3", features = ["termination"] }
-derive_more = "0.15.0"
+derive_more = "0.99"
 exit-future = "0.2.0"
 futures = "0.3.1"
 futures01 = { package = "futures", version = "0.1.29" }
-jsonrpc-core = "15.0"
-jsonrpc-core-client = "15.0"
-jsonrpc-derive = "15.0"
+jsonrpc-core = "18.0"
+jsonrpc-core-client = "18.0"
+jsonrpc-derive = "18.0"
 log = "0.4.8"
-parking_lot = "0.9.0"
-structopt = "0.3.8"
-tokio = "0.1.22"
+# parking_lot = "0.9.0"
+# structopt = "0.3"
+clap = { version = "3.1", features = ["derive"] }
+tokio = "1.19"
 trie-root = "0.15.2"
 lazy_static = { version = "1.4.0", features = ["spin_no_std"] }
 spin = { version = "0.9.3", default-features = false, features = ["mutex", "spin_mutex"] }
+async-trait = "0.1.50"
 
 # Substrate packages
-sc-basic-authorship = { version = '0.9', git = "https://github.com/3Dpass/substrate.git", branch = "3dp_v3" }
-sc-cli = { version = '0.9', git = "https://github.com/3Dpass/substrate.git", branch = "3dp_v3" }
-sc-client-api = { version = '3.0', git = "https://github.com/3Dpass/substrate.git", branch = "3dp_v3" }
-sc-consensus = { version = '0.9', git = "https://github.com/3Dpass/substrate.git", branch = "3dp_v3" }
-sc-executor = { version = '0.9', git = "https://github.com/3Dpass/substrate.git", branch = "3dp_v3" }
-sc-finality-grandpa = { version = '0.9', git = "https://github.com/3Dpass/substrate.git", branch = "3dp_v3" }
-sc-network = { version = '0.9', git = "https://github.com/3Dpass/substrate.git", branch = "3dp_v3" }
-sc-rpc = { version = '3.0', git = "https://github.com/3Dpass/substrate.git", branch = "3dp_v3" }
-sc-rpc-api = { version = '0.9', git = "https://github.com/3Dpass/substrate.git", branch = "3dp_v3" }
-sc-service = { version = '0.9', git = "https://github.com/3Dpass/substrate.git", branch = "3dp_v3" }
-sc-transaction-pool = { version = '3.0', git = "https://github.com/3Dpass/substrate.git", branch = "3dp_v3" }
-sc-keystore = { version = '3.0', git = "https://github.com/3Dpass/substrate.git", branch = "3dp_v3" }
-sp-api = { version = '3.0', git = "https://github.com/3Dpass/substrate.git", branch = "3dp_v3" }
-sp-consensus = { version = '0.9', git = "https://github.com/3Dpass/substrate.git", branch = "3dp_v3" }
-sp-block-builder = { version = '3.0', git = "https://github.com/3Dpass/substrate.git", branch = "3dp_v3" }
-sp-blockchain = { version = '3.0', git = "https://github.com/3Dpass/substrate.git", branch = "3dp_v3" }
-sp-std = { version = '3.0', git = "https://github.com/3Dpass/substrate.git", branch = "3dp_v3" }
-sp-core = { version = '3.0', git = "https://github.com/3Dpass/substrate.git", branch = "3dp_v3" }
-sp-finality-grandpa = { version = '3.0', git = "https://github.com/3Dpass/substrate.git", branch = "3dp_v3" }
-sp-inherents = { version = '3.0', git = "https://github.com/3Dpass/substrate.git", branch = "3dp_v3" }
-sp-io = { version = '3.0', git = "https://github.com/3Dpass/substrate.git", branch = "3dp_v3" }
-sp-runtime = { version = '3.0', git = "https://github.com/3Dpass/substrate.git", branch = "3dp_v3" }
-sp-timestamp = { version = '3.0', git = "https://github.com/3Dpass/substrate.git", branch = "3dp_v3" }
-sp-transaction-pool = { version = '3.0', git = "https://github.com/3Dpass/substrate.git", branch = "3dp_v3" }
-sp-keystore = { version = '0.9', git = "https://github.com/3Dpass/substrate.git", branch = "3dp_v3" }
+sc-basic-authorship = { git = "https://github.com/3Dpass/substrate.git", tag = "monthly-2022-05" }
+sc-cli = { git = "https://github.com/3Dpass/substrate.git", tag = "monthly-2022-05" }
+sc-client-api = { git = "https://github.com/3Dpass/substrate.git", tag = "monthly-2022-05" }
+sc-consensus = { git = "https://github.com/3Dpass/substrate.git", tag = "monthly-2022-05" }
+sc-executor = { git = "https://github.com/3Dpass/substrate.git", tag = "monthly-2022-05" }
+sc-finality-grandpa = { git = "https://github.com/3Dpass/substrate.git", tag = "monthly-2022-05" }
+sc-network = { git = "https://github.com/3Dpass/substrate.git", tag = "monthly-2022-05" }
+sc-rpc = { git = "https://github.com/3Dpass/substrate.git", tag = "monthly-2022-05" }
+sc-rpc-api = { git = "https://github.com/3Dpass/substrate.git", tag = "monthly-2022-05" }
+sc-service = { git = "https://github.com/3Dpass/substrate.git", tag = "monthly-2022-05" }
+sc-transaction-pool = { git = "https://github.com/3Dpass/substrate.git", tag = "monthly-2022-05" }
+sc-transaction-pool-api = { git = "https://github.com/3Dpass/substrate.git", tag = "monthly-2022-05" }
+sc-keystore = { git = "https://github.com/3Dpass/substrate.git", tag = "monthly-2022-05" }
+sp-api = { git = "https://github.com/3Dpass/substrate.git", tag = "monthly-2022-05" }
+sp-consensus = { git = "https://github.com/3Dpass/substrate.git", tag = "monthly-2022-05" }
+sp-block-builder = { git = "https://github.com/3Dpass/substrate.git", tag = "monthly-2022-05" }
+sp-blockchain = { git = "https://github.com/3Dpass/substrate.git", tag = "monthly-2022-05" }
+sp-std = { git = "https://github.com/3Dpass/substrate.git", tag = "monthly-2022-05" }
+sp-core = { git = "https://github.com/3Dpass/substrate.git", tag = "monthly-2022-05" }
+sp-finality-grandpa = { git = "https://github.com/3Dpass/substrate.git", tag = "monthly-2022-05" }
+sp-inherents = { git = "https://github.com/3Dpass/substrate.git", tag = "monthly-2022-05" }
+sp-io = { git = "https://github.com/3Dpass/substrate.git", tag = "monthly-2022-05" }
+sp-runtime = { git = "https://github.com/3Dpass/substrate.git", tag = "monthly-2022-05" }
+sp-timestamp = { git = "https://github.com/3Dpass/substrate.git", tag = "monthly-2022-05" }
+sp-transaction-pool = { git = "https://github.com/3Dpass/substrate.git", tag = "monthly-2022-05" }
+sp-keystore = { git = "https://github.com/3Dpass/substrate.git", tag = "monthly-2022-05" }
+sc-telemetry = { git = "https://github.com/3Dpass/substrate.git", tag = "monthly-2022-05" }
 
 # local packages
 runtime = { package = "poscan-runtime", path = "../../runtimes/poscan-runtime" }
 poscan-grid2d = { path = '../../consensus/poscan_grid2d' }
-sc-consensus-poscan = { version = '0.9', path = "../../consensus/poscan" }
-sp-consensus-poscan = { version = '0.9', path = "../../primitives/consensus/poscan" }
+sc-consensus-poscan = { path = "../../consensus/poscan" }
+sp-consensus-poscan = { path = "../../primitives/consensus/poscan" }
 pallet-poscan = { path = "../../pallets/poscan", default-features = false }
+
+frame-benchmarking = { git = "https://github.com/3Dpass/substrate.git", tag = "monthly-2022-05" }
 
 [build-dependencies]
 substrate-build-script-utils = '3.0'

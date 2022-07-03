@@ -28,9 +28,11 @@ mod benchmarking;
 mod default_weights;
 
 use codec::{Encode, Decode};
+use frame_benchmarking::StateVersion;
 #[cfg(feature = "std")]
 use serde::{Serialize, Deserialize};
 use sp_std::{cmp, prelude::*};
+use sp_std::convert::TryInto;
 use sp_runtime::{RuntimeDebug, traits::Hash};
 use frame_support::{
 	ensure, decl_storage, decl_module, decl_event, decl_error, storage::child,
@@ -38,6 +40,7 @@ use frame_support::{
 	weights::Weight,
 };
 use frame_system::{ensure_root, ensure_signed};
+use scale_info::TypeInfo;
 
 pub trait WeightInfo {
 	fn create_campaign() -> Weight;
@@ -49,7 +52,7 @@ pub trait WeightInfo {
 
 pub type CampaignIdentifier = [u8; 4];
 
-#[derive(Encode, Decode, Clone, Eq, PartialEq, RuntimeDebug)]
+#[derive(Encode, Decode, Clone, Eq, PartialEq, RuntimeDebug, TypeInfo)]
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
 pub struct CampaignInfo<T: Config> {
 	end_block: T::BlockNumber,
@@ -57,7 +60,7 @@ pub struct CampaignInfo<T: Config> {
 	child_root: Option<Vec<u8>>,
 }
 
-#[derive(Encode, Decode, Clone, Eq, PartialEq, RuntimeDebug)]
+#[derive(Encode, Decode, Clone, Eq, PartialEq, RuntimeDebug, TypeInfo)]
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
 pub struct LockInfo<T: Config> {
 	balance: BalanceOf<T>,
@@ -183,10 +186,10 @@ decl_module! {
 				let current_number = frame_system::Pallet::<T>::block_number();
 				if current_number > info.end_block && info.child_root.is_some() {
 					match Self::child_kill(&identifier) {
-						child::KillOutcome::AllRemoved => {
+						child::KillStorageResult::AllRemoved(_) => {
 							Self::deposit_event(Event::<T>::ChildStorageRemoved(identifier));
 						},
-						child::KillOutcome::SomeRemaining => {
+						child::KillStorageResult::SomeRemaining(_) => {
 							Self::deposit_event(Event::<T>::ChildStoragePartiallyRemoved(identifier));
 						}
 					}
@@ -272,10 +275,10 @@ impl<T: Config> Module<T> {
 	}
 
 	pub fn child_root(identifier: &CampaignIdentifier) -> Vec<u8> {
-		child::root(&Self::child_info(identifier))
+		child::root(&Self::child_info(identifier), StateVersion::V0)
 	}
 
-	fn child_kill(identifier: &CampaignIdentifier) -> child::KillOutcome {
+	fn child_kill(identifier: &CampaignIdentifier) -> child::KillStorageResult {
 		child::kill_storage(&Self::child_info(identifier), Some(T::RemoveKeysLimit::get()))
 	}
 }

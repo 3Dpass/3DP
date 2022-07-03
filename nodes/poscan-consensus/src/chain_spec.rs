@@ -24,6 +24,7 @@ pub fn dev_config() -> Result<ChainSpec, String> {
 		None,
 		None,
 		None,
+		Default::default(),
 	))
 }
 
@@ -65,5 +66,6 @@ pub fn local_testnet_config() -> Result<ChainSpec, String> {
 		None,
 		None,
 		None,
+		Default::default(),
 	))
 }

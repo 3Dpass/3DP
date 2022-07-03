@@ -22,7 +22,7 @@ use log::*;
 use sp_core::{hexdisplay::HexDisplay, crypto::{Pair, Ss58Codec, Ss58AddressFormat}};
 use sp_core::crypto::set_default_ss58_version;
 use sp_keystore::SyncCryptoStore;
-use sc_cli::{SubstrateCli, ChainSpec, Role, RuntimeVersion};
+use sc_cli::{SubstrateCli, ChainSpec, RuntimeVersion};
 use sc_service::{PartialComponents, config::KeystoreConfig};
 use sc_keystore::LocalKeystore;
 use sp_consensus_poscan::POSCAN_COIN_ID;
@@ -71,7 +71,7 @@ impl SubstrateCli for Cli {
 pub fn run() -> sc_cli::Result<()> {
 	let cli = Cli::from_args();
 
-	set_default_ss58_version(Ss58AddressFormat::Custom(POSCAN_COIN_ID.into()));
+	set_default_ss58_version(Ss58AddressFormat::from(POSCAN_COIN_ID));
 
 	match &cli.subcommand {
 		Some(Subcommand::Key(cmd)) => cmd.run(&cli),
@@ -138,7 +138,8 @@ pub fn run() -> sc_cli::Result<()> {
 					backend,
 					..
 				} = service::new_partial(&config)?;
-				Ok((cmd.run(client, backend), task_manager))
+				// TODO:!!! None ?`
+				Ok((cmd.run(client, backend, None), task_manager))
 			})
 		}
 		Some(Subcommand::ImportMiningKey(cmd)) => {
@@ -169,7 +170,7 @@ pub fn run() -> sc_cli::Result<()> {
 					HexDisplay::from(&pair.public().as_ref()),
 					cmd.suri,
 					// TODO: kulupu -> 3dp
-					pair.public().to_ss58check_with_version(Ss58AddressFormat::Custom(POSCAN_COIN_ID.into())),
+					pair.public().to_ss58check_with_version(Ss58AddressFormat::from(POSCAN_COIN_ID)),
 				);
 
 				// for i in 0..16383 {
@@ -214,7 +215,7 @@ pub fn run() -> sc_cli::Result<()> {
 					HexDisplay::from(&pair.public().as_ref()),
 					phrase,
 					// TODO: kulupu -> 3dp
-					pair.public().to_ss58check_with_version(Ss58AddressFormat::Custom(POSCAN_COIN_ID.into())),
+					pair.public().to_ss58check_with_version(Ss58AddressFormat::from(POSCAN_COIN_ID)),
 				);
 
 				let _pair = keystore.key_pair::<sc_consensus_poscan::app::Pair>(
@@ -230,7 +231,7 @@ pub fn run() -> sc_cli::Result<()> {
 			let runner = cli.create_runner(&cli.run)?;
 			runner.run_node_until_exit(|config| async move {
 				match config.role {
-					Role::Light => service::new_light(config),
+					// Role::Light => service::new_light(config),
 					_ => service::new_full(
 						config,
 						cli.author.as_ref().map(|s| s.as_str()),

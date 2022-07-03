@@ -8,42 +8,44 @@ description = "A runtime that manages a set of grandpa authorities and supplies 
 license = "GPL-3.0-or-later"
 
 [dependencies]
-parity-scale-codec = { version = "2.0", features = ["derive"], default-features = false }
+parity-scale-codec = { version = "3.1", features = ["derive"], default-features = false }
+scale-info = { version = "2.0", default-features = false, features = ["derive"] }
 serde = { version = "1.0", optional = true, features = ["derive"] }
 smallvec = "1.4.0"
 static_assertions = "1.1.0"
 
 # Substrate packages
-pallet-balances = { version = '3.0', default-features = false, git = "https://github.com/3Dpass/substrate.git", branch = "3dp_v3" }
-frame-executive = { version = '3.0', default-features = false, git = "https://github.com/3Dpass/substrate.git", branch = "3dp_v3" }
-frame-support = { version = '3.0', default-features = false, git = "https://github.com/3Dpass/substrate.git", branch = "3dp_v3" }
-frame-system = { version = '3.0', default-features = false, git = "https://github.com/3Dpass/substrate.git", branch = "3dp_v3" }
-pallet-grandpa = { version = '3.0', default-features = false, git = "https://github.com/3Dpass/substrate.git", branch = "3dp_v3" }
-pallet-randomness-collective-flip = { version = '3.0', default-features = false, git = "https://github.com/3Dpass/substrate.git", branch = "3dp_v3" }
-sp-api = { version = '3.0', default-features = false, git = "https://github.com/3Dpass/substrate.git", branch = "3dp_v3" }
-sp-block-builder = { version = '3.0', default-features = false, git = "https://github.com/3Dpass/substrate.git", branch = "3dp_v3" }
-sp-core = { version = '3.0', default-features = false, git = "https://github.com/3Dpass/substrate.git", branch = "3dp_v3" }
-sp-finality-grandpa = { version = '3.0', default-features = false, git = "https://github.com/3Dpass/substrate.git", branch = "3dp_v3" }
-sp-inherents = { version = '3.0', default-features = false, git = "https://github.com/3Dpass/substrate.git", branch = "3dp_v3" }
-sp-io = { version = '3.0', default-features = false, git = "https://github.com/3Dpass/substrate.git", branch = "3dp_v3" }
-sp-offchain = { version = '3.0', default-features = false, git = "https://github.com/3Dpass/substrate.git", branch = "3dp_v3" }
-sp-runtime = { version = '3.0', default-features = false, git = "https://github.com/3Dpass/substrate.git", branch = "3dp_v3" }
-sp-session = { version = '3.0', default-features = false, git = "https://github.com/3Dpass/substrate.git", branch = "3dp_v3" }
-sp-std = { version = '3.0', default-features = false, git = "https://github.com/3Dpass/substrate.git", branch = "3dp_v3" }
-sp-transaction-pool = { version = '3.0', default-features = false, git = "https://github.com/3Dpass/substrate.git", branch = "3dp_v3" }
-sp-version = { version = '3.0', default-features = false, git = "https://github.com/3Dpass/substrate.git", branch = "3dp_v3" }
-pallet-sudo = { version = '3.0', default-features = false, git = "https://github.com/3Dpass/substrate.git", branch = "3dp_v3" }
-pallet-timestamp = { version = '3.0', default-features = false, git = "https://github.com/3Dpass/substrate.git", branch = "3dp_v3" }
-pallet-transaction-payment = { version = '3.0', default-features = false, git = "https://github.com/3Dpass/substrate.git", branch = "3dp_v3" }
+pallet-balances = { default-features = false, git = "https://github.com/3Dpass/substrate.git", tag = "monthly-2022-05" }
+frame-executive = { default-features = false, git = "https://github.com/3Dpass/substrate.git", tag = "monthly-2022-05" }
+frame-support = { default-features = false, git = "https://github.com/3Dpass/substrate.git", tag = "monthly-2022-05" }
+frame-system = { default-features = false, git = "https://github.com/3Dpass/substrate.git", tag = "monthly-2022-05" }
+pallet-grandpa = { default-features = false, git = "https://github.com/3Dpass/substrate.git", tag = "monthly-2022-05" }
+# pallet-randomness-collective-flip = { default-features = false, git = "https://github.com/3Dpass/substrate.git", tag = "monthly-2022-05" }
+sp-api = { default-features = false, git = "https://github.com/3Dpass/substrate.git", tag = "monthly-2022-05" }
+sp-block-builder = { default-features = false, git = "https://github.com/3Dpass/substrate.git", tag = "monthly-2022-05" }
+sp-core = { default-features = false, git = "https://github.com/3Dpass/substrate.git", tag = "monthly-2022-05" }
+sp-finality-grandpa = { default-features = false, git = "https://github.com/3Dpass/substrate.git", tag = "monthly-2022-05" }
+sp-inherents = { default-features = false, git = "https://github.com/3Dpass/substrate.git", tag = "monthly-2022-05" }
+sp-io = { default-features = false, git = "https://github.com/3Dpass/substrate.git", tag = "monthly-2022-05" }
+sp-offchain = { default-features = false, git = "https://github.com/3Dpass/substrate.git", tag = "monthly-2022-05" }
+sp-runtime = { default-features = false, git = "https://github.com/3Dpass/substrate.git", tag = "monthly-2022-05" }
+sp-session = { default-features = false, git = "https://github.com/3Dpass/substrate.git", tag = "monthly-2022-05" }
+sp-std = { default-features = false, git = "https://github.com/3Dpass/substrate.git", tag = "monthly-2022-05" }
+sp-transaction-pool = { default-features = false, git = "https://github.com/3Dpass/substrate.git", tag = "monthly-2022-05" }
+sp-version = { default-features = false, git = "https://github.com/3Dpass/substrate.git", tag = "monthly-2022-05" }
+pallet-sudo = { default-features = false, git = "https://github.com/3Dpass/substrate.git", tag = "monthly-2022-05" }
+pallet-timestamp = { default-features = false, git = "https://github.com/3Dpass/substrate.git", tag = "monthly-2022-05" }
+pallet-transaction-payment = { default-features = false, git = "https://github.com/3Dpass/substrate.git", tag = "monthly-2022-05" }
 sp-consensus-poscan = { path = "../../primitives/consensus/poscan", default-features = false }
 pallet-poscan = { path = "../../pallets/poscan", default-features = false }
 difficulty = { package = "pallet-difficulty", path = "../../pallets/difficulty", default-features = false }
 rewards = { package = "pallet-rewards", path = "../../pallets/rewards", default-features = false }
-lockdrop = { package = "pallet-lockdrop", path = "../../pallets/lockdrop", default-features = false }
-treasury = { package = "pallet-treasury", version="3.0", default-features = false, git = "https://github.com/3Dpass/substrate.git", branch = "3dp_v3" }
-collective = { package = "pallet-collective",version="3.0", default-features = false, git = "https://github.com/3Dpass/substrate.git", branch = "3dp_v3" }
-bounties = { package = "pallet-bounties", version="3.0", default-features = false, git = "https://github.com/3Dpass/substrate.git", branch = "3dp_v3" }
-sp-arithmetic = { version="3.0", default-features = false, git = "https://github.com/3Dpass/substrate.git", branch = "3dp_v3" }
+# tmp to build at master lockdrop = { package = "pallet-lockdrop", path = "../../pallets/lockdrop", default-features = false }
+pallet-treasury = { default-features = false, git = "https://github.com/3Dpass/substrate.git", tag = "monthly-2022-05" }
+pallet-collective = { default-features = false, git = "https://github.com/3Dpass/substrate.git", tag = "monthly-2022-05" }
+pallet-bounties = { default-features = false, git = "https://github.com/3Dpass/substrate.git", tag = "monthly-2022-05" }
+pallet-child-bounties = { default-features = false, git = "https://github.com/3Dpass/substrate.git", tag = "monthly-2022-05" }
+sp-arithmetic = { default-features = false, git = "https://github.com/3Dpass/substrate.git", tag = "monthly-2022-05" }
 
 [build-dependencies]
 substrate-wasm-builder = "4.0.0"
@@ -57,7 +59,7 @@ std = [
 	"frame-system/std",
 	"pallet-grandpa/std",
 	"parity-scale-codec/std",
-	"pallet-randomness-collective-flip/std",
+	# "pallet-randomness-collective-flip/std",
 	"serde",
 	"sp-api/std",
 	"sp-block-builder/std",
@@ -76,8 +78,9 @@ std = [
 	"pallet-transaction-payment/std",
 	"sp-consensus-poscan/std",
 	"pallet-poscan/std",
-	"treasury/std",
-	"collective/std",
-	"bounties/std",
+	"pallet-treasury/std",
+	"pallet-collective/std",
+	"pallet-bounties/std",
+	"pallet-child-bounties/std",
 	"sp-arithmetic/std",
 ]

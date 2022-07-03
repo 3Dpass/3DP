@@ -13,24 +13,27 @@ readme = "README.md"
 targets = ["x86_64-unknown-linux-gnu"]
 
 [dependencies]
-codec = { package = "parity-scale-codec", version = "2.0.0", features = ["derive"] }
-sp-core = { version = "3.0.0", git = "https://github.com/3Dpass/substrate.git", branch = "3dp_v3" }
-sp-blockchain = { version = "3.0.0", git = "https://github.com/3Dpass/substrate.git", branch = "3dp_v3" }
-sp-runtime = { version = "3.0.0", git = "https://github.com/3Dpass/substrate.git", branch = "3dp_v3" }
-sp-api = { version = "3.0.0", git = "https://github.com/3Dpass/substrate.git", branch = "3dp_v3" }
-sc-client-api = { version = "3.0.0", git = "https://github.com/3Dpass/substrate.git", branch = "3dp_v3" }
-sp-block-builder = { version = "3.0.0", git = "https://github.com/3Dpass/substrate.git", branch = "3dp_v3" }
-sp-inherents = { version = "3.0.0", git = "https://github.com/3Dpass/substrate.git", branch = "3dp_v3" }
-sp-consensus-poscan = { version = "0.9.0", package = "sp-consensus-poscan", path = "../../primitives/consensus/poscan" }
-poscan-runtime = { version = "3.0", path = "../../runtimes/poscan-runtime" }
-sp-consensus = { version = "0.9.0", git = "https://github.com/3Dpass/substrate.git", branch = "3dp_v3" }
-sp-application-crypto = { version = "3.0.0", git = "https://github.com/3Dpass/substrate.git", branch = "3dp_v3" }
-sp-timestamp = { version = "3.0.0", git = "https://github.com/3Dpass/substrate.git", branch = "3dp_v3" }
+codec = { package = "parity-scale-codec", version = "3.1", default-features = false, features = ["derive"] }
+scale-info = { version = "2.0", default-features = false, features = ["derive"] }
+sc-client-api = { git = "https://github.com/3Dpass/substrate.git", tag = "monthly-2022-05" }
+sc-consensus = { git = "https://github.com/3Dpass/substrate.git", tag = "monthly-2022-05" }
+sp-core = { git = "https://github.com/3Dpass/substrate.git", tag = "monthly-2022-05" }
+sp-blockchain = { git = "https://github.com/3Dpass/substrate.git", tag = "monthly-2022-05" }
+sp-runtime = { git = "https://github.com/3Dpass/substrate.git", tag = "monthly-2022-05" }
+sp-api = { git = "https://github.com/3Dpass/substrate.git", tag = "monthly-2022-05" }
+sp-block-builder = { git = "https://github.com/3Dpass/substrate.git", tag = "monthly-2022-05" }
+sp-inherents = { git = "https://github.com/3Dpass/substrate.git", tag = "monthly-2022-05" }
+sp-consensus-poscan = { package = "sp-consensus-poscan", path = "../../primitives/consensus/poscan" }
+poscan-runtime = { path = "../../runtimes/poscan-runtime" }
+sp-consensus = { git = "https://github.com/3Dpass/substrate.git", tag = "monthly-2022-05" }
+sp-application-crypto = { git = "https://github.com/3Dpass/substrate.git", tag = "monthly-2022-05" }
+sp-timestamp = { git = "https://github.com/3Dpass/substrate.git", tag = "monthly-2022-05" }
 # frame-support = { version = "3.0" }
 # frame-system = { version = "3.0" }
-log = "0.4.8"
-futures = { version = "0.3.1", features = ["compat"] }
-futures-timer = "3.0.1"
-parking_lot = "0.11.1"
-derive_more = "0.99.2"
-prometheus-endpoint = { package = "substrate-prometheus-endpoint", version = "0.9.0", git = "https://github.com/3Dpass/substrate.git", branch = "3dp_v3" }
+async-trait = "0.1.50"
+log = "0.4"
+futures = { version = "0.3", features = ["compat"] }
+futures-timer = "3.0"
+parking_lot = "0.12"
+derive_more = "0.99"
+prometheus-endpoint = { package = "substrate-prometheus-endpoint", git = "https://github.com/3Dpass/substrate.git", tag = "monthly-2022-05" }

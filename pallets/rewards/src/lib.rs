@@ -42,6 +42,8 @@ use sp_runtime::traits::{Saturating, Zero};
 use sp_std::{
 	collections::btree_map::BTreeMap, iter::FromIterator, ops::Bound::Included, prelude::*,
 };
+use sp_std::convert::TryInto;
+use scale_info::TypeInfo;
 
 pub struct LockBounds {
 	pub period_max: u16,
@@ -50,7 +52,7 @@ pub struct LockBounds {
 	pub divide_min: u16,
 }
 
-#[derive(Encode, Decode, Clone, Copy, PartialEq, Eq, Debug)]
+#[derive(Encode, Decode, Clone, Copy, PartialEq, Eq, Debug, TypeInfo)]
 pub struct LockParameters {
 	pub period: u16,
 	pub divide: u16,

@@ -58,30 +58,30 @@ pub fn testnet_genesis(
 	initial_difficulty: U256,
 ) -> GenesisConfig {
 	GenesisConfig {
-		frame_system: Some(SystemConfig {
+		system: SystemConfig {
 			code: wasm_binary.to_vec(),
-			changes_trie_config: Default::default(),
-		}),
-		pallet_balances: Some(BalancesConfig {
+			// changes_trie_config: Default::default(),
+		},
+		balances: BalancesConfig {
 			balances: endowed_accounts
 				.iter()
 				.cloned()
 				.map(|k| (k, 1 << 60))
 				.collect(),
-		}),
-		pallet_sudo: Some(SudoConfig { key: root_key }),
-		pallet_grandpa: Some(GrandpaConfig {
+		},
+		sudo: SudoConfig { key: Some(root_key) },
+		grandpa: GrandpaConfig {
 			authorities: initial_authorities.iter().map(|x| (x.clone(), 1)).collect(),
-		}),
-		difficulty: Some(DifficultyConfig {
+		},
+		difficulty: DifficultyConfig {
 			initial_difficulty,
-		}),
-		rewards: Some(RewardsConfig {
+		},
+		rewards: RewardsConfig {
 			reward: 500 * DOLLARS,
 			mints: Default::default(),
-		}),
-		collective_Instance1: Default::default(),
-		collective_Instance2: Default::default(),
+		},
+		council: Default::default(),
+		technical_committee: Default::default(),
 		treasury: Default::default(),
 
 
