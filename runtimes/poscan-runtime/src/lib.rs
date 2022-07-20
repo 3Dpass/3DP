@@ -27,8 +27,9 @@ use sp_runtime::traits::{
 };
 use sp_runtime::{
 	create_runtime_str, generic, impl_opaque_keys,
-	transaction_validity::{TransactionSource, TransactionValidity},
+	transaction_validity::{TransactionSource, TransactionValidity, TransactionPriority},
 	ApplyExtrinsicResult, MultiSignature, // ModuleId,
+	traits::ConvertInto,
 };
 // use runtime_common::{
 // 	auctions, claims, crowdloan, impl_runtime_weights, impls::DealWithFees, paras_registrar,
@@ -37,14 +38,13 @@ use sp_runtime::{
 
 use frame_system::EnsureRoot;
 use sp_std::convert::TryFrom;
-use sp_std::prelude::*;
 use sp_std::{
 	cmp,
 	collections::btree_map::BTreeMap,
-	// prelude::*,
+	prelude::*,
 };
 use sp_arithmetic::Percent;
-use sp_consensus_poscan::{DOLLARS, CENTS, MICROCENTS, MILLICENTS, DAYS, BLOCK_TIME};
+use sp_consensus_poscan::{DOLLARS, CENTS, MICROCENTS, MILLICENTS, DAYS, BLOCK_TIME, deposit};
 use sp_consensus_poscan::POSCAN_COIN_ID;
 
 #[cfg(feature = "std")]
@@ -552,6 +552,374 @@ impl OnUnbalanced<NegativeImbalance> for Author {
 	}
 }
 
+parameter_types! {
+	// Minimum 100 bytes/KSM deposited (1 CENT/byte)
+	pub const BasicDeposit: Balance = 1000 * CENTS;       // 258 bytes on-chain
+	pub const FieldDeposit: Balance = 250 * CENTS;        // 66 bytes on-chain
+	pub const SubAccountDeposit: Balance = 200 * CENTS;   // 53 bytes on-chain
+	pub const MaxSubAccounts: u32 = 100;
+	pub const MaxAdditionalFields: u32 = 100;
+	pub const MaxRegistrars: u32 = 20;
+}
+
+impl pallet_identity::Config for Runtime {
+	type Event = Event;
+	type Currency = Balances;
+	type BasicDeposit = BasicDeposit;
+	type FieldDeposit = FieldDeposit;
+	type SubAccountDeposit = SubAccountDeposit;
+	type MaxSubAccounts = MaxSubAccounts;
+	type MaxAdditionalFields = MaxAdditionalFields;
+	type MaxRegistrars = MaxRegistrars;
+	type Slashed = Treasury;
+	type ForceOrigin = MoreThanHalfCouncil;
+	type RegistrarOrigin = MoreThanHalfCouncil;
+	type WeightInfo = (); // weights::pallet_identity::WeightInfo<Runtime>;
+}
+
+parameter_types! {
+	pub const IndexDeposit: Balance = 100 * CENTS;
+}
+
+impl pallet_indices::Config for Runtime {
+	type AccountIndex = AccountIndex;
+	type Currency = Balances;
+	type Deposit = IndexDeposit;
+	type Event = Event;
+	type WeightInfo = (); // weights::pallet_indices::WeightInfo<Runtime>;
+}
+
+parameter_types! {
+	// One storage item; key size is 32; value is size 4+4+16+32 bytes = 56 bytes.
+	pub const DepositBase: Balance = deposit(1, 88);
+	// Additional storage item size of 32 bytes.
+	pub const DepositFactor: Balance = deposit(0, 32);
+	pub const MaxSignatories: u16 = 100;
+}
+
+impl pallet_multisig::Config for Runtime {
+	type Event = Event;
+	type Call = Call;
+	type Currency = Balances;
+	type DepositBase = DepositBase;
+	type DepositFactor = DepositFactor;
+	type MaxSignatories = MaxSignatories;
+	type WeightInfo = (); // weights::pallet_multisig::WeightInfo<Runtime>;
+}
+
+parameter_types! {
+	pub const PreimageMaxSize: u32 = 4096 * 1024;
+	pub const PreimageBaseDeposit: Balance = deposit(2, 64);
+	pub const PreimageByteDeposit: Balance = deposit(0, 1);
+}
+
+impl pallet_preimage::Config for Runtime {
+	type WeightInfo = (); // weights::pallet_preimage::WeightInfo<Runtime>;
+	type Event = Event;
+	type Currency = Balances;
+	type ManagerOrigin = EnsureRoot<AccountId>;
+	type MaxSize = PreimageMaxSize;
+	type BaseDeposit = PreimageBaseDeposit;
+	type ByteDeposit = PreimageByteDeposit;
+}
+
+// parameter_types! {
+// 	// One storage item; key size 32, value size 8; .
+// 	pub const ProxyDepositBase: Balance = deposit(1, 8);
+// 	// Additional storage item size of 33 bytes.
+// 	pub const ProxyDepositFactor: Balance = deposit(0, 33);
+// 	pub const MaxProxies: u16 = 32;
+// 	pub const AnnouncementDepositBase: Balance = deposit(1, 8);
+// 	pub const AnnouncementDepositFactor: Balance = deposit(0, 66);
+// 	pub const MaxPending: u16 = 32;
+// }
+
+// /// The type used to represent the kinds of proxying allowed.
+// #[derive(
+// Copy,
+// Clone,
+// Eq,
+// PartialEq,
+// Ord,
+// PartialOrd,
+// Encode,
+// Decode,
+// RuntimeDebug,
+// MaxEncodedLen,
+// scale_info::TypeInfo,
+// )]
+// pub enum ProxyType {
+// 	Any,
+// 	NonTransfer,
+// 	Governance,
+// 	Staking,
+// 	IdentityJudgement,
+// 	CancelProxy,
+// 	Auction,
+// 	Society,
+// }
+//
+// impl Default for ProxyType {
+// 	fn default() -> Self {
+// 		Self::Any
+// 	}
+// }
+//
+// impl InstanceFilter<Call> for ProxyType {
+// 	fn filter(&self, c: &Call) -> bool {
+// 		match self {
+// 			ProxyType::Any => true,
+// 			ProxyType::NonTransfer => matches!(
+// 				c,
+// 				Call::System(..) |
+// 				Call::Babe(..) |
+// 				Call::Timestamp(..) |
+// 				Call::Indices(pallet_indices::Call::claim {..}) |
+// 				Call::Indices(pallet_indices::Call::free {..}) |
+// 				Call::Indices(pallet_indices::Call::freeze {..}) |
+// 				// Specifically omitting Indices `transfer`, `force_transfer`
+// 				// Specifically omitting the entire Balances pallet
+// 				Call::Authorship(..) |
+// 				Call::Staking(..) |
+// 				// Call::Session(..) |
+// 				Call::Grandpa(..) |
+// 				Call::ImOnline(..) |
+// 				Call::Democracy(..) |
+// 				Call::Council(..) |
+// 				Call::TechnicalCommittee(..) |
+// 				Call::PhragmenElection(..) |
+// 				Call::TechnicalMembership(..) |
+// 				Call::Treasury(..) |
+// 				Call::Bounties(..) |
+// 				Call::ChildBounties(..) |
+// 				Call::Tips(..) |
+// 				Call::Claims(..) |
+// 				Call::Utility(..) |
+// 				Call::Identity(..) |
+// 				Call::Society(..) |
+// 				Call::Recovery(pallet_recovery::Call::as_recovered {..}) |
+// 				Call::Recovery(pallet_recovery::Call::vouch_recovery {..}) |
+// 				Call::Recovery(pallet_recovery::Call::claim_recovery {..}) |
+// 				Call::Recovery(pallet_recovery::Call::close_recovery {..}) |
+// 				Call::Recovery(pallet_recovery::Call::remove_recovery {..}) |
+// 				Call::Recovery(pallet_recovery::Call::cancel_recovered {..}) |
+// 				// Specifically omitting Recovery `create_recovery`, `initiate_recovery`
+// 				Call::Vesting(pallet_vesting::Call::vest {..}) |
+// 				Call::Vesting(pallet_vesting::Call::vest_other {..}) |
+// 				// Specifically omitting Vesting `vested_transfer`, and `force_vested_transfer`
+// 				Call::Scheduler(..) |
+// 				Call::Proxy(..) |
+// 				Call::Multisig(..) |
+// 				Call::Gilt(..) |
+// 				//Call::Registrar(paras_registrar::Call::register {..}) |
+// 				//Call::Registrar(paras_registrar::Call::deregister {..}) |
+// 				// Specifically omitting Registrar `swap`
+// 				//Call::Registrar(paras_registrar::Call::reserve {..}) |
+// 				Call::Crowdloan(..) |
+// 				// Call::Slots(..) |
+// 				Call::Auctions(..) | // Specifically omitting the entire XCM Pallet
+// 				Call::BagsList(..)
+// 			),
+// 			ProxyType::Governance => matches!(
+// 				c,
+// 				Call::Democracy(..) |
+// 					Call::Council(..) | Call::TechnicalCommittee(..) |
+// 					Call::PhragmenElection(..) |
+// 					Call::Treasury(..) | Call::Bounties(..) |
+// 					Call::Tips(..) | Call::Utility(..) |
+// 					Call::ChildBounties(..)
+// 			),
+// 			ProxyType::Staking => {
+// 				matches!(c, Call::Staking(..) | Call::Session(..) | Call::Utility(..))
+// 			},
+// 			ProxyType::IdentityJudgement => matches!(
+// 				c,
+// 				Call::Identity(pallet_identity::Call::provide_judgement { .. }) | Call::Utility(..)
+// 			),
+// 			ProxyType::CancelProxy => {
+// 				matches!(c, Call::Proxy(pallet_proxy::Call::reject_announcement { .. }))
+// 			},
+// 			ProxyType::Auction => matches!(
+// 				c,
+// 				Call::Auctions(..) | Call::Crowdloan(..) | Call::Registrar(..) | Call::Slots(..)
+// 			),
+// 			ProxyType::Society => matches!(c, Call::Society(..)),
+// 		}
+// 	}
+// 	fn is_superset(&self, o: &Self) -> bool {
+// 		match (self, o) {
+// 			(x, y) if x == y => true,
+// 			(ProxyType::Any, _) => true,
+// 			(_, ProxyType::Any) => false,
+// 			(ProxyType::NonTransfer, _) => true,
+// 			_ => false,
+// 		}
+// 	}
+// }
+//
+// impl pallet_proxy::Config for Runtime {
+// 	type Event = Event;
+// 	type Call = Call;
+// 	type Currency = Balances;
+// 	type ProxyType = ProxyType;
+// 	type ProxyDepositBase = ProxyDepositBase;
+// 	type ProxyDepositFactor = ProxyDepositFactor;
+// 	type MaxProxies = MaxProxies;
+// 	type WeightInfo = (); // weights::pallet_proxy::WeightInfo<Runtime>;
+// 	type MaxPending = MaxPending;
+// 	type CallHasher = BlakeTwo256;
+// 	type AnnouncementDepositBase = AnnouncementDepositBase;
+// 	type AnnouncementDepositFactor = AnnouncementDepositFactor;
+// }
+
+parameter_types! {
+	pub MaximumSchedulerWeight: Weight = Perbill::from_percent(80) *
+		BlockWeights::get().max_block;
+	pub const MaxScheduledPerBlock: u32 = 50;
+	pub const NoPreimagePostponement: Option<u32> = Some(10);
+}
+
+type ScheduleOrigin = EnsureOneOf<
+	EnsureRoot<AccountId>,
+	pallet_collective::EnsureProportionAtLeast<AccountId, CouncilCollective, 1, 2>,
+>;
+
+/// Used the compare the privilege of an origin inside the scheduler.
+pub struct OriginPrivilegeCmp;
+
+impl PrivilegeCmp<OriginCaller> for OriginPrivilegeCmp {
+	fn cmp_privilege(left: &OriginCaller, right: &OriginCaller) -> Option<cmp::Ordering> {
+		if left == right {
+			return Some(cmp::Ordering::Equal)
+		}
+
+		match (left, right) {
+			// Root is greater than anything.
+			(OriginCaller::system(frame_system::RawOrigin::Root), _) => Some(cmp::Ordering::Greater),
+			// Check which one has more yes votes.
+			(
+				OriginCaller::Council(pallet_collective::RawOrigin::Members(l_yes_votes, l_count)),
+				OriginCaller::Council(pallet_collective::RawOrigin::Members(r_yes_votes, r_count)),
+			) => Some((l_yes_votes * r_count).cmp(&(r_yes_votes * l_count))),
+			// For every other origin we don't care, as they are not used for `ScheduleOrigin`.
+			_ => None,
+		}
+	}
+}
+
+impl pallet_scheduler::Config for Runtime {
+	type Event = Event;
+	type Origin = Origin;
+	type PalletsOrigin = OriginCaller;
+	type Call = Call;
+	type MaximumWeight = MaximumSchedulerWeight;
+	type ScheduleOrigin = ScheduleOrigin;
+	type MaxScheduledPerBlock = MaxScheduledPerBlock;
+	type WeightInfo = (); // weights::pallet_scheduler::WeightInfo<Runtime>;
+	type OriginPrivilegeCmp = OriginPrivilegeCmp;
+	type PreimageProvider = Preimage;
+	type NoPreimagePostponement = NoPreimagePostponement;
+}
+
+// parameter_types! {
+// 	/// Authorities are changing every 5 minutes.
+// 	pub const Period: BlockNumber = bp_millau::SESSION_LENGTH;
+// 	pub const Offset: BlockNumber = 0;
+// }
+//
+// impl pallet_session::Config for Runtime {
+// 	type Event = Event;
+// 	type ValidatorId = <Self as frame_system::Config>::AccountId;
+// 	type ValidatorIdOf = ();
+// 	type ShouldEndSession = pallet_session::PeriodicSessions<Period, Offset>;
+// 	type NextSessionRotation = pallet_session::PeriodicSessions<Period, Offset>;
+// 	type SessionManager = pallet_shift_session_manager::Pallet<Runtime>;
+// 	type SessionHandler = <SessionKeys as OpaqueKeys>::KeyTypeIdProviders;
+// 	type Keys = SessionKeys;
+// 	// TODO: update me (https://github.com/paritytech/parity-bridges-common/issues/78)
+// 	type WeightInfo = ();
+// }
+
+// impl pallet_tips::Config for Runtime {
+// 	type MaximumReasonLength = MaximumReasonLength;
+// 	type DataDepositPerByte = DataDepositPerByte;
+// 	type Tippers = PhragmenElection;
+// 	type TipCountdown = TipCountdown;
+// 	type TipFindersFee = TipFindersFee;
+// 	type TipReportDepositBase = TipReportDepositBase;
+// 	type Event = Event;
+// 	type WeightInfo = (); // weights::pallet_tips::WeightInfo<Runtime>;
+// }
+
+// parameter_types! {
+// 	pub const UncleGenerations: u32 = 0;
+// }
+//
+// impl pallet_authorship::Config for Runtime {
+// 	type FindAuthor = ();
+// 	type UncleGenerations = UncleGenerations;
+// 	type FilterUncle = ();
+// 	type EventHandler = ();
+// }
+
+impl pallet_randomness_collective_flip::Config for Runtime {}
+
+// parameter_types! {
+// 	pub const DepositPerItem: Balance = deposit(1, 0);
+// 	pub const DepositPerByte: Balance = deposit(0, 1);
+// 	// The lazy deletion runs inside on_initialize.
+// 	pub DeletionWeightLimit: Weight = AVERAGE_ON_INITIALIZE_RATIO *
+// 		RuntimeBlockWeights::get().max_block;
+// 	// The weight needed for decoding the queue should be less or equal than a fifth
+// 	// of the overall weight dedicated to the lazy deletion.
+// 	pub DeletionQueueDepth: u32 = ((DeletionWeightLimit::get() / (
+// 			<Runtime as pallet_contracts::Config>::WeightInfo::on_initialize_per_queue_item(1) -
+// 			<Runtime as pallet_contracts::Config>::WeightInfo::on_initialize_per_queue_item(0)
+// 		)) / 5) as u32;
+// 	pub Schedule: pallet_contracts::Schedule<Runtime> = {
+// 		let mut schedule = pallet_contracts::Schedule::<Runtime>::default();
+// 		// We decided to **temporarily* increase the default allowed contract size here
+// 		// (the default is `128 * 1024`).
+// 		//
+// 		// Our reasoning is that a number of people ran into `CodeTooLarge` when trying
+// 		// to deploy their contracts. We are currently introducing a number of optimizations
+// 		// into ink! which should bring the contract sizes lower. In the meantime we don't
+// 		// want to pose additional friction on developers.
+// 		schedule.limits.code_len = 256 * 1024;
+// 		schedule
+// 	};
+// }
+//
+// impl pallet_contracts::Config for Runtime {
+// 	type Time = Timestamp;
+// 	type Randomness = RandomnessCollectiveFlip;
+// 	type Currency = Balances;
+// 	type Event = Event;
+// 	type Call = Call;
+// 	/// The safest default is to allow no calls at all.
+// 	///
+// 	/// Runtimes should whitelist dispatchables that are allowed to be called from contracts
+// 	/// and make sure they are stable. Dispatchables exposed to contracts are not allowed to
+// 	/// change because that would break already deployed contracts. The `Call` structure itself
+// 	/// is not allowed to change the indices of existing pallets, too.
+// 	type CallFilter = frame_support::traits::Nothing;
+// 	type DepositPerItem = DepositPerItem;
+// 	type DepositPerByte = DepositPerByte;
+// 	type WeightPrice = pallet_transaction_payment::Pallet<Self>;
+// 	type WeightInfo = pallet_contracts::weights::SubstrateWeight<Self>;
+// 	type ChainExtension = ();
+// 	type DeletionQueueDepth = DeletionQueueDepth;
+// 	type DeletionWeightLimit = DeletionWeightLimit;
+// 	type Schedule = Schedule;
+// 	type CallStack = [pallet_contracts::Frame<Self>; 31];
+// 	type AddressGenerator = pallet_contracts::DefaultAddressGenerator;
+// }
+
+parameter_types! {
+	pub const MinVestedTransfer: Balance = 100 * CENTS;
+}
+
+
 construct_runtime!(
 	pub enum Runtime where
 		Block = Block,
@@ -560,10 +928,13 @@ construct_runtime!(
 	{
 		System: frame_system::{Pallet, Call, Storage, Config, Event<T>},
 		Timestamp: pallet_timestamp::{Pallet, Call, Storage, Inherent},
-		// RandomnessCollectiveFlip: pallet_randomness_collective_flip::{Pallet, Storage},
-		Balances: pallet_balances::{Pallet, Call, Storage, Config<T>, Event<T>},
-		Difficulty: difficulty::{Pallet, Call, Storage, Config},
-		Rewards: rewards::{Pallet, Call, Storage, Event<T>, Config<T>},
+		Indices: pallet_indices::{Pallet, Call, Storage, Config<T>, Event<T>} = 3,
+		Rewards: rewards::{Pallet, Call, Storage, Event<T>, Config<T>} = 4,
+
+		Balances: pallet_balances::{Pallet, Call, Storage, Config<T>, Event<T>} = 5,
+		Difficulty: difficulty::{Pallet, Call, Storage, Config} = 6,
+		// Session: pallet_session::{Pallet, Call, Storage, Event, Config<T>} = 8,
+		// ImOnline: pallet_im_online::{Pallet, Call, Storage, Event<T>, ValidateUnsigned, Config<T>} = 11,
 		Council: pallet_collective::<Instance1>::{Pallet, Call, Storage, Origin<T>, Event<T>, Config<T>},
 		TechnicalCommittee: pallet_collective::<Instance2>::{Pallet, Call, Storage, Origin<T>, Event<T>, Config<T>},
 		Treasury: pallet_treasury::{Pallet, Call, Storage, Event<T>, Config},
@@ -573,10 +944,61 @@ construct_runtime!(
 		Sudo: pallet_sudo::{Pallet, Call, Config<T>, Storage, Event<T>},
 		TransactionPayment: pallet_transaction_payment::{Pallet, Storage},
 
-		PoScan: pallet_poscan::{Pallet, Call, Storage, Event<T>},
+		// Less simple identity module.
+		Identity: pallet_identity::{Pallet, Call, Storage, Event<T>} = 25,
+
+		// Multisig module. Late addition.
+		Multisig: pallet_multisig::{Pallet, Call, Storage, Event<T>} = 31,
+		// Preimage registrar.
+		Preimage: pallet_preimage::{Pallet, Call, Storage, Event<T>} = 32,
+
+		// System scheduler.
+		Scheduler: pallet_scheduler::{Pallet, Call, Storage, Event<T>} = 29,
+
+
+		// Tips module.
+		// Tips: pallet_tips::{Pallet, Call, Storage, Event<T>} = 36,
+
+		// Vesting. Usable initially, but removed once all vesting is finished.
+		Vesting: pallet_vesting::{Pallet, Call, Storage, Event<T>, Config<T>} = 28,
+
+		RandomnessCollectiveFlip: pallet_randomness_collective_flip::{Pallet, Storage} = 30,
+
+		// Authorship: pallet_authorship::{Pallet, Call, Storage, Event<T>, Config<T>} = 34,
+		// Contracts: pallet_contracts::{Pallet, Call, Storage, Event<T>, Config<T>} = 35,
+
+		PoScan: pallet_poscan::{Pallet, Call, Storage, Event<T>} = 40,
 		// PoScan: pallet_poscan::{Module},
 	}
 );
+
+impl pallet_vesting::Config for Runtime {
+	type Event = Event;
+	type Currency = Balances;
+	type BlockNumberToBalance = ConvertInto;
+	type MinVestedTransfer = MinVestedTransfer;
+	type WeightInfo = (); // weights::pallet_vesting::WeightInfo<Runtime>;
+	const MAX_VESTING_SCHEDULES: u32 = 28;
+}
+
+// parameter_types! {
+// 	pub NposSolutionPriority: TransactionPriority =
+// 		Perbill::from_percent(90) * TransactionPriority::max_value();
+// 	pub const ImOnlineUnsignedPriority: TransactionPriority = TransactionPriority::max_value();
+// }
+//
+// impl pallet_im_online::Config for Runtime {
+// 	type AuthorityId = ImOnlineId;
+// 	type Event = Event;
+// 	type ValidatorSet = Historical;
+// 	type NextSessionRotation = Babe;
+// 	type ReportUnresponsiveness = Offences;
+// 	type UnsignedPriority = ImOnlineUnsignedPriority;
+// 	type WeightInfo = (); // weights::pallet_im_online::WeightInfo<Runtime>;
+// 	type MaxKeys = MaxKeys;
+// 	type MaxPeerInHeartbeats = MaxPeerInHeartbeats;
+// 	type MaxPeerDataEncodingSize = MaxPeerDataEncodingSize;
+// }
 
 /// The address format for describing accounts.
 pub type Address = AccountId;
@@ -717,6 +1139,50 @@ impl_runtime_apis! {
 			opaque::SessionKeys::decode_into_raw_public_keys(&encoded)
 		}
 	}
+
+	// impl pallet_contracts_rpc_runtime_api::ContractsApi<Block, AccountId, Balance, BlockNumber, Hash>
+	// 	for Runtime
+	// {
+	// 	fn call(
+	// 		origin: AccountId,
+	// 		dest: AccountId,
+	// 		value: Balance,
+	// 		gas_limit: u64,
+	// 		storage_deposit_limit: Option<Balance>,
+	// 		input_data: Vec<u8>,
+	// 	) -> pallet_contracts_primitives::ContractExecResult<Balance> {
+	// 		Contracts::bare_call(origin, dest, value, gas_limit, storage_deposit_limit, input_data, CONTRACTS_DEBUG_OUTPUT)
+	// 	}
+	//
+	// 	fn instantiate(
+	// 		origin: AccountId,
+	// 		value: Balance,
+	// 		gas_limit: u64,
+	// 		storage_deposit_limit: Option<Balance>,
+	// 		code: pallet_contracts_primitives::Code<Hash>,
+	// 		data: Vec<u8>,
+	// 		salt: Vec<u8>,
+	// 	) -> pallet_contracts_primitives::ContractInstantiateResult<AccountId, Balance>
+	// 	{
+	// 		Contracts::bare_instantiate(origin, value, gas_limit, storage_deposit_limit, code, data, salt, CONTRACTS_DEBUG_OUTPUT)
+	// 	}
+	//
+	// 	fn upload_code(
+	// 		origin: AccountId,
+	// 		code: Vec<u8>,
+	// 		storage_deposit_limit: Option<Balance>,
+	// 	) -> pallet_contracts_primitives::CodeUploadResult<Hash, Balance>
+	// 	{
+	// 		Contracts::bare_upload_code(origin, code, storage_deposit_limit)
+	// 	}
+	//
+	// 	fn get_storage(
+	// 		address: AccountId,
+	// 		key: Vec<u8>,
+	// 	) -> pallet_contracts_primitives::GetStorageResult {
+	// 		Contracts::get_storage(address, key)
+	// 	}
+	// }
 
 	impl sp_consensus_poscan::TimestampApi<Block, u64> for Runtime {
 		fn timestamp() -> u64 {

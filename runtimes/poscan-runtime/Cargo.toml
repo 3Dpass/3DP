@@ -20,7 +20,7 @@ frame-executive = { default-features = false, git = "https://github.com/3Dpass/s
 frame-support = { default-features = false, git = "https://github.com/3Dpass/substrate.git", tag = "monthly-2022-05" }
 frame-system = { default-features = false, git = "https://github.com/3Dpass/substrate.git", tag = "monthly-2022-05" }
 pallet-grandpa = { default-features = false, git = "https://github.com/3Dpass/substrate.git", tag = "monthly-2022-05" }
-# pallet-randomness-collective-flip = { default-features = false, git = "https://github.com/3Dpass/substrate.git", tag = "monthly-2022-05" }
+pallet-randomness-collective-flip = { default-features = false, git = "https://github.com/3Dpass/substrate.git", tag = "monthly-2022-05" }
 sp-api = { default-features = false, git = "https://github.com/3Dpass/substrate.git", tag = "monthly-2022-05" }
 sp-block-builder = { default-features = false, git = "https://github.com/3Dpass/substrate.git", tag = "monthly-2022-05" }
 sp-core = { default-features = false, git = "https://github.com/3Dpass/substrate.git", tag = "monthly-2022-05" }
@@ -44,8 +44,60 @@ rewards = { package = "pallet-rewards", path = "../../pallets/rewards", default-
 pallet-treasury = { default-features = false, git = "https://github.com/3Dpass/substrate.git", tag = "monthly-2022-05" }
 pallet-collective = { default-features = false, git = "https://github.com/3Dpass/substrate.git", tag = "monthly-2022-05" }
 pallet-bounties = { default-features = false, git = "https://github.com/3Dpass/substrate.git", tag = "monthly-2022-05" }
-pallet-child-bounties = { default-features = false, git = "https://github.com/3Dpass/substrate.git", tag = "monthly-2022-05" }
+# pallet-child-bounties = { default-features = false, git = "https://github.com/3Dpass/substrate.git", tag = "monthly-2022-05" }
 sp-arithmetic = { default-features = false, git = "https://github.com/3Dpass/substrate.git", tag = "monthly-2022-05" }
+
+# pallet-atomic-swap = { default-features = false, git = "https://github.com/3Dpass/substrate.git", tag = "monthly-2022-05" }
+pallet-authorship = { default-features = false, git = "https://github.com/3Dpass/substrate.git", tag = "monthly-2022-05" }
+#pallet-benchmark = { default-features = false, git = "https://github.com/3Dpass/substrate.git", tag = "monthly-2022-05" }
+pallet-child-bounties = { default-features = false, git = "https://github.com/3Dpass/substrate.git", tag = "monthly-2022-05" }
+# pallet-contracts = { default-features = false, git = "https://github.com/3Dpass/substrate.git", tag = "monthly-2022-05" }
+# pallet-contracts = { default-features = false, path = "../../pallets/contracts" }
+# pallet-contracts-primitives = { default-features = false, git = "https://github.com/3Dpass/substrate.git", tag = "monthly-2022-05" }
+# pallet-contracts-rpc-runtime-api = { default-features = false, git = "https://github.com/3Dpass/substrate.git", tag = "monthly-2022-05" }
+
+pallet-democracy = { default-features = false, git = "https://github.com/3Dpass/substrate.git", tag = "monthly-2022-05" }
+pallet-identity = { default-features = false, git = "https://github.com/3Dpass/substrate.git", tag = "monthly-2022-05" }
+pallet-indices = { default-features = false, git = "https://github.com/3Dpass/substrate.git", tag = "monthly-2022-05" }
+
+pallet-multisig = { default-features = false, git = "https://github.com/3Dpass/substrate.git", tag = "monthly-2022-05" }
+
+# no examples
+# pallet-nicks = { default-features = false, git = "https://github.com/3Dpass/substrate.git", tag = "monthly-2022-05" }
+
+pallet-preimage = { default-features = false, git = "https://github.com/3Dpass/substrate.git", tag = "monthly-2022-05" }
+# pallet-proxy = { default-features = false, git = "https://github.com/3Dpass/substrate.git", tag = "monthly-2022-05" }
+
+# no examples
+# pallet-remark = { default-features = false, git = "https://github.com/3Dpass/substrate.git", tag = "monthly-2022-05" }
+
+pallet-scheduler = { default-features = false, git = "https://github.com/3Dpass/substrate.git", tag = "monthly-2022-05" }
+
+# no exmples
+# pallet-scored-pool = { default-features = false, git = "https://github.com/3Dpass/substrate.git", tag = "monthly-2022-05" }
+
+# tmp
+# pallet-session = { default-features = false, git = "https://github.com/3Dpass/substrate.git", tag = "monthly-2022-05" }
+pallet-tips = { default-features = false, git = "https://github.com/3Dpass/substrate.git", tag = "monthly-2022-05" }
+
+# no examples
+# pallet-transaction-storage = { default-features = false, git = "https://github.com/3Dpass/substrate.git", tag = "monthly-2022-05" }
+
+# complicated
+# pallet-try-runtime = { default-features = false, git = "https://github.com/3Dpass/substrate.git", tag = "monthly-2022-05" }
+
+# no examples
+#pallet-assets = { default-features = false, git = "https://github.com/3Dpass/substrate.git", tag = "monthly-2022-05" }
+#pallet-uniques = { default-features = false, git = "https://github.com/3Dpass/substrate.git", tag = "monthly-2022-05" }
+
+
+pallet-vesting = { default-features = false, git = "https://github.com/3Dpass/substrate.git", tag = "monthly-2022-05" }
+# pallet-im-online = { default-features = false, git = "https://github.com/3Dpass/substrate.git", tag = "monthly-2022-05" }
+
+pallet-recovery = { default-features = false, git = "https://github.com/3Dpass/substrate.git", tag = "monthly-2022-05" }
+# from polkadot
+# pallet-shift-session-manager = { default-features = false, git = "https://github.com/3Dpass/substrate.git", tag = "monthly-2022-05" }
+
 
 [build-dependencies]
 substrate-wasm-builder = "4.0.0"
@@ -59,7 +111,7 @@ std = [
 	"frame-system/std",
 	"pallet-grandpa/std",
 	"parity-scale-codec/std",
-	# "pallet-randomness-collective-flip/std",
+	"pallet-randomness-collective-flip/std",
 	"serde",
 	"sp-api/std",
 	"sp-block-builder/std",
@@ -83,4 +135,22 @@ std = [
 	"pallet-bounties/std",
 	"pallet-child-bounties/std",
 	"sp-arithmetic/std",
+	
+	"pallet-democracy/std",
+	"pallet-identity/std",
+	"pallet-indices/std",
+	"pallet-multisig/std",
+	"pallet-preimage/std",
+	# "pallet-proxy/std",
+	"pallet-scheduler/std",
+	# "pallet-session/std",
+	"pallet-tips/std",
+	"pallet-vesting/std",
+	#"pallet-im-online/std",
+	"pallet-recovery/std",
+	# "pallet-authorship/std",
+	# "pallet-contracts/std",
+	# "pallet-contracts-primitives/std",
+	# "pallet-contracts-rpc-runtime-api/std",
+	# "pallet-shift-session-manager/std",
 ]

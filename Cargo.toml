@@ -9,6 +9,6 @@ members = [
 	"primitives/consensus/poscan",
 
 	"pallets/rewards",
-	# "pallets/lockdrop",
+	# ff"pallets/contracts",
 ]
 librocksdb-sys = "6.17.3"

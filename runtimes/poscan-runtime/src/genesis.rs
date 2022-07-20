@@ -83,7 +83,8 @@ pub fn testnet_genesis(
 		council: Default::default(),
 		technical_committee: Default::default(),
 		treasury: Default::default(),
-
+		indices: Default::default(),
+		vesting: Default::default(),
 
 		/*
 			GenesisConfig {
