@@ -6,6 +6,7 @@ authors = ['Substrate DevHub <https://github.com/substrate-developer-hub>']
 repository = 'https://github.com/substrate-developer-hub/recipes'
 description = "A runtime that manages a set of grandpa authorities and supplies them to the client"
 license = "GPL-3.0-or-later"
+build = "build.rs"
 
 [dependencies]
 parity-scale-codec = { version = "3.1", features = ["derive"], default-features = false }
@@ -51,7 +52,7 @@ sp-arithmetic = { default-features = false, git = "https://github.com/3Dpass/sub
 pallet-authorship = { default-features = false, git = "https://github.com/3Dpass/substrate.git", tag = "monthly-2022-05" }
 #pallet-benchmark = { default-features = false, git = "https://github.com/3Dpass/substrate.git", tag = "monthly-2022-05" }
 pallet-child-bounties = { default-features = false, git = "https://github.com/3Dpass/substrate.git", tag = "monthly-2022-05" }
-# pallet-contracts = { default-features = false, git = "https://github.com/3Dpass/substrate.git", tag = "monthly-2022-05" }
+pallet-contracts = { default-features = false, git = "https://github.com/3Dpass/substrate.git", tag = "monthly-2022-05" }
 # pallet-contracts = { default-features = false, path = "../../pallets/contracts" }
 # pallet-contracts-primitives = { default-features = false, git = "https://github.com/3Dpass/substrate.git", tag = "monthly-2022-05" }
 # pallet-contracts-rpc-runtime-api = { default-features = false, git = "https://github.com/3Dpass/substrate.git", tag = "monthly-2022-05" }
@@ -149,7 +150,7 @@ std = [
 	#"pallet-im-online/std",
 	"pallet-recovery/std",
 	# "pallet-authorship/std",
-	# "pallet-contracts/std",
+	"pallet-contracts/std",
 	# "pallet-contracts-primitives/std",
 	# "pallet-contracts-rpc-runtime-api/std",
 	# "pallet-shift-session-manager/std",

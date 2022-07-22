@@ -3873,6 +3873,57 @@ dependencies = [
 ]
 
 [[package]]
+name = "pallet-contracts"
+version = "4.0.0-dev"
+source = "git+https://github.com/3Dpass/substrate.git?tag=monthly-2022-05#fa778cc1187e37bbab132293ddbbb20158139ea5"
+dependencies = [
+ "bitflags",
+ "frame-benchmarking",
+ "frame-support",
+ "frame-system",
+ "log",
+ "pallet-contracts-primitives",
+ "pallet-contracts-proc-macro",
+ "parity-scale-codec",
+ "rand 0.8.4",
+ "scale-info",
+ "serde",
+ "smallvec",
+ "sp-core",
+ "sp-io",
+ "sp-runtime",
+ "sp-sandbox",
+ "sp-std",
+ "wasm-instrument",
+ "wasmi-validation",
+]
+
+[[package]]
+name = "pallet-contracts-primitives"
+version = "6.0.0"
+source = "git+https://github.com/3Dpass/substrate.git?tag=monthly-2022-05#fa778cc1187e37bbab132293ddbbb20158139ea5"
+dependencies = [
+ "bitflags",
+ "parity-scale-codec",
+ "scale-info",
+ "serde",
+ "sp-core",
+ "sp-rpc",
+ "sp-runtime",
+ "sp-std",
+]
+
+[[package]]
+name = "pallet-contracts-proc-macro"
+version = "4.0.0-dev"
+source = "git+https://github.com/3Dpass/substrate.git?tag=monthly-2022-05#fa778cc1187e37bbab132293ddbbb20158139ea5"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn",
+]
+
+[[package]]
 name = "pallet-democracy"
 version = "4.0.0-dev"
 source = "git+https://github.com/3Dpass/substrate.git?tag=monthly-2022-05#fa778cc1187e37bbab132293ddbbb20158139ea5"
@@ -4643,6 +4694,7 @@ dependencies = [
  "pallet-bounties",
  "pallet-child-bounties",
  "pallet-collective",
+ "pallet-contracts",
  "pallet-democracy",
  "pallet-difficulty",
  "pallet-grandpa",

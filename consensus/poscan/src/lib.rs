@@ -28,6 +28,8 @@
 //! The auxiliary storage for PoScan engine not only stores the total difficulty,
 //! but also 3D models (in .obj format) of the objects to recognize.
 
+#![cfg_attr(not(feature = "std"), no_std)]
+
 mod worker;
 
 pub use crate::worker::{MiningHandle, MiningMetadata, MiningBuild};
