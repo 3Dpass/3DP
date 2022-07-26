@@ -15,11 +15,11 @@ targets = ["x86_64-unknown-linux-gnu"]
 [dependencies]
 codec = { package = "parity-scale-codec", version = "3.1", default-features = false, features = ["derive"] }
 scale-info = { version = "2.0", default-features = false, features = ["derive"] }
-frame-support = { default-features = false, git = "https://github.com/3Dpass/substrate.git", tag = "monthly-2022-05" }
-frame-system = { default-features = false, git = "https://github.com/3Dpass/substrate.git", tag = "monthly-2022-05" }
-frame-benchmarking = { default-features = false, optional = true, git = "https://github.com/3Dpass/substrate.git", tag = "monthly-2022-05" }
-sp-std = { default-features = false, git = "https://github.com/3Dpass/substrate.git", tag = "monthly-2022-05" }
-sp-runtime = { default-features = false, git = "https://github.com/3Dpass/substrate.git", tag = "monthly-2022-05" }
+frame-support = { default-features = false, git = "https://github.com/paritytech/substrate" }
+frame-system = { default-features = false, git = "https://github.com/paritytech/substrate" }
+frame-benchmarking = { default-features = false, optional = true, git = "https://github.com/paritytech/substrate" }
+sp-std = { default-features = false, git = "https://github.com/paritytech/substrate" }
+sp-runtime = { default-features = false, git = "https://github.com/paritytech/substrate" }
 sp-consensus-poscan = { default-features = false, path = "../../primitives/consensus/poscan" }
 
 [features]
@@ -32,7 +32,7 @@ std = [
 	"frame-benchmarking/std",
 	"sp-std/std",
 	"sp-runtime/std",
-#	"sp-consensus-poscan/std",
+	"sp-consensus-poscan/std",
 ]
 
 # runtime-benchmarks = ["frame-benchmarking/runtime-benchmarks"]

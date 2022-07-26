@@ -652,18 +652,29 @@ pub fn new_full(
 	let prometheus_registry = config.prometheus_registry().cloned();
 	let enable_grandpa = !config.disable_grandpa;
 
+	// let rpc_extensions_builder = {
+	// 	let client = client.clone();
+	// 	let pool = transaction_pool.clone();
+	// 	Box::new(move |deny_unsafe, _| {
+	// 		let deps = crate::rpc::FullDeps {
+	// 			client: client.clone(),
+	// 			pool: pool.clone(),
+	// 			deny_unsafe,
+	// 			// command_sink: command_sink.clone(),
+	// 		};
+	//
+	// 		Ok(crate::rpc::create_full(deps))
+	// 	})
+	// };
+
 	let rpc_extensions_builder = {
 		let client = client.clone();
 		let pool = transaction_pool.clone();
-		Box::new(move |deny_unsafe, _| {
-			let deps = crate::rpc::FullDeps {
-				client: client.clone(),
-				pool: pool.clone(),
-				deny_unsafe,
-				// command_sink: command_sink.clone(),
-			};
 
-			Ok(crate::rpc::create_full(deps))
+		Box::new(move |deny_unsafe, _| {
+			let deps =
+				crate::rpc::FullDeps { client: client.clone(), pool: pool.clone(), deny_unsafe };
+			crate::rpc::create_full(deps).map_err(Into::into)
 		})
 	};
 
@@ -676,7 +687,7 @@ pub fn new_full(
 			keystore: keystore_container.sync_keystore(),
 			task_manager: &mut task_manager,
 			transaction_pool: transaction_pool.clone(),
-			rpc_extensions_builder, // Box::new(|_, _| ()),
+			rpc_builder: rpc_extensions_builder,
 			backend,
 			// network_status_sinks,
 			system_rpc_tx,

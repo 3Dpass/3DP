@@ -14,13 +14,25 @@ rand = { version = "0.8", features = ["small_rng"] }
 sha3 = "0.9"
 
 # Substrate packages
-sc-consensus-poscan = { version = "0.9", package = "sc-consensus-poscan", path = "../../consensus/poscan" }
-sp-api = { git = "https://github.com/3Dpass/substrate.git", tag = "monthly-2022-05" }
-sp-consensus-poscan = { version = "0.9", path = "../../primitives/consensus/poscan" }
-sp-core = { git = "https://github.com/3Dpass/substrate.git", tag = "monthly-2022-05" }
-sp-runtime = { git = "https://github.com/3Dpass/substrate.git", tag = "monthly-2022-05" }
+sc-consensus-poscan = { default-features = false, version = "0.9", package = "sc-consensus-poscan", path = "../../consensus/poscan" }
+sp-api = { default-features = false, git = "https://github.com/paritytech/substrate" }
+sp-consensus-poscan = { default-features = false, version = "0.9", path = "../../primitives/consensus/poscan" }
+sp-core = { default-features = false, git = "https://github.com/paritytech/substrate" }
+sp-runtime = { default-features = false, git = "https://github.com/paritytech/substrate" }
 # frame-support = { version = "3.0" }
 # frame-system = { version = "3.0" }
 log = "0.4"
 
 p3d = { git = "https://github.com/3Dpass/p3d", branch = "main" }
+
+[features]
+default = ["std"]
+std = [
+    "scale-info/std",
+    "parity-scale-codec/std",
+    "sc-consensus-poscan/std",
+    "sp-api/std",
+    "sp-consensus-poscan/std",
+    "sp-core/std",
+    "sp-runtime/std",
+]

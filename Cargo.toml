@@ -1,14 +1,9 @@
 [workspace]
 members = [
-	"runtimes/poscan-runtime",
-	"nodes/poscan-consensus",
-    "consensus/poscan_grid2d",
-	"traits/account-set",
-	"consensus/poscan",
-	"pallets/poscan",
-	"primitives/consensus/poscan",
-
-	"pallets/rewards",
-	# ff"pallets/contracts",
+    'runtime',
+    'nodes/poscan-consensus',
+#    'consensus/poscan',
+#    'consensus/poscan_grid2d',
 ]
-librocksdb-sys = "6.17.3"
+[profile.release]
+panic = 'unwind'

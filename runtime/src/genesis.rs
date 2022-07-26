@@ -1,8 +1,10 @@
 //! Helper module to build a genesis configuration for the weight-fee-runtime
 
 use super::{
-	AccountId, BalancesConfig, GenesisConfig, GrandpaConfig, Signature, SudoConfig, SystemConfig,
-	DifficultyConfig, RewardsConfig, // WASM_BINARY,
+	AccountId, Signature, GenesisConfig,
+	BalancesConfig, GrandpaConfig, SudoConfig, SystemConfig, IndicesConfig,
+	DifficultyConfig,
+	RewardsConfig, // WASM_BINARY,
 };
 use sp_core::{sr25519, Pair, Public, U256};
 use sp_finality_grandpa::AuthorityId as GrandpaId;
@@ -69,6 +71,9 @@ pub fn testnet_genesis(
 				.map(|k| (k, 1 << 60))
 				.collect(),
 		},
+		indices: IndicesConfig {
+			indices: vec![],
+		},
 		sudo: SudoConfig { key: Some(root_key) },
 		grandpa: GrandpaConfig {
 			authorities: initial_authorities.iter().map(|x| (x.clone(), 1)).collect(),
@@ -83,8 +88,8 @@ pub fn testnet_genesis(
 		council: Default::default(),
 		technical_committee: Default::default(),
 		treasury: Default::default(),
-		indices: Default::default(),
 		vesting: Default::default(),
+		transaction_payment: Default::default(),
 
 		/*
 			GenesisConfig {

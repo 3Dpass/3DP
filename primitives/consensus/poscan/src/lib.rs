@@ -19,6 +19,8 @@
 //! Primitives for Substrate Proof-of-Scan (PoScan) consensus.
 
 #![cfg_attr(not(feature = "std"), no_std)]
+// #![no_std]
+
 
 use sp_std::vec::Vec;
 use sp_runtime::ConsensusEngineId;

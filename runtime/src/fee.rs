@@ -35,7 +35,7 @@ impl WeightToFeePolynomial for WeightToFee {
 		smallvec![WeightToFeeCoefficient {
 			degree: 1,
 			negative: false,
-			coeff_frac: Perbill::from_rational_approximation(p, q), // TODO: from_rational(p % q, q),
+			coeff_frac: Perbill::from_rational(p % q, q),
 			coeff_integer: p / q,
 		}]
 	}

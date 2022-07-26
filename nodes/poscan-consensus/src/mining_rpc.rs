@@ -1,6 +1,9 @@
 use std::sync::Arc;
-use jsonrpc_derive::rpc;
-use jsonrpc_core::{Error as RpcError, ErrorCode, Result};
+use jsonrpsee::{
+	core::{Error as JsonRpseeError, RpcResult},
+	proc_macros::rpc,
+	types::error::{CallError, ErrorCode, ErrorObject},
+};
 use sp_runtime::{generic::BlockId, traits::Block as BlockT};
 use sp_api::ProvideRuntimeApi;
 use sp_runtime::generic::DigestItem;
@@ -20,13 +23,13 @@ const RES_OK: u64 = 0;
 const RES_QUEUE_FULL: u64 = 1;
 const RES_OBJ_MAX_LEN: u64 = 2;
 
-#[rpc]
-pub trait PoscanMiningRpc<BlockHash> {
-	#[rpc(name = "poscan_pushMiningObject")]
-	fn push(&self, obj_id: u64, obj: String) -> Result<u64>;
+#[rpc(client, server)]
+pub trait PoscanMiningRpcApi<BlockHash> {
+	#[method(name = "poscan_pushMiningObject")]
+	fn push(&self, obj_id: u64, obj: String) -> RpcResult<u64>;
 
-	#[rpc(name = "poscan_getMiningObject")]
-	fn get_obj(&self, at: BlockHash) -> Result<String>;
+	#[method(name = "poscan_getMiningObject")]
+	fn get_obj(&self, at: BlockHash) -> RpcResult<String>;
 }
 
 /// A struct that implements the `SillyRpc`
@@ -45,14 +48,14 @@ impl<C, Block> MiningRpc<C, Block> {
 	}
 }
 
-impl<C, Block> PoscanMiningRpc<<Block as BlockT>::Hash> for MiningRpc<C, Block>
+impl<C, Block> PoscanMiningRpcApiServer<<Block as BlockT>::Hash> for MiningRpc<C, Block>
 	where
 		Block: BlockT,
 		C: Send + Sync + 'static,
 		C: ProvideRuntimeApi<Block>,
 		C: ProvideRuntimeApi<Block> + Send + Sync + HeaderBackend<Block>,
 {
-	fn push(&self, _obj_id: u64, obj: String) -> Result<u64> {
+	fn push(&self, _obj_id: u64, obj: String) -> RpcResult<u64> {
 		let mut lock = DEQUE.lock();
 		if lock.len() >= MAX_QUEUE_LEN {
 			return Ok(RES_QUEUE_FULL);
@@ -65,31 +68,35 @@ impl<C, Block> PoscanMiningRpc<<Block as BlockT>::Hash> for MiningRpc<C, Block>
 		Ok(RES_OK)
 	}
 
-	fn get_obj(&self, at: <Block as BlockT>::Hash) -> Result<String> {
+	fn get_obj(&self, at: <Block as BlockT>::Hash) -> RpcResult<String> {
 		let block_id = BlockId::Hash(at.into());
 		let h = self.client.header(block_id)
-			.map_err(|_e| RpcError {
-				code: ErrorCode::ServerError(1),
-				message: "Unknown header".to_string(), data: None,
-			})?;
+			.map_err(|_e|
+		        JsonRpseeError::Call(CallError::Custom(ErrorObject::owned(
+					ErrorCode::InvalidParams.code(),
+					format!("Unknown header: {}", at.to_string()),
+					None::<()>,
+				)))
+			)?;
 
 		let h = match h {
 			Some(h) => h,
-			None => return Err(RpcError {
-				code: ErrorCode::ServerError(2),
-				message: "Empty header".to_string(),
-				data: None,
-			}),
+			None => return
+				Err(JsonRpseeError::Call(CallError::Custom(ErrorObject::owned(
+					ErrorCode::ServerError(1).code(),
+					format!("Empty header"),
+					None::<()>,
+				)))),
 		};
 
 		let di = match h.digest().logs.last() {
 			Some(di) => di,
-			None => { return Err(jsonrpc_core::Error {
-					code: ErrorCode::ServerError(3),
-					message: "Empty header".to_string(),
-					data: None,
-				})
-			},
+			None => return
+				Err(JsonRpseeError::Call(CallError::Custom(ErrorObject::owned(
+					ErrorCode::ServerError(2).code(),
+					format!("Empty digest log"),
+					None::<()>,
+				)))),
 		};
 
 		if let DigestItem::Other(obj) = di {
@@ -98,18 +105,20 @@ impl<C, Block> PoscanMiningRpc<<Block as BlockT>::Hash> for MiningRpc<C, Block>
 				obj = decompress_obj(&obj[4..]);
 			}
 			let s = String::from_utf8(obj)
-				.map_err(|_e| RpcError {
-					code: ErrorCode::ServerError(3),
-					message: "Can't convert object to utf8".to_string(), data: None,
-				})?;
+				.map_err(|_e|
+					 JsonRpseeError::Call(CallError::Custom(ErrorObject::owned(
+						 ErrorCode::ServerError(3).code(),
+						 format!("Can't convert object to utf8"),
+						 None::<()>,
+				))))?;
 			Ok(s)
 		}
 		else {
-			Err(RpcError {
-				code: ErrorCode::ServerError(4),
-				message: "Invalid digest type".to_string(),
-				data: None,
-			})
+			Err(JsonRpseeError::Call(CallError::Custom(ErrorObject::owned(
+				ErrorCode::ServerError(4).code(),
+				format!("Invalid digest type"),
+				None::<()>,
+			))))
 		}
 	}
 }

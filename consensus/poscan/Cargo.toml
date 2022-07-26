@@ -15,19 +15,20 @@ targets = ["x86_64-unknown-linux-gnu"]
 [dependencies]
 codec = { package = "parity-scale-codec", version = "3.1", default-features = false, features = ["derive"] }
 scale-info = { version = "2.0", default-features = false, features = ["derive"] }
-sc-client-api = { git = "https://github.com/3Dpass/substrate.git", tag = "monthly-2022-05" }
-sc-consensus = { git = "https://github.com/3Dpass/substrate.git", tag = "monthly-2022-05" }
-sp-core = { git = "https://github.com/3Dpass/substrate.git", tag = "monthly-2022-05" }
-sp-blockchain = { git = "https://github.com/3Dpass/substrate.git", tag = "monthly-2022-05" }
-sp-runtime = { git = "https://github.com/3Dpass/substrate.git", tag = "monthly-2022-05" }
-sp-api = { git = "https://github.com/3Dpass/substrate.git", tag = "monthly-2022-05" }
-sp-block-builder = { git = "https://github.com/3Dpass/substrate.git", tag = "monthly-2022-05" }
-sp-inherents = { git = "https://github.com/3Dpass/substrate.git", tag = "monthly-2022-05" }
+sc-client-api = { default-features = false, git = "https://github.com/paritytech/substrate"}
+sc-consensus = { default-features = false, git = "https://github.com/paritytech/substrate"}
+sp-core = { default-features = false, git = "https://github.com/paritytech/substrate"}
+sp-blockchain = { default-features = false, git = "https://github.com/paritytech/substrate"}
+sp-runtime = { default-features = false, git = "https://github.com/paritytech/substrate"}
+sp-api = { default-features = false, git = "https://github.com/paritytech/substrate"}
+sp-block-builder = { default-features = false, git = "https://github.com/paritytech/substrate"}
+sp-inherents = { default-features = false, git = "https://github.com/paritytech/substrate"}
 sp-consensus-poscan = { package = "sp-consensus-poscan", path = "../../primitives/consensus/poscan" }
-poscan-runtime = { path = "../../runtimes/poscan-runtime" }
-sp-consensus = { git = "https://github.com/3Dpass/substrate.git", tag = "monthly-2022-05" }
-sp-application-crypto = { git = "https://github.com/3Dpass/substrate.git", tag = "monthly-2022-05" }
-sp-timestamp = { git = "https://github.com/3Dpass/substrate.git", tag = "monthly-2022-05" }
+# poscan-runtime = { path = "../../runtime/poscan-runtime" }
+sp-consensus = { default-features = false, git = "https://github.com/paritytech/substrate"}
+sp-application-crypto = { default-features = false, git = "https://github.com/paritytech/substrate"}
+sp-timestamp = { default-features = false, git = "https://github.com/paritytech/substrate"}
+sp-std = { default-features = false, git = "https://github.com/paritytech/substrate"}
 # frame-support = { version = "3.0" }
 # frame-system = { version = "3.0" }
 async-trait = "0.1.50"
@@ -36,4 +37,32 @@ futures = { version = "0.3", features = ["compat"] }
 futures-timer = "3.0"
 parking_lot = "0.12"
 derive_more = "0.99"
-prometheus-endpoint = { package = "substrate-prometheus-endpoint", git = "https://github.com/3Dpass/substrate.git", tag = "monthly-2022-05" }
+prometheus-endpoint = { package = "substrate-prometheus-endpoint", default-features = false, git = "https://github.com/paritytech/substrate"}
+
+[features]
+default = ["std"]
+std = [
+#    "codec/std",
+#    "scale-info/std",
+#    "sp-core/std",
+#    "sp-runtime/std",
+#    "sp-api/std",
+#    "sp-block-builder/std",
+#    "sp-inherents/std",
+#    "sp-consensus-poscan/std",
+#    "poscan-runtime/std",
+#    "sp-application-crypto/std",
+#    "sp-timestamp/std",
+    "codec/std",
+    "scale-info/std",
+    "sp-core/std",
+    "sp-runtime/std",
+    "sp-api/std",
+    "sp-block-builder/std",
+    "sp-inherents/std",
+    "sp-consensus-poscan/std",
+    #"poscan-runtime/std",
+    "sp-application-crypto/std",
+    "sp-timestamp/std",
+    "sp-std/std",
+]

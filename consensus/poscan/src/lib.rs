@@ -28,6 +28,7 @@
 //! The auxiliary storage for PoScan engine not only stores the total difficulty,
 //! but also 3D models (in .obj format) of the objects to recognize.
 
+//#![no_std]
 #![cfg_attr(not(feature = "std"), no_std)]
 
 mod worker;
