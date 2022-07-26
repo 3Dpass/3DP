@@ -12,7 +12,12 @@ pub mod genesis;
 mod fee;
 mod weights;
 
-use frame_support::{traits::OnRuntimeUpgrade, weights::DispatchClass};
+use frame_support::{
+	traits::{
+		InitializeMembers, ChangeMembers, OnRuntimeUpgrade,
+	},
+	weights::DispatchClass,
+};
 use frame_system::limits::{BlockLength, BlockWeights};
 use frame_system::EnsureRoot;
 use pallet_contracts::{migration, DefaultContractAccessWeight};
@@ -28,7 +33,7 @@ use sp_runtime::{
 	create_runtime_str, generic, impl_opaque_keys,
 	traits::{
 		AccountIdLookup, BlakeTwo256, Block as BlockT, IdentifyAccount, Verify,
-		NumberFor, ConvertInto, OpaqueKeys
+		NumberFor, ConvertInto, OpaqueKeys,
 	},
 	transaction_validity::{TransactionSource, TransactionValidity},
 	ApplyExtrinsicResult, MultiSignature,
@@ -51,7 +56,7 @@ use sp_version::RuntimeVersion;
 pub use frame_support::{
 	construct_runtime, parameter_types,
 	traits::{
-		ConstU128, ConstU32, ConstU16, ConstU8, KeyOwnerProofSystem, Randomness,
+		ConstU128, ConstU64, ConstU32, ConstU16, ConstU8, KeyOwnerProofSystem, Randomness,
 		StorageInfo, EitherOfDiverse, Currency, OnUnbalanced,
 		EqualPrivilegeOnly, AsEnsureOriginWithArg
 	},
@@ -62,7 +67,7 @@ pub use frame_support::{
 	StorageValue, PalletId,
 };
 pub use frame_system::Call as SystemCall;
-pub use frame_system::EnsureSigned;
+pub use frame_system::{EnsureSigned, EnsureSignedBy};
 pub use pallet_balances::Call as BalancesCall;
 pub use pallet_timestamp::Call as TimestampCall;
 use pallet_transaction_payment::CurrencyAdapter;
@@ -730,6 +735,50 @@ impl pallet_transaction_storage::Config for Runtime {
 	ConstU32<{ pallet_transaction_storage::DEFAULT_MAX_TRANSACTION_SIZE }>;
 }
 
+// thread_local! {
+// 	pub static MEMBERS: RefCell<Vec<u64>> = RefCell::new(vec![]);
+// }
+
+pub struct TestChangeMembers;
+impl ChangeMembers<AccountId> for TestChangeMembers {
+	fn change_members_sorted(incoming: &[AccountId], outgoing: &[AccountId], new: &[AccountId]) {
+		// let mut old_plus_incoming = MEMBERS.with(|m| m.borrow().to_vec());
+		// old_plus_incoming.extend_from_slice(incoming);
+		// old_plus_incoming.sort();
+		//
+		// let mut new_plus_outgoing = new.to_vec();
+		// new_plus_outgoing.extend_from_slice(outgoing);
+		// new_plus_outgoing.sort();
+		//
+		// assert_eq!(old_plus_incoming, new_plus_outgoing);
+		//
+		// MEMBERS.with(|m| *m.borrow_mut() = new.to_vec());
+	}
+}
+
+impl InitializeMembers<AccountId> for TestChangeMembers {
+	fn initialize_members(new_members: &[AccountId]) {
+		// MEMBERS.with(|m| *m.borrow_mut() = new_members.to_vec());
+	}
+}
+
+parameter_types! {
+	pub const CandidateDeposit: u64 = 25;
+	// pub BlockWeights: frame_system::limits::BlockWeights =
+	// 	frame_system::limits::BlockWeights::simple_max(1024);
+}
+
+impl pallet_scored_pool::Config for Runtime {
+	type Event = Event;
+	type KickOrigin = EnsureSigned<AccountId>;
+	type MembershipInitialized = TestChangeMembers;
+	type MembershipChanged = TestChangeMembers;
+	type Currency = Balances;
+	type CandidateDeposit = CandidateDeposit;
+	type Period = ConstU32<4>;
+	type Score = u64;
+	type ScoreOrigin = EnsureSigned<AccountId>;
+}
 // type EnsureRootOrHalfCouncil = EitherOfDiverse<
 // 	EnsureRoot<AccountId>,
 // 	pallet_collective::EnsureProportionAtLeast<AccountId, CouncilCollective, 1, 2>
@@ -973,7 +1022,7 @@ construct_runtime!(
 		Treasury: pallet_treasury,
 		Multisig: pallet_multisig,
 		TransactionStorage: pallet_transaction_storage,
-		// ScoredPool: pallet_scored_pool,
+		ScoredPool: pallet_scored_pool,
 		Uniques: pallet_uniques,
 		Assets: pallet_assets,
 		// ValidatorSet: pallet_validator_set,

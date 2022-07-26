@@ -99,6 +99,7 @@ pub fn testnet_genesis(
 		transaction_payment: Default::default(),
 		transaction_storage: Default::default(),
 		assets: Default::default(),
+		scored_pool: Default::default(),
 		// TODO: for validator-set
 		// session: Default::default(),
 		// validator_set: ValidatorSetConfig {
