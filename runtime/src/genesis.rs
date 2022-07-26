@@ -5,6 +5,7 @@ use super::{
 	BalancesConfig, GrandpaConfig, SudoConfig, SystemConfig, IndicesConfig,
 	DifficultyConfig,
 	RewardsConfig, // WASM_BINARY,
+	CouncilConfig,
 };
 use sp_core::{sr25519, Pair, Public, U256};
 use sp_finality_grandpa::AuthorityId as GrandpaId;
@@ -85,11 +86,29 @@ pub fn testnet_genesis(
 			reward: 500 * DOLLARS,
 			mints: Default::default(),
 		},
+		democracy: Default::default(),
+		// TODO: for validator-set
+		// council: CouncilConfig {
+		// 	members: initial_authorities.iter().map(|x| x.0.clone()).collect::<Vec<_>>(),
+		// 	phantom: Default::default(),
+		// },
 		council: Default::default(),
 		technical_committee: Default::default(),
 		treasury: Default::default(),
 		vesting: Default::default(),
 		transaction_payment: Default::default(),
+		transaction_storage: Default::default(),
+		assets: Default::default(),
+		// TODO: for validator-set
+		// session: Default::default(),
+		// validator_set: ValidatorSetConfig {
+		// 	initial_validators: initial_authorities.iter().map(|x| x.0.clone()).collect::<Vec<_>>(),
+		// },
+		// session: SessionConfig {
+		// 	keys: initial_authorities.iter().map(|x| {
+		// 		(x.0.clone(), x.0.clone(), session_keys(x.1.clone(), x.2.clone()))
+		// 	}).collect::<Vec<_>>(),
+		// },
 
 		/*
 			GenesisConfig {

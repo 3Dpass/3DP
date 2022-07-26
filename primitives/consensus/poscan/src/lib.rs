@@ -77,6 +77,8 @@ pub const fn deposit(items: u32, bytes: u32) -> u128 {
 	items as u128 * 2 * DOLLARS + (bytes as u128) * 10 * MILLICENTS
 }
 
+/// Block number of one minute.
+pub const MINUTES: u32 = 1;
 /// Block number of one hour.
 pub const HOURS: u32 = 60;
 /// Block number of one day.

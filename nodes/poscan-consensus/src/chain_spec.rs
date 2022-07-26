@@ -1,6 +1,12 @@
 use runtime::{
 	genesis::{account_id_from_seed, authority_keys_from_seed, dev_genesis, testnet_genesis},
 	GenesisConfig, WASM_BINARY,
+
+	// TODO :for validator-set
+	// AccountId, AuraConfig, BalancesConfig, GenesisConfig, GrandpaConfig,
+	// SudoConfig, SystemConfig, WASM_BINARY, Signature,
+	// opaque::SessionKeys, ValidatorSetConfig, SessionConfig
+
 };
 use sp_core::{sr25519, U256};
 
@@ -69,3 +75,16 @@ pub fn local_testnet_config() -> Result<ChainSpec, String> {
 		Default::default(),
 	))
 }
+
+// TODO: for validator-set
+//
+// fn session_keys(aura: AuraId, grandpa: GrandpaId) -> SessionKeys {
+// 	SessionKeys { aura, grandpa }
+// }
+//
+// pub fn authority_keys_from_seed(s: &str) -> (AccountId, GrandpaId) {
+// 	(
+// 		get_account_id_from_seed::<sr25519::Public>(s),
+// 		get_from_seed::<GrandpaId>(s)
+// 	)
+// }
