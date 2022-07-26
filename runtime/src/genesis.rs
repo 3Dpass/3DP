@@ -6,6 +6,9 @@ use super::{
 	DifficultyConfig,
 	RewardsConfig, // WASM_BINARY,
 	CouncilConfig,
+	SessionConfig,
+	ValidatorSetConfig,
+	opaque::SessionKeys,
 };
 use sp_core::{sr25519, Pair, Public, U256};
 use sp_finality_grandpa::AuthorityId as GrandpaId;
@@ -30,9 +33,19 @@ where
 }
 
 /// Helper function to generate session key from seed
-pub fn authority_keys_from_seed(seed: &str) -> GrandpaId {
-	get_from_seed::<GrandpaId>(seed)
+pub fn authority_keys_from_seed(seed: &str) -> (AccountId, GrandpaId) {
+	(
+		account_id_from_seed::<sr25519::Public>(seed),
+		get_from_seed::<GrandpaId>(seed),
+	)
 }
+
+// TODO: for validator-set
+
+fn session_keys(grandpa: GrandpaId) -> SessionKeys {
+	SessionKeys { grandpa }
+}
+
 
 pub fn dev_genesis(wasm_binary: &[u8]) -> GenesisConfig {
 	testnet_genesis(
@@ -55,7 +68,7 @@ pub fn dev_genesis(wasm_binary: &[u8]) -> GenesisConfig {
 /// Helper function to build a genesis configuration
 pub fn testnet_genesis(
 	wasm_binary: &[u8],
-	initial_authorities: Vec<GrandpaId>,
+	initial_authorities: Vec<(AccountId, GrandpaId)>,
 	root_key: AccountId,
 	endowed_accounts: Vec<AccountId>,
 	initial_difficulty: U256,
@@ -77,7 +90,7 @@ pub fn testnet_genesis(
 		},
 		sudo: SudoConfig { key: Some(root_key) },
 		grandpa: GrandpaConfig {
-			authorities: initial_authorities.iter().map(|x| (x.clone(), 1)).collect(),
+			authorities: initial_authorities.iter().map(|x| (x.1.clone(), 1)).collect(),
 		},
 		difficulty: DifficultyConfig {
 			initial_difficulty,
@@ -88,11 +101,11 @@ pub fn testnet_genesis(
 		},
 		democracy: Default::default(),
 		// TODO: for validator-set
-		// council: CouncilConfig {
-		// 	members: initial_authorities.iter().map(|x| x.0.clone()).collect::<Vec<_>>(),
-		// 	phantom: Default::default(),
-		// },
-		council: Default::default(),
+		council: CouncilConfig {
+			members: initial_authorities.iter().map(|x| x.0.clone()).collect::<Vec<_>>(),
+			phantom: Default::default(),
+		},
+		// council: Default::default(),
 		technical_committee: Default::default(),
 		treasury: Default::default(),
 		vesting: Default::default(),
@@ -102,14 +115,15 @@ pub fn testnet_genesis(
 		scored_pool: Default::default(),
 		// TODO: for validator-set
 		// session: Default::default(),
-		// validator_set: ValidatorSetConfig {
-		// 	initial_validators: initial_authorities.iter().map(|x| x.0.clone()).collect::<Vec<_>>(),
-		// },
-		// session: SessionConfig {
-		// 	keys: initial_authorities.iter().map(|x| {
-		// 		(x.0.clone(), x.0.clone(), session_keys(x.1.clone(), x.2.clone()))
-		// 	}).collect::<Vec<_>>(),
-		// },
+		validator_set: ValidatorSetConfig {
+			initial_validators: initial_authorities.iter().map(|x| x.0.clone()).collect::<Vec<_>>(),
+		},
+		session: SessionConfig {
+			keys: initial_authorities.iter().map(|x| {
+				// (x.0.clone(), x.0.clone(), session_keys(x.1.clone(), x.2.clone()))
+				(x.0.clone(), x.0.clone(), session_keys(x.1.clone()))
+			}).collect::<Vec<_>>(),
+		},
 
 		/*
 			GenesisConfig {

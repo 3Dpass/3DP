@@ -2,9 +2,9 @@ use runtime::{
 	genesis::{account_id_from_seed, authority_keys_from_seed, dev_genesis, testnet_genesis},
 	GenesisConfig, WASM_BINARY,
 
-	// TODO :for validator-set
-	// AccountId, AuraConfig, BalancesConfig, GenesisConfig, GrandpaConfig,
-	// SudoConfig, SystemConfig, WASM_BINARY, Signature,
+	// TODO: for validator-set
+	// AccountId, BalancesConfig, GrandpaConfig,
+	// SudoConfig, SystemConfig, Signature,
 	// opaque::SessionKeys, ValidatorSetConfig, SessionConfig
 
 };
@@ -76,15 +76,3 @@ pub fn local_testnet_config() -> Result<ChainSpec, String> {
 	))
 }
 
-// TODO: for validator-set
-//
-// fn session_keys(aura: AuraId, grandpa: GrandpaId) -> SessionKeys {
-// 	SessionKeys { aura, grandpa }
-// }
-//
-// pub fn authority_keys_from_seed(s: &str) -> (AccountId, GrandpaId) {
-// 	(
-// 		get_account_id_from_seed::<sr25519::Public>(s),
-// 		get_from_seed::<GrandpaId>(s)
-// 	)
-// }

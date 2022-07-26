@@ -779,37 +779,37 @@ impl pallet_scored_pool::Config for Runtime {
 	type Score = u64;
 	type ScoreOrigin = EnsureSigned<AccountId>;
 }
-// type EnsureRootOrHalfCouncil = EitherOfDiverse<
-// 	EnsureRoot<AccountId>,
-// 	pallet_collective::EnsureProportionAtLeast<AccountId, CouncilCollective, 1, 2>
-// >;
+type EnsureRootOrHalfCouncil = EitherOfDiverse<
+	EnsureRoot<AccountId>,
+	pallet_collective::EnsureProportionAtLeast<AccountId, CouncilCollective, 1, 2>
+>;
 
-// parameter_types! {
-// 	pub const MinAuthorities: u32 = 2;
-// }
-//
-// impl pallet_validator_set::Config for Runtime {
-// 	type Event = Event;
-// 	type AddRemoveOrigin = EnsureRoot<AccountId>;
-// 	type MinAuthorities = MinAuthorities;
-// }
+parameter_types! {
+	pub const MinAuthorities: u32 = 2;
+}
 
-// parameter_types! {
-// 	pub const Period: u32 = 2 * MINUTES;
-// 	pub const Offset: u32 = 0;
-// }
-//
-// impl pallet_session::Config for Runtime {
-// 	type ValidatorId = <Self as frame_system::Config>::AccountId;
-// 	type ValidatorIdOf = pallet_validator_set::ValidatorOf<Self>;
-// 	type ShouldEndSession = pallet_session::PeriodicSessions<Period, Offset>;
-// 	type NextSessionRotation = pallet_session::PeriodicSessions<Period, Offset>;
-// 	type SessionManager = ValidatorSet;
-// 	type SessionHandler = <opaque::SessionKeys as OpaqueKeys>::KeyTypeIdProviders;
-// 	type Keys = opaque::SessionKeys;
-// 	type WeightInfo = ();
-// 	type Event = Event;
-// }
+impl pallet_validator_set::Config for Runtime {
+	type Event = Event;
+	type AddRemoveOrigin = EnsureRoot<AccountId>;
+	type MinAuthorities = MinAuthorities;
+}
+
+parameter_types! {
+	pub const Period: u32 = 2 * MINUTES;
+	pub const Offset: u32 = 0;
+}
+
+impl pallet_session::Config for Runtime {
+	type ValidatorId = <Self as frame_system::Config>::AccountId;
+	type ValidatorIdOf = pallet_validator_set::ValidatorOf<Self>;
+	type ShouldEndSession = pallet_session::PeriodicSessions<Period, Offset>;
+	type NextSessionRotation = pallet_session::PeriodicSessions<Period, Offset>;
+	type SessionManager = ValidatorSet;
+	type SessionHandler = <opaque::SessionKeys as OpaqueKeys>::KeyTypeIdProviders;
+	type Keys = opaque::SessionKeys;
+	type WeightInfo = ();
+	type Event = Event;
+}
 
 parameter_types! {
 	pub const BountyDepositBase: Balance = 100 * CENTS;
@@ -1025,8 +1025,8 @@ construct_runtime!(
 		ScoredPool: pallet_scored_pool,
 		Uniques: pallet_uniques,
 		Assets: pallet_assets,
-		// ValidatorSet: pallet_validator_set,
-		// Session: pallet_session,
+		ValidatorSet: pallet_validator_set,
+		Session: pallet_session,
 		Bounties: pallet_bounties,
 		ChildBounties: pallet_child_bounties,
 		Grandpa: pallet_grandpa,
