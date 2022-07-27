@@ -790,7 +790,8 @@ parameter_types! {
 
 impl pallet_validator_set::Config for Runtime {
 	type Event = Event;
-	type AddRemoveOrigin = EnsureRoot<AccountId>;
+	type AddRemoveOrigin = EnsureRootOrHalfCouncil;
+	// type AddRemoveOrigin = EnsureRoot<AccountId>;
 	type MinAuthorities = MinAuthorities;
 }
 
