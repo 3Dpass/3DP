@@ -89,9 +89,7 @@ pub fn testnet_genesis(
 			indices: vec![],
 		},
 		sudo: SudoConfig { key: Some(root_key) },
-		grandpa: GrandpaConfig {
-			authorities: initial_authorities.iter().map(|x| (x.1.clone(), 1)).collect(),
-		},
+		grandpa: Default::default(),
 		difficulty: DifficultyConfig {
 			initial_difficulty,
 		},
