@@ -53,6 +53,7 @@ use sp_runtime::RuntimeString;
 use sp_runtime::generic::{BlockId, Digest, DigestItem};
 use sp_runtime::traits::{Block as BlockT, Header as HeaderT};
 use sp_api::ProvideRuntimeApi;
+use sp_finality_grandpa::GRANDPA_ENGINE_ID;
 use sp_consensus_poscan::{Seal, TotalDifficulty, POSCAN_ENGINE_ID};
 use sp_inherents::{CreateInherentDataProviders, InherentDataProvider}; //, InherentData};
 use sp_consensus::{
@@ -405,25 +406,13 @@ impl<B, I, C, S, Algorithm, CAW, CIDP> BlockImport<B> for PowBlockImport<B, I, C
 			block.body = Some(check_block.deconstruct().1);
 		}
 
-		let ll = block.post_digests.len();
+		let digest_size = block.post_digests.len();
 
-		let mut dpos: usize = 0;
-		let pre_digest;
-		if ll == 4 {
-			pre_digest = fetch_seal::<B>(block.post_digests.get(dpos), block.header.hash())?;
-			info!(">>> hz len: {}", pre_digest.len());
-			info!(">>> hz: {:x?}", pre_digest);
-			dpos += 1;
-		}
-		else {
-			pre_digest = find_pre_digest::<B>(&block.header)?.unwrap(); // .as_ref().map(|v| &v[..]);
+		let pre_digest: Vec<u8> = find_pre_digest::<B>(&block.header)?.unwrap();
 
-		}
-
-
-		let inner_seal = fetch_seal::<B>(block.post_digests.get(dpos), block.header.hash())?;
-		let pscan_hashes = fetch_seal::<B>(block.post_digests.get(dpos + 1), block.header.hash())?;
-		let pscan_obj = fetch_seal::<B>(block.post_digests.get(dpos + 2), block.header.hash())?;
+		let inner_seal = fetch_seal::<B>(block.post_digests.get(digest_size - 3), block.header.hash())?;
+		let pscan_hashes = fetch_seal::<B>(block.post_digests.get(digest_size - 2), block.header.hash())?;
+		let pscan_obj = fetch_seal::<B>(block.post_digests.get(digest_size - 1), block.header.hash())?;
 
 		if pscan_obj.len() > MAX_MINING_OBJ_LEN {
 			return Err(Error::<B>::Other("Mining object too large".to_string()).into());
@@ -442,10 +431,16 @@ impl<B, I, C, S, Algorithm, CAW, CIDP> BlockImport<B> for PowBlockImport<B, I, C
 			None => self.algorithm.difficulty(parent_hash)?,
 		};
 
-		let pre_hash = block.header.hash();
+		let mut h = block.header.clone();
+		if block.header.digest().logs().len() == 2 {
+			let _ = h.digest_mut().pop();
+		}
+
+		let pre_hash = h.hash();
 
 		// let pre_digest = find_pre_digest::<B>(&block.header)?;
-		if !self.algorithm.verify(
+		if !self.algorithm.verify
+		(
 			&BlockId::hash(parent_hash),
 			&pre_hash,
 			Some(pre_digest.as_slice()),
@@ -466,9 +461,8 @@ impl<B, I, C, S, Algorithm, CAW, CIDP> BlockImport<B> for PowBlockImport<B, I, C
 						Some(signed_block) => {
 							let h = signed_block.block.header();
 							let n = h.digest().logs().len();
-							// info!(">>> parent hash digest len: {}", n);
 							if n >= 3 {
-								let di = h.digest().logs()[2].clone();
+								let di = h.digest().logs()[n - 2].clone();
 								if let DigestItem::Other(v) = di {
 									let hashes: Vec<H256> = v.chunks(32).map(|h| H256::from_slice(h)).collect();
 									for hh in hashes[..1].iter() {
@@ -548,11 +542,20 @@ impl<B: BlockT, Algorithm> PowVerifier<B, Algorithm> {
 		let mut digests: Vec<DigestItem> = Vec::new();
 		let n = header.digest().logs().len();
 		let mut pre_run: Option<DigestItem> = None;
+		let mut cons: Option<DigestItem> = None;
 		for _ in 0..n {
 			match header.digest_mut().pop() {
 				Some(DigestItem::Seal(id, seal)) => {
 					if id == POSCAN_ENGINE_ID {
 						digests.push(DigestItem::Seal(id, seal.clone()))
+					} else {
+						return Err(Error::WrongEngine(id))
+					}
+				},
+				Some(DigestItem::Consensus(id, data)) => {
+					if id == GRANDPA_ENGINE_ID {
+						cons = Some(DigestItem::Consensus(id, data.clone()));
+						digests.push(DigestItem::Consensus(id, data.clone()))
 					} else {
 						return Err(Error::WrongEngine(id))
 					}
@@ -575,11 +578,9 @@ impl<B: BlockT, Algorithm> PowVerifier<B, Algorithm> {
 			header.digest_mut().push(r);
 		}
 
-		// let pre_hash = header.hash();
-		//
-		// if !self.algorithm.preliminary_verify(&pre_hash, &inner_seal)?.unwrap_or(true) {
-		// 	return Err(Error::FailedPreliminaryVerify);
-		// }
+		if let Some(r) = cons {
+			header.digest_mut().push(r);
+		}
 
 		Ok((header, digests))
 	}
@@ -590,22 +591,20 @@ impl<B: BlockT, Algorithm> Verifier<B> for PowVerifier<B, Algorithm> where
 	Algorithm: PowAlgorithm<B> + Send + Sync,
 	Algorithm::Difficulty: 'static + Send,
 {
-
-	// fn verify(
-	// 	&mut self,
-	// 	origin: BlockOrigin,
-	// 	header: B::Header,
-	// 	justification: Option<Justification>,
-	// 	body: Option<Vec<B::Extrinsic>>,
-	// ) -> Result<(BlockImportParams<B, ()>, Option<Vec<(CacheKeyId, Vec<u8>)>>), String> {
-	//
 	async fn verify(
 			&mut self,
 			block: BlockImportParams<B, ()>,
 		) -> Result<(BlockImportParams<B, ()>, Option<Vec<(CacheKeyId, Vec<u8>)>>), String> {
 
 		let (checked_header, items) = self.check_header(block.header)?;
-		let _pre_runtime = items[3].clone();
+
+		let grandpa_cons = if let Some(DigestItem::Consensus(_, _)) = items.get(3) {
+			Some(items[3].clone())
+		}
+		else {
+			None
+		};
+
 		let seal = items[2].clone();
 		let poscan_hashes = items[1].clone();
 		let poscan_obj = items[0].clone();
@@ -721,9 +720,13 @@ fn fetch_seal<B: BlockT>(
 				return Err(Error::<B>::WrongEngine(*id).into())
 			}
 		},
-		Some(DigestItem::Consensus(_id, _v)) => {
-			info!(">>> DigestItem::Consensus");
-			return Err(Error::<B>::HeaderUnsealed(hash).into())
+		Some(DigestItem::Consensus(id, v)) => {
+			if id == &GRANDPA_ENGINE_ID {
+				Ok(v.clone())
+			}
+			else {
+				return Err(Error::<B>::WrongEngine(*id).into())
+			}
 		},
 		_ => {
 			error!(">>> Header unsealed in fetch_seal");
@@ -899,10 +902,16 @@ pub fn start_mining_worker<Block, C, S, Algorithm, E, SO, L, CIDP, CAW>(
 				}
 			};
 
+			let mut h = proposal.block.header().clone();
+			if proposal.block.header().digest().logs().len() == 2 {
+				let _ = h.digest_mut().pop();
+			}
+
+			let pre_hash = h.hash();
 			let build = MiningBuild::<Block, Algorithm, C, _> {
 				metadata: MiningMetadata {
 					best_hash,
-					pre_hash: proposal.block.header().hash(),
+					pre_hash: pre_hash,
 					pre_runtime: pre_runtime.clone(),
 					difficulty,
 				},
@@ -915,14 +924,4 @@ pub fn start_mining_worker<Block, C, S, Algorithm, E, SO, L, CIDP, CAW>(
 
 	(worker_ret, task)
 }
-// fn check_finality<Block, B>(
-// 	blockchain: &B,
-// 	block: NumberFor<Block>,
-// ) -> bool
-// 	where
-// 		Block: BlockT,
-// 		B: BlockchainBackend<Block>,
-// {
-// 	let info = blockchain.info();
-// 	info.finalized_number >= block
-// }
+

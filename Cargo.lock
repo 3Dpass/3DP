@@ -5447,6 +5447,7 @@ dependencies = [
  "sp-consensus",
  "sp-consensus-poscan",
  "sp-core",
+ "sp-finality-grandpa",
  "sp-inherents",
  "sp-runtime",
  "sp-std",

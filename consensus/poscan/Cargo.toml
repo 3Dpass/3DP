@@ -23,6 +23,7 @@ sp-runtime = { default-features = false, git = "https://github.com/paritytech/su
 sp-api = { default-features = false, git = "https://github.com/paritytech/substrate"}
 sp-block-builder = { default-features = false, git = "https://github.com/paritytech/substrate"}
 sp-inherents = { default-features = false, git = "https://github.com/paritytech/substrate"}
+sp-finality-grandpa = { default-features = false, git = "https://github.com/paritytech/substrate"}
 sp-consensus-poscan = { package = "sp-consensus-poscan", path = "../../primitives/consensus/poscan" }
 # poscan-runtime = { path = "../../runtime/poscan-runtime" }
 sp-consensus = { default-features = false, git = "https://github.com/paritytech/substrate"}
@@ -60,6 +61,7 @@ std = [
     "sp-api/std",
     "sp-block-builder/std",
     "sp-inherents/std",
+    "sp-finality-grandpa/std",
     "sp-consensus-poscan/std",
     #"poscan-runtime/std",
     "sp-application-crypto/std",
