@@ -2,7 +2,7 @@
 
 use super::{
 	AccountId, Signature, GenesisConfig,
-	BalancesConfig, GrandpaConfig, SudoConfig, SystemConfig, IndicesConfig,
+	BalancesConfig, SudoConfig, SystemConfig, IndicesConfig,
 	DifficultyConfig,
 	RewardsConfig, // WASM_BINARY,
 	CouncilConfig,
