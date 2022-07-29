@@ -379,7 +379,7 @@ impl<B, I, C, S, Algorithm, CAW, CIDP> BlockImport<B> for PowBlockImport<B, I, C
 		let block_id = BlockId::Hash(info.finalized_hash);
 		let num = self.client.block_number_from_id(&block_id).unwrap().unwrap();
 
-		if num + 4u32.into() < *best_num {
+		if num + 3u32.into() < *best_num {
 			error!(">>> Too far from finalized block");
 			return Err(Error::<B>::CheckFinalized.into())
 		}
