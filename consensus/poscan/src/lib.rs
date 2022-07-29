@@ -47,7 +47,8 @@ use sc_consensus::{
 		BoxBlockImport, BasicQueue, Verifier, BoxJustificationImport,
 	}
 };
-use sp_blockchain::{HeaderBackend, well_known_cache_keys::Id as CacheKeyId};
+use sp_blockchain::{HeaderBackend, HeaderMetadata, well_known_cache_keys::Id as CacheKeyId};
+// use sp_blockchain::{HeaderBackend, HeaderMetadata, ProvideCache, well_known_cache_keys::Id as CacheKeyId};
 use sp_block_builder::BlockBuilder as BlockBuilderApi;
 use sp_runtime::RuntimeString;
 use sp_runtime::generic::{BlockId, Digest, DigestItem};
@@ -378,7 +379,7 @@ impl<B, I, C, S, Algorithm, CAW, CIDP> BlockImport<B> for PowBlockImport<B, I, C
 		let block_id = BlockId::Hash(info.finalized_hash);
 		let num = self.client.block_number_from_id(&block_id).unwrap().unwrap();
 
-		if num + 3u32.into() < *best_num {
+		if num + 4u32.into() < *best_num {
 			error!(">>> Too far from finalized block");
 			return Err(Error::<B>::CheckFinalized.into())
 		}
@@ -765,7 +766,7 @@ pub fn start_mining_worker<Block, C, S, Algorithm, E, SO, L, CIDP, CAW>(
 )
 	where
 		Block: BlockT,
-		C: ProvideRuntimeApi<Block> + BlockchainEvents<Block> + 'static,
+		C: ProvideRuntimeApi<Block> + BlockchainEvents<Block> + 'static + BlockBackend<Block> + HeaderBackend<Block> + HeaderMetadata<Block, Error = sp_blockchain::Error>,
 		S: SelectChain<Block> + 'static,
 		Algorithm: PowAlgorithm<Block> + Clone,
 		Algorithm::Difficulty: Send + 'static,
@@ -806,6 +807,19 @@ pub fn start_mining_worker<Block, C, S, Algorithm, E, SO, L, CIDP, CAW>(
 				}
 			};
 			let best_hash = best_header.hash();
+			let best_num = best_header.number();
+
+			let info = client.info();
+			let block_id = BlockId::Hash(info.finalized_hash);
+			let num = client.block_number_from_id(&block_id).unwrap().unwrap();
+
+			if num + 3u32.into() < *best_num {
+				warn!(
+					target: "pow",
+					"Skipping proposal. Too far from best_block",
+				);
+				continue;
+			}
 
 			if let Err(err) = can_author_with.can_author_with(&BlockId::Hash(best_hash)) {
 				warn!(

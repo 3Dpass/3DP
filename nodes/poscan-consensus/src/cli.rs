@@ -13,6 +13,9 @@ pub struct Cli {
 
 	#[clap(long)]
 	pub author: Option<String>,
+
+	#[clap(long)]
+	pub threads: Option<usize>,
 }
 
 #[derive(Debug, clap::Parser)]
