@@ -220,7 +220,7 @@ pub fn new_partial(
 	let can_author_with = sp_consensus::CanAuthorWithNativeVersion::new(client.executor().clone());
 
 	let pow_block_import = sc_consensus_poscan::PowBlockImport::new(
-		grandpa_block_import,
+		grandpa_block_import.clone(),
 		client.clone(),
 		poscan_grid2d::PoscanAlgorithm::new(client.clone()),
 		0, // check inherents starting at block 0
@@ -231,7 +231,7 @@ pub fn new_partial(
 
 	let import_queue = sc_consensus_poscan::import_queue(
 		Box::new(pow_block_import.clone()),
-		None,
+		Some(Box::new(grandpa_block_import)),
 		poscan_grid2d::PoscanAlgorithm::new(client.clone()),
 		&task_manager.spawn_essential_handle(),
 		config.prometheus_registry(),
