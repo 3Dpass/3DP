@@ -235,6 +235,7 @@ pub fn run() -> sc_cli::Result<()> {
 					_ => service::new_full(
 						config,
 						cli.author.as_ref().map(|s| s.as_str()),
+						cli.threads.unwrap_or(1),
 					),
 				}
 				.map_err(sc_cli::Error::Service)
