@@ -599,13 +599,6 @@ impl<B: BlockT, Algorithm> Verifier<B> for PowVerifier<B, Algorithm> where
 
 		let (checked_header, items) = self.check_header(block.header)?;
 
-		let grandpa_cons = if let Some(DigestItem::Consensus(_, _)) = items.get(3) {
-			Some(items[3].clone())
-		}
-		else {
-			None
-		};
-
 		let seal = items[2].clone();
 		let poscan_hashes = items[1].clone();
 		let poscan_obj = items[0].clone();

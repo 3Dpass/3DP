@@ -2,9 +2,9 @@
 
 use super::{
 	AccountId, Signature, GenesisConfig,
-	BalancesConfig, GrandpaConfig, SudoConfig, SystemConfig, IndicesConfig,
+	BalancesConfig, SudoConfig, SystemConfig, IndicesConfig,
 	DifficultyConfig,
-	RewardsConfig, // WASM_BINARY,
+	RewardsConfig,
 	CouncilConfig,
 	SessionConfig,
 	ValidatorSetConfig,
@@ -40,12 +40,9 @@ pub fn authority_keys_from_seed(seed: &str) -> (AccountId, GrandpaId) {
 	)
 }
 
-// TODO: for validator-set
-
 fn session_keys(grandpa: GrandpaId) -> SessionKeys {
 	SessionKeys { grandpa }
 }
-
 
 pub fn dev_genesis(wasm_binary: &[u8]) -> GenesisConfig {
 	testnet_genesis(
@@ -98,12 +95,10 @@ pub fn testnet_genesis(
 			mints: Default::default(),
 		},
 		democracy: Default::default(),
-		// TODO: for validator-set
 		council: CouncilConfig {
 			members: initial_authorities.iter().map(|x| x.0.clone()).collect::<Vec<_>>(),
 			phantom: Default::default(),
 		},
-		// council: Default::default(),
 		technical_committee: Default::default(),
 		treasury: Default::default(),
 		vesting: Default::default(),
@@ -111,8 +106,6 @@ pub fn testnet_genesis(
 		transaction_storage: Default::default(),
 		assets: Default::default(),
 		scored_pool: Default::default(),
-		// TODO: for validator-set
-		// session: Default::default(),
 		validator_set: ValidatorSetConfig {
 			initial_validators: initial_authorities.iter().map(|x| x.0.clone()).collect::<Vec<_>>(),
 		},
@@ -122,47 +115,5 @@ pub fn testnet_genesis(
 				(x.0.clone(), x.0.clone(), session_keys(x.1.clone()))
 			}).collect::<Vec<_>>(),
 		},
-
-		/*
-			GenesisConfig {
-		system: SystemConfig {
-			code: wasm_binary.to_vec(),
-			changes_trie_config: Default::default(),
-		},
-		balances: BalancesConfig {
-			balances: vec![
-				(
-					get_account_id_from_seed::<sr25519::Public>("Alice"),
-					10_000_000 * DOLLARS
-				),
-				(
-					get_account_id_from_seed::<sr25519::Public>("Bob"),
-					10_000_000 * DOLLARS
-				),
-			],
-		},
-		indices: IndicesConfig {
-			indices: vec![],
-		},
-		difficulty: DifficultyConfig {
-			initial_difficulty,
-		},
-		collective_Instance1: Default::default(),
-		collective_Instance2: Default::default(),
-		democracy: Default::default(),
-		treasury: Default::default(),
-		elections_phragmen: Default::default(),
-		eras: Default::default(),
-		membership_Instance1: Default::default(),
-		vesting: Default::default(),
-		rewards: RewardsConfig {
-			reward: 60 * DOLLARS,
-			mints: Default::default(),
-		},
-		contracts: Default::default(),
-	}
-		*/
-
-
 	}
 }

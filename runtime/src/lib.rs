@@ -735,13 +735,10 @@ impl pallet_transaction_storage::Config for Runtime {
 	ConstU32<{ pallet_transaction_storage::DEFAULT_MAX_TRANSACTION_SIZE }>;
 }
 
-// thread_local! {
-// 	pub static MEMBERS: RefCell<Vec<u64>> = RefCell::new(vec![]);
-// }
-
+// TODO: setup pallet_scored_pool
 pub struct TestChangeMembers;
 impl ChangeMembers<AccountId> for TestChangeMembers {
-	fn change_members_sorted(incoming: &[AccountId], outgoing: &[AccountId], new: &[AccountId]) {
+	fn change_members_sorted(_incoming: &[AccountId], _outgoing: &[AccountId], _new: &[AccountId]) {
 		// let mut old_plus_incoming = MEMBERS.with(|m| m.borrow().to_vec());
 		// old_plus_incoming.extend_from_slice(incoming);
 		// old_plus_incoming.sort();
@@ -757,7 +754,7 @@ impl ChangeMembers<AccountId> for TestChangeMembers {
 }
 
 impl InitializeMembers<AccountId> for TestChangeMembers {
-	fn initialize_members(new_members: &[AccountId]) {
+	fn initialize_members(_new_members: &[AccountId]) {
 		// MEMBERS.with(|m| *m.borrow_mut() = new_members.to_vec());
 	}
 }

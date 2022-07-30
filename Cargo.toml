@@ -2,8 +2,6 @@
 members = [
     'runtime',
     'nodes/poscan-consensus',
-#    'consensus/poscan',
-#    'consensus/poscan_grid2d',
 ]
 [profile.release]
 panic = 'unwind'
