@@ -50,6 +50,7 @@ pallet-identity = { default-features = false, git = "https://github.com/parityte
 pallet-indices = { default-features = false, git = "https://github.com/paritytech/substrate"}
 pallet-multisig = { default-features = false, git = "https://github.com/paritytech/substrate"}
 pallet-preimage = { default-features = false, git = "https://github.com/paritytech/substrate"}
+pallet-whitelist = { default-features = false, git = "https://github.com/paritytech/substrate"}
 pallet-scheduler = { default-features = false, git = "https://github.com/paritytech/substrate"}
 pallet-tips = { default-features = false, git = "https://github.com/paritytech/substrate"}
 pallet-vesting = { default-features = false, git = "https://github.com/paritytech/substrate"}
@@ -137,6 +138,7 @@ std = [
 	"pallet-scheduler/std",
 	"pallet-tips/std",
 	"pallet-vesting/std",
+	"pallet-whitelist/std",
 	"pallet-recovery/std",
 	"pallet-transaction-storage/std",
 	"pallet-scored-pool/std",

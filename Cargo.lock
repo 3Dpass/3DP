@@ -4214,6 +4214,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "pallet-whitelist"
+version = "4.0.0-dev"
+source = "git+https://github.com/paritytech/substrate#b0777b4c7f7d8d3c635319d0153953d0a22aa58e"
+dependencies = [
+ "frame-support",
+ "frame-system",
+ "parity-scale-codec",
+ "scale-info",
+ "sp-api",
+ "sp-runtime",
+ "sp-std",
+]
+
+[[package]]
 name = "parity-db"
 version = "0.3.14"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4638,6 +4652,7 @@ dependencies = [
  "pallet-uniques",
  "pallet-validator-set",
  "pallet-vesting",
+ "pallet-whitelist",
  "parity-scale-codec",
  "scale-info",
  "smallvec",

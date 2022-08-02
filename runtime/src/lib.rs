@@ -929,6 +929,15 @@ impl pallet_vesting::Config for Runtime {
 	const MAX_VESTING_SCHEDULES: u32 = 28;
 }
 
+impl pallet_whitelist::Config for Runtime {
+	type Event = Event;
+	type Call = Call;
+	type WhitelistOrigin = EnsureRoot<AccountId>;
+	type DispatchWhitelistedOrigin = EnsureRoot<AccountId>;
+	type PreimageProvider = Preimage;
+	type WeightInfo = pallet_whitelist::weights::SubstrateWeight<Runtime>;
+}
+
 parameter_types! {
 	pub const DepositPerItem: Balance = deposit(1, 0);
 	pub const DepositPerByte: Balance = deposit(0, 1);
@@ -1031,6 +1040,7 @@ construct_runtime!(
 		Grandpa: pallet_grandpa,
 		Identity: pallet_identity, // ::{Pallet, Call, Storage, Event<T>},
 		Vesting: pallet_vesting,
+		Whitelist: pallet_whitelist,
 		Contracts: pallet_contracts,
 		PoScan: pallet_poscan::{Pallet, Call, Storage, Event<T>},
 		Sudo: pallet_sudo,
