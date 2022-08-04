@@ -70,7 +70,7 @@ use sp_core::{H256, U256};
 use sp_core::ExecutionContext;
 
 use crate::worker::UntilImportedOrTimeout;
-use sp_consensus_poscan::{Difficulty, DifficultyApi, MAX_MINING_OBJ_LEN};
+use sp_consensus_poscan::{Difficulty, DifficultyApi, MAX_MINING_OBJ_LEN, POSCAN_ALGO_GRID2D};
 
 pub mod app {
 	use sp_application_crypto::{app_crypto, sr25519};
@@ -182,6 +182,7 @@ impl<Difficulty> PowAux<Difficulty> where
 
 #[derive(Clone, Encode, Decode, PartialEq, Eq, Debug)]
 pub struct PoscanData {
+	pub alg_id: [u8;16],
 	pub hashes: Vec<H256>,
 	pub obj: Vec<u8>,
 }
@@ -419,9 +420,13 @@ impl<B, I, C, S, Algorithm, CAW, CIDP> BlockImport<B> for PowBlockImport<B, I, C
 			return Err(Error::<B>::Other("Mining object too large".to_string()).into());
 		}
 
-		let hs: Vec<H256> = pscan_hashes.chunks(32).map(|h| H256::from_slice(h)).collect();
+		let alg_id = &pscan_hashes[0..16];
+		if alg_id != POSCAN_ALGO_GRID2D {
+			return Err(Error::<B>::Other("Unknown algorithm".to_string()).into());
+		}
+		let hs: Vec<H256> = pscan_hashes[16..].chunks(32).map(|h| H256::from_slice(h)).collect();
 
-		let psdata = PoscanData{ hashes: hs.clone(), obj: pscan_obj };
+		let psdata = PoscanData{ alg_id: POSCAN_ALGO_GRID2D, hashes: hs.clone(), obj: pscan_obj };
 
 		let intermediate = block.take_intermediate::<PowIntermediate::<Algorithm::Difficulty>>(
 			INTERMEDIATE_KEY
@@ -465,7 +470,12 @@ impl<B, I, C, S, Algorithm, CAW, CIDP> BlockImport<B> for PowBlockImport<B, I, C
 							if n >= 3 {
 								let di = h.digest().logs()[n - 2].clone();
 								if let DigestItem::Other(v) = di {
-									let hashes: Vec<H256> = v.chunks(32).map(|h| H256::from_slice(h)).collect();
+									if v[0..16] != *alg_id {
+										// TODO: if prev block used other algorithm?
+										// Skip block.
+										continue
+									}
+									let hashes: Vec<H256> = v[16..].chunks(32).map(|h| H256::from_slice(h)).collect();
 									for hh in hashes[..1].iter() {
 										if hs[..1].contains(hh) {
 											info!(">>>>>> duplicated hash found");

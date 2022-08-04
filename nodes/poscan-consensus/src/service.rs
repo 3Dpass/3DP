@@ -23,7 +23,7 @@ use sp_keystore::{SyncCryptoStore, SyncCryptoStorePtr};
 use sp_runtime::traits::Block as BlockT;
 use sp_core::crypto::{Ss58Codec,UncheckedFrom, Ss58AddressFormat, set_default_ss58_version};
 use sp_core::Pair;
-use sp_consensus_poscan::POSCAN_COIN_ID;
+use sp_consensus_poscan::{POSCAN_COIN_ID,POSCAN_ALGO_GRID2D} ;
 use async_trait::async_trait;
 
 pub struct MiningProposal {
@@ -804,7 +804,11 @@ pub fn new_full(
 								let obj_hash = hashes[0];
 								let dh = DoubleHash { pre_hash: metadata.pre_hash, obj_hash };
 								poscan_hash = dh.calc_hash();
-								poscan_data = Some(PoscanData { hashes, obj: mp.pre_obj });
+								poscan_data = Some(PoscanData {
+									alg_id: POSCAN_ALGO_GRID2D,
+									hashes, obj:
+									mp.pre_obj
+								});
 							} else {
 								warn!(">>> Empty hash set for obj {}", mp.id);
 							}

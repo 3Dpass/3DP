@@ -31,6 +31,7 @@ use lzss::{Lzss, SliceReader, VecWriter};
 pub const POSCAN_ENGINE_ID: ConsensusEngineId = [b'p', b'o', b's', b'c'];
 pub const POSCAN_COIN_ID: u8 = 72;
 
+pub const POSCAN_ALGO_GRID2D: [u8; 16] = *b"grid2d-1.0      ";
 pub const MAX_MINING_OBJ_LEN: usize = 100 * 1024;
 
 /// Type of seal.
