@@ -3987,6 +3987,7 @@ dependencies = [
  "sp-io",
  "sp-runtime",
  "sp-std",
+ "validator-set-api",
 ]
 
 [[package]]
@@ -4200,6 +4201,7 @@ dependencies = [
  "sp-runtime",
  "sp-staking",
  "sp-std",
+ "validator-set-api",
 ]
 
 [[package]]
@@ -7788,6 +7790,13 @@ dependencies = [
  "idna",
  "matches",
  "percent-encoding",
+]
+
+[[package]]
+name = "validator-set-api"
+version = "3.0.0"
+dependencies = [
+ "sp-std",
 ]
 
 [[package]]

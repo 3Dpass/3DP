@@ -31,6 +31,7 @@ use sp_staking::offence::{Offence, OffenceError, ReportOffence};
 use sp_std::{collections::btree_set::BTreeSet, prelude::*};
 
 use rewards_api::RewardLocksApi;
+use validator_set_api::ValidatorSetApi;
 
 pub const LOG_TARGET: &'static str = "runtime::validator-set";
 
@@ -447,5 +448,11 @@ impl<T: Config, O: Offence<(T::AccountId, T::AccountId)>>
 		_time_slot: &O::TimeSlot,
 	) -> bool {
 		false
+	}
+}
+
+impl<T: Config> ValidatorSetApi<T::AccountId> for Pallet<T> {
+	fn validators() -> Vec<T::AccountId> {
+		Self::validators()
 	}
 }

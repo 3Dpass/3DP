@@ -498,6 +498,7 @@ parameter_types! {
 	pub DonationDestination: AccountId = Treasury::account_id();
 	pub const LockBounds: rewards::LockBounds = rewards::LockBounds {period_max: 500, period_min: 20,
 																	divide_max: 50, divide_min: 2};
+	pub const MinerRewardsPercent: u32 = 70;
 }
 
 impl rewards::Config for Runtime {
@@ -507,6 +508,8 @@ impl rewards::Config for Runtime {
 	type GenerateRewardLocks = GenerateRewardLocks;
 	type WeightInfo = crate::weights::rewards::WeightInfo<Self>;
 	type LockParametersBounds = LockBounds;
+	type ValidatorSet = ValidatorSet;
+	type MinerRewardsPercent = MinerRewardsPercent;
 }
 
 

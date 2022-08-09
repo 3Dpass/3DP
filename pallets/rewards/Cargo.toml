@@ -18,6 +18,7 @@ frame-support = { default-features = false, git = "https://github.com/paritytech
 frame-system = { default-features = false, git = "https://github.com/paritytech/substrate" }
 
 rewards-api = { default-features = false, path = "../../traits/rewards" }
+validator-set-api = { default-features = false, path = "../../traits/validator-set" }
 
 # Benchmarking
 frame-benchmarking = { default-features = false, optional = true, git = "https://github.com/paritytech/substrate" }
@@ -45,6 +46,7 @@ std = [
 	"frame-system/std",
 	"sp-consensus-poscan/std",
 	"rewards-api/std",
+	"validator-set-api/std",
 ]
 runtime-benchmarks = [
 	"frame-benchmarking",

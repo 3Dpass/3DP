@@ -67,6 +67,10 @@ version = '2.1.1'
 default-features = false
 path = "../../traits/rewards"
 
+[dependencies.validator-set-api]
+default-features = false
+path = "../../traits/validator-set"
+
 [features]
 default = ['std']
 runtime-benchmarks = ['frame-benchmarking']

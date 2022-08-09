@@ -39,6 +39,7 @@ use frame_support::{
 use frame_system::{ensure_root, ensure_signed};
 use sp_consensus_poscan::POSCAN_ENGINE_ID;
 use sp_runtime::traits::{Saturating, Zero};
+use sp_runtime::Perbill;
 use sp_std::{
 	collections::btree_map::BTreeMap, iter::FromIterator, ops::Bound::Included, prelude::*,
 };
@@ -47,6 +48,7 @@ use scale_info::TypeInfo;
 
 use log;
 use rewards_api::RewardLocksApi;
+use validator_set_api::ValidatorSetApi;
 pub const LOG_TARGET: &'static str = "runtime::validator-set";
 
 
@@ -117,6 +119,10 @@ pub trait Config: frame_system::Config {
 	type WeightInfo: WeightInfo;
 	/// Lock Parameters Bounds.
 	type LockParametersBounds: Get<LockBounds>;
+	/// Pallet validator
+	type ValidatorSet: ValidatorSetApi<Self::AccountId>;
+	// Percent of rewars for miner
+	type MinerRewardsPercent: Get<u32>;
 }
 
 /// Type alias for currency balance.
@@ -326,34 +332,39 @@ decl_event! {
 		LockParamsChanged(LockParameters),
 	}
 }
-
 // Must be the same as in validator-set pallet
 const REWARDS_ID: LockIdentifier = *b"rewards ";
 
 impl<T: Config> Module<T> {
-	// fn calc_reward(when: T::BlockNumber) -> BalanceOf<T> {
-	// 	// let (_, cur_reward) = REWARDS_CHANGES.range((Included(0), Included(when))).last().unwrap();
-	// 	let cur_reward = 500 * DOLLARS;
-	// 	//(*cur_reward).saturated_into::<BalanceOf<T>>()
-	// 	cur_reward.saturated_into::<BalanceOf<T>>()
-	// }
-
 	fn do_reward(author: &T::AccountId, reward: BalanceOf<T>, when: T::BlockNumber) {
-		let miner_total = reward;
+		let miner_total = Perbill::from_percent(T::MinerRewardsPercent::get()) * reward;
+		let validator_total = reward - miner_total;
 
 		let d = u128::from_le_bytes(miner_total.encode().try_into().unwrap());
 		log::debug!(target: LOG_TARGET, "miner_total: {}", d);
 
+		let validators = T::ValidatorSet::validators();
 
-		let miner_reward_locks =
-			T::GenerateRewardLocks::generate_reward_locks(when, miner_total, LockParams::get());
+		let n_val: usize = validators.len();
+		let per_val = Perbill::from_rational(1, n_val as u32) * validator_total;
 
-		drop(T::Currency::deposit_creating(&author, miner_total));
+		Self::do_reward_per_account(author, miner_total, when);
 
-		if miner_reward_locks.len() > 0 {
-			let mut locks = Self::reward_locks(&author);
+		for val in validators.iter() {
+			Self::do_reward_per_account(val, per_val, when);
+		}
+	}
 
-			for (new_lock_number, new_lock_balance) in miner_reward_locks {
+	fn do_reward_per_account(account: &T::AccountId, reward: BalanceOf<T>, when: T::BlockNumber) {
+		let account_reward_locks =
+			T::GenerateRewardLocks::generate_reward_locks(when, reward, LockParams::get());
+
+		drop(T::Currency::deposit_creating(&account, reward));
+
+		if account_reward_locks.len() > 0 {
+			let mut locks = Self::reward_locks(&account);
+
+			for (new_lock_number, new_lock_balance) in account_reward_locks {
 				let old_balance = *locks
 					.get(&new_lock_number)
 					.unwrap_or(&BalanceOf::<T>::default());
@@ -361,7 +372,7 @@ impl<T: Config> Module<T> {
 				locks.insert(new_lock_number, new_balance);
 			}
 
-			Self::do_update_reward_locks(&author, locks, when);
+			Self::do_update_reward_locks(&account, locks, when);
 		}
 	}
 
