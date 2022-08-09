@@ -3974,8 +3974,10 @@ dependencies = [
  "frame-benchmarking",
  "frame-support",
  "frame-system",
+ "log",
  "pallet-balances",
  "parity-scale-codec",
+ "rewards-api",
  "scale-info",
  "serde",
  "sp-consensus-poscan",
@@ -4190,6 +4192,7 @@ dependencies = [
  "log",
  "pallet-session",
  "parity-scale-codec",
+ "rewards-api",
  "scale-info",
  "serde",
  "sp-core",
@@ -5066,6 +5069,10 @@ name = "retain_mut"
 version = "0.1.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "4389f1d5789befaf6029ebd9f7dac4af7f7e3d61b69d4f30e2ac02b57e7712b0"
+
+[[package]]
+name = "rewards-api"
+version = "3.0.0"
 
 [[package]]
 name = "rfc6979"

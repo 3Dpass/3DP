@@ -19,7 +19,10 @@ mod tests;
 use frame_support::{
 	ensure,
 	pallet_prelude::*,
-	traits::{EstimateNextSessionRotation, Get, ValidatorSet, ValidatorSetWithIdentification},
+	traits::{
+		Currency, LockableCurrency, EstimateNextSessionRotation,
+		Get, ValidatorSet, ValidatorSetWithIdentification,
+	},
 };
 use log;
 pub use pallet::*;
@@ -27,7 +30,12 @@ use sp_runtime::traits::{Convert, Zero};
 use sp_staking::offence::{Offence, OffenceError, ReportOffence};
 use sp_std::{collections::btree_set::BTreeSet, prelude::*};
 
+use rewards_api::RewardLocksApi;
+
 pub const LOG_TARGET: &'static str = "runtime::validator-set";
+
+pub type BalanceOf<T> =
+<<T as Config>::Currency as Currency<<T as frame_system::Config>::AccountId>>::Balance;
 
 #[frame_support::pallet]
 pub mod pallet {
@@ -47,6 +55,19 @@ pub mod pallet {
 		/// Minimum number of validators to leave in the validator set during
 		/// auto removal.
 		type MinAuthorities: Get<u32>;
+
+		type Currency: LockableCurrency<Self::AccountId>;
+
+		#[pallet::constant]
+		type PoscanEngineId: Get<[u8; 4]>;
+
+		#[pallet::constant]
+		type FilterLevels: Get<[(u128, u32); 4]>;
+
+		#[pallet::constant]
+		type MaxMinerDepth: Get<u32>;
+
+		type RewardLocksApi: RewardLocksApi<Self::AccountId, BalanceOf<Self>>;
 	}
 
 	#[pallet::pallet]
@@ -65,6 +86,10 @@ pub mod pallet {
 	#[pallet::storage]
 	#[pallet::getter(fn validators_to_remove)]
 	pub type OfflineValidators<T: Config> = StorageValue<_, Vec<T::AccountId>, ValueQuery>;
+
+	#[pallet::storage]
+	#[pallet::getter(fn authors)]
+	pub type Authors<T: Config> = StorageMap<_, Twox64Concat, T::BlockNumber, Option<T::AccountId>, ValueQuery>;
 
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(super) fn deposit_event)]
@@ -87,10 +112,57 @@ pub mod pallet {
 		ValidatorNotApproved,
 		/// Only the validator can add itself back after coming online.
 		BadOrigin,
+		/// Has not mined.
+		ValidatorHasNotMined,
+		/// Has not mined.
+		TooLowDeposit,
 	}
 
 	#[pallet::hooks]
-	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {}
+	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
+		fn on_finalize(n: T::BlockNumber) {
+			extern crate alloc;
+			use alloc::string::String;
+			log::debug!(target: LOG_TARGET, "on_finalize2");
+			log::debug!(target: LOG_TARGET, "logs len");
+			let len = frame_system::Pallet::<T>::digest().logs.len();
+			log::debug!(target: LOG_TARGET, "logs len = {:?}", len);
+
+			let author = frame_system::Pallet::<T>::digest()
+				.logs
+				.iter()
+				.filter_map(|s| s.as_pre_runtime())
+				.filter_map(|(id, mut data)| {
+					log::debug!(target: LOG_TARGET, "PreRuntime");
+					let aa = T::PoscanEngineId::get();
+					log::debug!(target: LOG_TARGET, "engine_id = {:?}", String::from_utf8(aa.into()));
+					if id == T::PoscanEngineId::get() {
+						T::AccountId::decode(&mut data).ok()
+					} else {
+						None
+					}
+				}
+				)
+				.next();
+
+			if let Some(author) = author {
+				use core::convert::TryInto;
+
+
+				let deposit = T::RewardLocksApi::locks(&author);
+
+				let d = u128::from_le_bytes(deposit.encode().try_into().unwrap());
+
+				log::debug!(target: LOG_TARGET, "Account: {:?}", author.encode());
+				log::debug!(target: LOG_TARGET, "Deposit: {:?}", d);
+				// let cur_block_number = <frame_system::Pallet<T>>::block_number();
+				Authors::<T>::insert(n, Some(author));
+			}
+			else {
+				log::debug!(target: LOG_TARGET, "No authon");
+			}
+		}
+	}
 
 	#[pallet::genesis_config]
 	pub struct GenesisConfig<T: Config> {
@@ -178,6 +250,50 @@ impl<T: Config> Pallet<T> {
 	}
 
 	fn do_add_validator(validator_id: T::AccountId) -> DispatchResult {
+		let cur_block_number = <frame_system::Pallet<T>>::block_number();
+
+		let deposit = T::RewardLocksApi::locks(&validator_id);
+		log::debug!(target: LOG_TARGET, "Deposit: {:?}", deposit.encode());
+
+		if cur_block_number >= 10u32.into() {
+			let deposit = T::RewardLocksApi::locks(&validator_id);
+			// TODO: refactor
+			let deposit = u128::from_le_bytes(deposit.encode().try_into().unwrap());
+			log::debug!(target: LOG_TARGET, "Deposit: {:?}", deposit.encode());
+
+			//<<T as pallet::Config>::Currency as Currency<<T as frame_system::Config>::AccountId>>::Balance::free_balance(&validator_id);
+			// ensure!(deposit >= 100u32.into(), <Error<T>>::TooLowDeposit);
+
+			let levels = T::FilterLevels::get();
+			let mut depth: u32 = T::MaxMinerDepth::get();
+			for i in 0..levels.len() {
+				if deposit < levels[i].0 {
+					depth = levels[i].1
+				}
+			}
+
+			let mut found = false;
+			let mut n = 0u32;
+			loop {
+				n += 1;
+				let block_num = cur_block_number - n.into();
+				if block_num < 1u32.into() || n > depth {
+					break;
+				}
+				if let Some(author_id) = Authors::<T>::get(block_num) {
+					if validator_id == author_id {
+						log::debug!(target: LOG_TARGET, "Validator found as miner in block {:?}", block_num);
+						found = true;
+						break;
+					}
+				}
+			}
+			if !found {
+				log::debug!(target: LOG_TARGET, "Validator NOT found as miner within {} blocks", depth);
+				return Err(Error::<T>::ValidatorHasNotMined.into());
+			}
+		}
+
 		let validator_set: BTreeSet<_> = <Validators<T>>::get().into_iter().collect();
 		ensure!(!validator_set.contains(&validator_id), Error::<T>::Duplicate);
 		<Validators<T>>::mutate(|v| v.push(validator_id.clone()));

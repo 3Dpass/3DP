@@ -63,6 +63,10 @@ default-features = false
 features = ['derive']
 version = '2.1.1'
 
+[dependencies.rewards-api]
+default-features = false
+path = "../../traits/rewards"
+
 [features]
 default = ['std']
 runtime-benchmarks = ['frame-benchmarking']
@@ -76,6 +80,7 @@ std = [
     'sp-io/std',
     'sp-std/std',
     'sp-runtime/std',
-    'pallet-session/std'
+    'pallet-session/std',
+    'rewards-api/std',
 ]
 try-runtime = ['frame-support/try-runtime']

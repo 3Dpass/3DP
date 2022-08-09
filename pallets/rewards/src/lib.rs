@@ -45,6 +45,11 @@ use sp_std::{
 use sp_std::convert::TryInto;
 use scale_info::TypeInfo;
 
+use log;
+use rewards_api::RewardLocksApi;
+pub const LOG_TARGET: &'static str = "runtime::validator-set";
+
+
 pub struct LockBounds {
 	pub period_max: u16,
 	pub period_min: u16,
@@ -181,6 +186,10 @@ decl_module! {
 
 			let cur_block_number = <frame_system::Pallet<T>>::block_number();
 			let cur_reward = T::GenerateRewardLocks::calc_rewards(cur_block_number);
+			let d = u128::from_le_bytes(cur_reward.encode().try_into().unwrap());
+
+			log::debug!(target: LOG_TARGET, "cur_reward: {}", d);
+
 			Reward::<T>::set(cur_reward);
 
 			RewardChanges::<T>::mutate(|reward_changes| {
@@ -318,6 +327,7 @@ decl_event! {
 	}
 }
 
+// Must be the same as in validator-set pallet
 const REWARDS_ID: LockIdentifier = *b"rewards ";
 
 impl<T: Config> Module<T> {
@@ -330,6 +340,10 @@ impl<T: Config> Module<T> {
 
 	fn do_reward(author: &T::AccountId, reward: BalanceOf<T>, when: T::BlockNumber) {
 		let miner_total = reward;
+
+		let d = u128::from_le_bytes(miner_total.encode().try_into().unwrap());
+		log::debug!(target: LOG_TARGET, "miner_total: {}", d);
+
 
 		let miner_reward_locks =
 			T::GenerateRewardLocks::generate_reward_locks(when, miner_total, LockParams::get());
@@ -385,5 +399,21 @@ impl<T: Config> Module<T> {
 		for (destination, mint) in mints {
 			drop(T::Currency::deposit_creating(&destination, *mint));
 		}
+	}
+}
+
+impl<T: Config> RewardLocksApi<T::AccountId, BalanceOf<T>> for Pallet<T> {
+	fn locks(account_id: &T::AccountId) -> BalanceOf<T> {
+		// let mut total_locked: BalanceOf<T> = Zero::zero();
+		//
+		// for (block_number, locked_balance) in &locks {
+		// 	total_locked = total_locked.saturating_add(*locked_balance);
+		// }
+		Self::reward_locks(account_id)
+			.iter()
+			.fold(
+				Zero::zero(),
+				|s, (_block_number, locked_balance)| s.saturating_add(*locked_balance)
+			)
 	}
 }

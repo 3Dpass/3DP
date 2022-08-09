@@ -1,5 +1,5 @@
 [package]
-name = "account-set"
+name = "rewards-api"
 version = "3.0.0"
 edition = "2018"
 authors = ['Substrate DevHub <https://github.com/substrate-developer-hub>']
@@ -10,9 +10,8 @@ license = "GPL-3.0-or-later"
 [features]
 default = ['std']
 std = [
-	'sp-std/std',
 ]
 
-[dependencies]
+# [dependencies]
 # Substrate packages
-sp-std = { default-features = false, git = "https://github.com/3Dpass/substrate.git" }
+# sp-std = { default-features = false, git = "https://github.com/3Dpass/substrate.git" }

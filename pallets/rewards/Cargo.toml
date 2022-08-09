@@ -17,6 +17,8 @@ sp-consensus-poscan = { package = "sp-consensus-poscan", default-features = fals
 frame-support = { default-features = false, git = "https://github.com/paritytech/substrate" }
 frame-system = { default-features = false, git = "https://github.com/paritytech/substrate" }
 
+rewards-api = { default-features = false, path = "../../traits/rewards" }
+
 # Benchmarking
 frame-benchmarking = { default-features = false, optional = true, git = "https://github.com/paritytech/substrate" }
 
@@ -24,6 +26,10 @@ frame-benchmarking = { default-features = false, optional = true, git = "https:/
 sp-core = { default-features = false, git = "https://github.com/paritytech/substrate" }
 sp-io = { default-features = false, git = "https://github.com/paritytech/substrate" }
 pallet-balances = { default-features = false, git = "https://github.com/paritytech/substrate" }
+
+[dependencies.log]
+default-features = false
+version = '0.4.17'
 
 [features]
 default = ["std"]
@@ -38,6 +44,7 @@ std = [
 	"frame-support/std",
 	"frame-system/std",
 	"sp-consensus-poscan/std",
+	"rewards-api/std",
 ]
 runtime-benchmarks = [
 	"frame-benchmarking",
