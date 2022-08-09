@@ -39,6 +39,11 @@ impl crate::WeightInfo for () {
 			.saturating_add(DbWeight::get().reads(1 as Weight))
 			.saturating_add(DbWeight::get().writes(1 as Weight))
 	}
+	fn lock() -> Weight {
+		(46_000_000 as Weight)
+			.saturating_add(DbWeight::get().reads(1 as Weight))
+			.saturating_add(DbWeight::get().writes(1 as Weight))
+	}
 	fn set_schedule() -> Weight {
 		(32_900_000 as Weight).saturating_add(DbWeight::get().writes(4 as Weight))
 	}

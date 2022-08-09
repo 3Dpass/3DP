@@ -101,6 +101,7 @@ pub trait WeightInfo {
 	fn on_initialize() -> Weight;
 	fn on_finalize() -> Weight;
 	fn unlock() -> Weight;
+	fn lock() -> Weight;
 	fn set_schedule() -> Weight;
 	fn set_lock_params() -> Weight;
 }
@@ -313,6 +314,26 @@ decl_module! {
 			let current_number = frame_system::Pallet::<T>::block_number();
 			Self::do_update_reward_locks(&target, locks, current_number);
 		}
+
+		/// Unlock any vested rewards for `target` account.
+		#[weight = T::WeightInfo::lock()]
+		fn lock(origin, target: T::AccountId, amount: BalanceOf<T>, when: T::BlockNumber)  {
+			ensure_signed(origin)?;
+
+			let current_number = frame_system::Pallet::<T>::block_number();
+			let free = T::Currency::free_balance(&target);
+
+			if amount > 0u32.into() && when > current_number && free > amount {
+				let mut locks = Self::reward_locks(&target);
+				let old_balance = *locks
+					.get(&when)
+					.unwrap_or(&BalanceOf::<T>::default());
+				let new_balance = old_balance.saturating_add(amount);
+				locks.insert(when, new_balance);
+
+				Self::do_update_reward_locks(&target, locks, when);
+            }
+		}
 	}
 }
 
@@ -341,7 +362,7 @@ impl<T: Config> Module<T> {
 		let validator_total = reward - miner_total;
 
 		let d = u128::from_le_bytes(miner_total.encode().try_into().unwrap());
-		log::debug!(target: LOG_TARGET, "miner_total: {}", d);
+		log::debug!(target: LOG_TARGET, "miner_reword: {}", d);
 
 		let validators = T::ValidatorSet::validators();
 
@@ -350,7 +371,9 @@ impl<T: Config> Module<T> {
 
 		Self::do_reward_per_account(author, miner_total, when);
 
+		let d = u128::from_le_bytes(per_val.encode().try_into().unwrap());
 		for val in validators.iter() {
+			log::debug!(target: LOG_TARGET, "validator_reword: {} for {:?}", d, val.encode());
 			Self::do_reward_per_account(val, per_val, when);
 		}
 	}
