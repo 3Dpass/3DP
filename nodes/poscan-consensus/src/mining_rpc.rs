@@ -17,7 +17,7 @@ use alloc::string::String;
 use crate::service::{MiningProposal, DEQUE};
 use sp_consensus_poscan::MAX_MINING_OBJ_LEN;
 
-const MAX_QUEUE_LEN: usize = 5;
+const MAX_QUEUE_LEN: usize = 20;
 
 const RES_OK: u64 = 0;
 const RES_QUEUE_FULL: u64 = 1;

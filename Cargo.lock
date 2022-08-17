@@ -2332,7 +2332,7 @@ version = "1.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e2abad23fbc42b3700f2f279844dc832adb2b2eb069b2df918f455c4e18cc646"
 dependencies = [
- "spin 0.5.2",
+ "spin",
 ]
 
 [[package]]
@@ -4555,6 +4555,7 @@ dependencies = [
  "pallet-contracts-rpc",
  "pallet-poscan",
  "pallet-transaction-payment-rpc",
+ "parking_lot 0.12.1",
  "poscan-grid2d",
  "poscan-runtime",
  "sc-basic-authorship",
@@ -4586,7 +4587,6 @@ dependencies = [
  "sp-std",
  "sp-timestamp",
  "sp-transaction-pool",
- "spin 0.9.4",
  "substrate-build-script-utils",
  "substrate-frame-rpc-system",
  "tokio",
@@ -5096,7 +5096,7 @@ dependencies = [
  "cc",
  "libc",
  "once_cell",
- "spin 0.5.2",
+ "spin",
  "untrusted",
  "web-sys",
  "winapi",
@@ -7087,12 +7087,6 @@ name = "spin"
 version = "0.5.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6e63cff320ae2c57904679ba7cb63280a3dc4613885beafb148ee7bf9aa9042d"
-
-[[package]]
-name = "spin"
-version = "0.9.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7f6002a767bff9e83f8eeecf883ecb8011875a21ae8da43bffb817a57e78cc09"
 
 [[package]]
 name = "ss58-registry"

@@ -18,11 +18,11 @@ exit-future = "0.2.0"
 futures = "0.3.1"
 futures01 = { package = "futures", version = "0.1.29" }
 log = "0.4.8"
+parking_lot = "0.12"
 clap = { version = "3.1", features = ["derive"] }
 tokio = "1.19"
 trie-root = "0.15.2"
 lazy_static = { version = "1.4.0", features = ["spin_no_std"] }
-spin = { version = "0.9.3", default-features = false, features = ["mutex", "spin_mutex"] }
 async-trait = "0.1.50"
 jsonrpsee = { version = "0.14.0", features = ["server"] }
 

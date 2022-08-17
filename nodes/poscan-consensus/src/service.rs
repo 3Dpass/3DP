@@ -16,7 +16,7 @@ use std::path::PathBuf;
 use sc_consensus_poscan::PoscanData;
 use log::*;
 use sp_std::collections::vec_deque::VecDeque;
-use spin::Mutex;
+use parking_lot::Mutex;
 use std::str::FromStr;
 use sp_keystore::{SyncCryptoStore, SyncCryptoStorePtr};
 use sp_runtime::traits::Block as BlockT;
@@ -408,6 +408,7 @@ pub fn new_full(
 					} else {
 						let mut lock = DEQUE.lock();
 						let maybe_mining_prop = (*lock).pop_front();
+						drop(lock);
 						if let Some(mp) = maybe_mining_prop {
 							let hashes = get_obj_hashes(&mp.pre_obj);
 							if hashes.len() > 0 {
@@ -422,7 +423,6 @@ pub fn new_full(
 							} else {
 								warn!(">>> Empty hash set for obj {}", mp.id);
 							}
-							// thread::sleep(Duration::new(1, 0));
 						} else {
 							thread::sleep(Duration::new(1, 0));
 						}
