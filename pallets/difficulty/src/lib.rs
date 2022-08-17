@@ -34,6 +34,8 @@ use scale_info::TypeInfo;
 use sp_core::U256;
 use sp_runtime::traits::UniqueSaturatedInto;
 use sp_std::cmp::{max, min};
+#[cfg(not(feature = "std"))]
+use sp_std::vec;
 
 #[derive(Encode, Decode, TypeInfo, Clone, Copy, Eq, PartialEq, Debug)]
 pub struct DifficultyAndTimestamp<M> {
