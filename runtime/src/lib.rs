@@ -786,10 +786,10 @@ type EnsureRootOrHalfCouncil = EitherOfDiverse<
 >;
 
 const LEVELS: [(u128, u32); 4] = [
-(  100 * 1000 * DOLLARS, 100),
-(  200 * 1000 * DOLLARS, 2000),
-( 300 * 1000 * DOLLARS, 4000),
-(400 * 1000 * DOLLARS, 8000),
+	(100 * 1000 * DOLLARS,  100),
+	(200 * 1000 * DOLLARS, 2000),
+	(300 * 1000 * DOLLARS, 4000),
+	(400 * 1000 * DOLLARS, 8000),
 ];
 
 parameter_types! {
