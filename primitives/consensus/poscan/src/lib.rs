@@ -65,7 +65,7 @@ pub const MIN_DIFFICULTY: u128 = DIFFICULTY_DAMP_FACTOR;
 /// Maximum difficulty.
 pub const MAX_DIFFICULTY: u128 = u128::max_value();
 
-/// Value of 1 KLP.
+/// Value of 1 3DP.
 pub const DOLLARS: u128 = 1_000_000_000_000;
 /// Value of cents relative to 3DP.
 pub const CENTS: u128 = DOLLARS / 100;
