@@ -9,24 +9,24 @@ edition = "2018"
 serde = { version = "1.0.101", optional = true }
 codec = { package = "parity-scale-codec", version = "3.1", default-features = false, features = ["derive"] }
 scale-info = { version = "2.0", default-features = false, features = ["derive"] }
-sp-runtime = { default-features = false, git = "https://github.com/paritytech/substrate" }
-sp-std = { default-features = false, git = "https://github.com/paritytech/substrate" }
-sp-inherents = { default-features = false, git = "https://github.com/paritytech/substrate" }
-sp-consensus-pow = { default-features = false, git = "https://github.com/paritytech/substrate" }
+sp-runtime = { default-features = false, git = "https://github.com/paritytech/substrate", rev = "b0777b4c7f7" }
+sp-std = { default-features = false, git = "https://github.com/paritytech/substrate", rev = "b0777b4c7f7" }
+sp-inherents = { default-features = false, git = "https://github.com/paritytech/substrate", rev = "b0777b4c7f7" }
+sp-consensus-pow = { default-features = false, git = "https://github.com/paritytech/substrate", rev = "b0777b4c7f7" }
 sp-consensus-poscan = { package = "sp-consensus-poscan", default-features = false, path = "../../primitives/consensus/poscan" }
-frame-support = { default-features = false, git = "https://github.com/paritytech/substrate" }
-frame-system = { default-features = false, git = "https://github.com/paritytech/substrate" }
+frame-support = { default-features = false, git = "https://github.com/paritytech/substrate", rev = "b0777b4c7f7" }
+frame-system = { default-features = false, git = "https://github.com/paritytech/substrate", rev = "b0777b4c7f7" }
 
 rewards-api = { default-features = false, path = "../../traits/rewards" }
 validator-set-api = { default-features = false, path = "../../traits/validator-set" }
 
 # Benchmarking
-frame-benchmarking = { default-features = false, optional = true, git = "https://github.com/paritytech/substrate" }
+frame-benchmarking = { default-features = false, optional = true, git = "https://github.com/paritytech/substrate", rev = "b0777b4c7f7" }
 
 [dev-dependencies]
-sp-core = { default-features = false, git = "https://github.com/paritytech/substrate" }
-sp-io = { default-features = false, git = "https://github.com/paritytech/substrate" }
-pallet-balances = { default-features = false, git = "https://github.com/paritytech/substrate" }
+sp-core = { default-features = false, git = "https://github.com/paritytech/substrate", rev = "b0777b4c7f7" }
+sp-io = { default-features = false, git = "https://github.com/paritytech/substrate", rev = "b0777b4c7f7" }
+pallet-balances = { default-features = false, git = "https://github.com/paritytech/substrate", rev = "b0777b4c7f7" }
 
 [dependencies.log]
 default-features = false

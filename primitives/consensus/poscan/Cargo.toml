@@ -14,10 +14,10 @@ readme = "README.md"
 targets = ["x86_64-unknown-linux-gnu"]
 
 [dependencies]
-sp-api = { default-features = false, git = "https://github.com/paritytech/substrate"}
-sp-std = { default-features = false, git = "https://github.com/paritytech/substrate"}
-sp-runtime = { default-features = false, git = "https://github.com/paritytech/substrate"}
-sp-core = { default-features = false, git = "https://github.com/paritytech/substrate"}
+sp-api = { default-features = false, git = "https://github.com/paritytech/substrate", rev = "b0777b4c7f7" }
+sp-std = { default-features = false, git = "https://github.com/paritytech/substrate", rev = "b0777b4c7f7" }
+sp-runtime = { default-features = false, git = "https://github.com/paritytech/substrate", rev = "b0777b4c7f7" }
+sp-core = { default-features = false, git = "https://github.com/paritytech/substrate", rev = "b0777b4c7f7" }
 codec = { package = "parity-scale-codec", version = "3.1", default-features = false, features = ["derive"] }
 lzss = { version = "0.8", default-features = false, features = ["alloc"] }
 

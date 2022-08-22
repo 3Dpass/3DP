@@ -10,13 +10,13 @@ description = "Difficulty adjustment module for Kulupu."
 serde = { version = "1.0.101", optional = true }
 codec = { package = "parity-scale-codec", version = "3.1", default-features = false, features = ["derive"] }
 scale-info = { version = "2.0", default-features = false, features = ["derive"] }
-sp-std = { default-features = false, git = "https://github.com/paritytech/substrate" }
-sp-core = { default-features = false, git = "https://github.com/paritytech/substrate" }
-sp-runtime = { default-features = false, git = "https://github.com/paritytech/substrate" }
-sp-timestamp = { default-features = false, git = "https://github.com/paritytech/substrate" }
-frame-system = { default-features = false, git = "https://github.com/paritytech/substrate" }
-frame-support = { default-features = false, git = "https://github.com/paritytech/substrate" }
-pallet-timestamp = { default-features = false, git = "https://github.com/paritytech/substrate" }
+sp-std = { default-features = false, git = "https://github.com/paritytech/substrate", rev = "b0777b4c7f7" }
+sp-core = { default-features = false, git = "https://github.com/paritytech/substrate", rev = "b0777b4c7f7" }
+sp-runtime = { default-features = false, git = "https://github.com/paritytech/substrate", rev = "b0777b4c7f7" }
+sp-timestamp = { default-features = false, git = "https://github.com/paritytech/substrate", rev = "b0777b4c7f7" }
+frame-system = { default-features = false, git = "https://github.com/paritytech/substrate", rev = "b0777b4c7f7" }
+frame-support = { default-features = false, git = "https://github.com/paritytech/substrate", rev = "b0777b4c7f7" }
+pallet-timestamp = { default-features = false, git = "https://github.com/paritytech/substrate", rev = "b0777b4c7f7" }
 sp-consensus-poscan = { path = "../../primitives/consensus/poscan", default-features = false }
 
 [features]

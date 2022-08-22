@@ -6,70 +6,27 @@ edition = '2021'
 license = 'Apache-2.0'
 repository = 'https://github.com/gautamdhameja/substrate-validator-set'
 
-[dev-dependencies.serde]
-features = ['derive']
-version = '1.0.126'
+[dev-dependencies]
+serde = { features = ['derive'], version = '1.0.126' }
 
-[dependencies.sp-core]
-default-features = false
-git = 'https://github.com/paritytech/substrate.git'
+[dependencies]
+log = { default-features = false, version = '0.4.17'}
+codec = { default-features = false, features = ['derive'], package = 'parity-scale-codec', version = '3.1' }
 
-[dependencies.sp-io]
-default-features = false
-git = 'https://github.com/paritytech/substrate.git'
+sp-core = { default-features = false, git = "tps://github.com/paritytech/substrate", rev = "b0777b4c7f7" }
+sp-io = { default-features = false, git = "https://github.com/paritytech/substrate", rev = "b0777b4c7f7" }
+sp-runtime = { default-features = false, git = "https://github.com/paritytech/substrate", rev = "b0777b4c7f7" }
+sp-std = { default-features = false, git = "https://github.com/paritytech/substrate", rev = "b0777b4c7f7" }
+sp-staking = { default-features = false, git = "https://github.com/paritytech/substrate", rev = "b0777b4c7f7" }
+frame-benchmarking = { default-features = false, git = "tps://github.com/paritytech/substrate", rev = "b0777b4c7f7", optional = true }
+frame-support = { default-features = false, git = "https://github.com/paritytech/substrate", rev = "b0777b4c7f7" }
+frame-system = { default-features = false, git = "https://github.com/paritytech/substrate", rev = "b0777b4c7f7" }
+pallet-session = { default-features = false, features = ['historical'], git = "https://github.com/paritytech/substrate", rev = "b0777b4c7f7" }
 
-[dependencies.sp-runtime]
-default-features = false
-git = 'https://github.com/paritytech/substrate.git'
+scale-info = { default-features = false, features = ['derive'], version = '2.1.1' }
 
-[dependencies.sp-std]
-default-features = false
-git = 'https://github.com/paritytech/substrate.git'
-
-[dependencies.sp-staking]
-default-features = false
-git = 'https://github.com/paritytech/substrate.git'
-
-[dependencies.log]
-default-features = false
-version = '0.4.17'
-
-[dependencies.codec]
-default-features = false
-features = ['derive']
-package = 'parity-scale-codec'
-version = '3.1'
-
-[dependencies.frame-benchmarking]
-default-features = false
-git = 'https://github.com/paritytech/substrate.git'
-optional = true
-
-[dependencies.frame-support]
-default-features = false
-git = 'https://github.com/paritytech/substrate.git'
-
-[dependencies.frame-system]
-default-features = false
-git = 'https://github.com/paritytech/substrate.git'
-
-[dependencies.pallet-session]
-default-features = false
-features = ['historical']
-git = 'https://github.com/paritytech/substrate.git'
-
-[dependencies.scale-info]
-default-features = false
-features = ['derive']
-version = '2.1.1'
-
-[dependencies.rewards-api]
-default-features = false
-path = "../../traits/rewards"
-
-[dependencies.validator-set-api]
-default-features = false
-path = "../../traits/validator-set"
+rewards-api = { default-features = false, path = "../../traits/rewards" }
+validator-set-api = { default-features = false, path = "../../traits/validator-set" }
 
 [features]
 default = ['std']

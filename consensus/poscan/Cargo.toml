@@ -15,20 +15,20 @@ targets = ["x86_64-unknown-linux-gnu"]
 [dependencies]
 codec = { package = "parity-scale-codec", version = "3.1", default-features = false, features = ["derive"] }
 scale-info = { version = "2.0", default-features = false, features = ["derive"] }
-sc-client-api = { default-features = false, git = "https://github.com/paritytech/substrate"}
-sc-consensus = { default-features = false, git = "https://github.com/paritytech/substrate"}
-sp-core = { default-features = false, git = "https://github.com/paritytech/substrate"}
-sp-blockchain = { default-features = false, git = "https://github.com/paritytech/substrate"}
-sp-runtime = { default-features = false, git = "https://github.com/paritytech/substrate"}
-sp-api = { default-features = false, git = "https://github.com/paritytech/substrate"}
-sp-block-builder = { default-features = false, git = "https://github.com/paritytech/substrate"}
-sp-inherents = { default-features = false, git = "https://github.com/paritytech/substrate"}
-sp-finality-grandpa = { default-features = false, git = "https://github.com/paritytech/substrate"}
+sc-client-api = { default-features = false, git = "https://github.com/paritytech/substrate", rev = "b0777b4c7f7" }
+sc-consensus = { default-features = false, git = "https://github.com/paritytech/substrate", rev = "b0777b4c7f7" }
+sp-core = { default-features = false, git = "https://github.com/paritytech/substrate", rev = "b0777b4c7f7" }
+sp-blockchain = { default-features = false, git = "https://github.com/paritytech/substrate", rev = "b0777b4c7f7" }
+sp-runtime = { default-features = false, git = "https://github.com/paritytech/substrate", rev = "b0777b4c7f7" }
+sp-api = { default-features = false, git = "https://github.com/paritytech/substrate", rev = "b0777b4c7f7" }
+sp-block-builder = { default-features = false, git = "https://github.com/paritytech/substrate", rev = "b0777b4c7f7" }
+sp-inherents = { default-features = false, git = "https://github.com/paritytech/substrate", rev = "b0777b4c7f7" }
+sp-finality-grandpa = { default-features = false, git = "https://github.com/paritytech/substrate", rev = "b0777b4c7f7" }
 sp-consensus-poscan = { package = "sp-consensus-poscan", path = "../../primitives/consensus/poscan" }
-sp-consensus = { default-features = false, git = "https://github.com/paritytech/substrate"}
-sp-application-crypto = { default-features = false, git = "https://github.com/paritytech/substrate"}
-sp-timestamp = { default-features = false, git = "https://github.com/paritytech/substrate"}
-sp-std = { default-features = false, git = "https://github.com/paritytech/substrate"}
+sp-consensus = { default-features = false, git = "https://github.com/paritytech/substrate", rev = "b0777b4c7f7" }
+sp-application-crypto = { default-features = false, git = "https://github.com/paritytech/substrate", rev = "b0777b4c7f7" }
+sp-timestamp = { default-features = false, git = "https://github.com/paritytech/substrate", rev = "b0777b4c7f7" }
+sp-std = { default-features = false, git = "https://github.com/paritytech/substrate", rev = "b0777b4c7f7" }
 async-trait = "0.1.50"
 log = "0.4"
 futures = { version = "0.3", features = ["compat"] }
@@ -36,7 +36,7 @@ futures-timer = "3.0"
 parking_lot = "0.12"
 derive_more = "0.99"
 lazy_static = { version = "1.4.0", features = ["spin_no_std"] }
-prometheus-endpoint = { package = "substrate-prometheus-endpoint", default-features = false, git = "https://github.com/paritytech/substrate"}
+prometheus-endpoint = { package = "substrate-prometheus-endpoint", default-features = false, git = "https://github.com/paritytech/substrate", rev = "b0777b4c7f7" }
 
 [features]
 default = ["std"]

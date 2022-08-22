@@ -15,10 +15,10 @@ sha3 = "0.9"
 
 # Substrate packages
 sc-consensus-poscan = { default-features = false, version = "0.9", package = "sc-consensus-poscan", path = "../../consensus/poscan" }
-sp-api = { default-features = false, git = "https://github.com/paritytech/substrate" }
+sp-api = { default-features = false, git = "https://github.com/paritytech/substrate", rev = "b0777b4c7f7" }
 sp-consensus-poscan = { default-features = false, version = "0.9", path = "../../primitives/consensus/poscan" }
-sp-core = { default-features = false, git = "https://github.com/paritytech/substrate" }
-sp-runtime = { default-features = false, git = "https://github.com/paritytech/substrate" }
+sp-core = { default-features = false, git = "https://github.com/paritytech/substrate", rev = "b0777b4c7f7" }
+sp-runtime = { default-features = false, git = "https://github.com/paritytech/substrate", rev = "b0777b4c7f7" }
 # frame-support = { version = "3.0" }
 # frame-system = { version = "3.0" }
 log = "0.4"

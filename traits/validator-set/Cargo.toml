@@ -8,7 +8,7 @@ description = "A trait that supplies a set of accounts for use in a Substrate ru
 license = "GPL-3.0-or-later"
 
 [dependencies]
-sp-std = { default-features = false, git = "https://github.com/paritytech/substrate" }
+sp-std = { default-features = false, git = "https://github.com/paritytech/substrate", rev = "b0777b4c7f7" }
 
 [features]
 default = ['std']
