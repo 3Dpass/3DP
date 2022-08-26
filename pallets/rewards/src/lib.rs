@@ -79,23 +79,23 @@ pub trait GenerateRewardLocks<T: Config> {
 	fn calc_rewards(when: T::BlockNumber) -> BalanceOf<T>;
 }
 
-impl<T: Config> GenerateRewardLocks<T> for () {
-	fn generate_reward_locks(
-		_current_block: T::BlockNumber,
-		_total_reward: BalanceOf<T>,
-		_lock_parameters: Option<LockParameters>,
-	) -> BTreeMap<T::BlockNumber, BalanceOf<T>> {
-		Default::default()
-	}
-
-	fn max_locks(_lock_bounds: LockBounds) -> u32 {
-		0
-	}
-
-	fn calc_rewards(_when: T::BlockNumber) -> BalanceOf<T>{
-		0u32.into()
-	}
-}
+// impl<T: Config> GenerateRewardLocks<T> for () {
+// 	fn generate_reward_locks(
+// 		_current_block: T::BlockNumber,
+// 		_total_reward: BalanceOf<T>,
+// 		_lock_parameters: Option<LockParameters>,
+// 	) -> BTreeMap<T::BlockNumber, BalanceOf<T>> {
+// 		Default::default()
+// 	}
+//
+// 	fn max_locks(_lock_bounds: LockBounds) -> u32 {
+// 		0
+// 	}
+//
+// 	fn calc_rewards(_when: T::BlockNumber) -> BalanceOf<T>{
+// 		0u32.into()
+// 	}
+// }
 
 pub trait WeightInfo {
 	fn on_initialize() -> Weight;
@@ -307,8 +307,8 @@ decl_module! {
 
 		/// Unlock any vested rewards for `target` account.
 		#[weight = T::WeightInfo::unlock()]
-		fn unlock(origin, target: T::AccountId) {
-			ensure_signed(origin)?;
+		fn unlock(origin) {
+			let target = ensure_signed(origin)?;
 
 			let locks = Self::reward_locks(&target);
 			let current_number = frame_system::Pallet::<T>::block_number();
@@ -317,8 +317,8 @@ decl_module! {
 
 		/// Unlock any vested rewards for `target` account.
 		#[weight = T::WeightInfo::lock()]
-		fn lock(origin, target: T::AccountId, amount: BalanceOf<T>, when: T::BlockNumber)  {
-			ensure_signed(origin)?;
+		fn lock(origin, amount: BalanceOf<T>, when: T::BlockNumber)  {
+			let target = ensure_signed(origin)?;
 
 			let current_number = frame_system::Pallet::<T>::block_number();
 			let free = T::Currency::free_balance(&target);
@@ -331,7 +331,8 @@ decl_module! {
 				let new_balance = old_balance.saturating_add(amount);
 				locks.insert(when, new_balance);
 
-				Self::do_update_reward_locks(&target, locks, when);
+				Self::do_update_reward_locks(&target, locks, current_number);
+				Self::deposit_event(RawEvent::Locked(target, amount));
             }
 		}
 	}
@@ -351,6 +352,8 @@ decl_event! {
 		MintsChanged(BTreeMap<AccountId, Balance>),
 		/// Lock Parameters have been changed.
 		LockParamsChanged(LockParameters),
+		/// Lock set.
+		Locked(AccountId, Balance),
 	}
 }
 // Must be the same as in validator-set pallet
@@ -438,11 +441,6 @@ impl<T: Config> Module<T> {
 
 impl<T: Config> RewardLocksApi<T::AccountId, BalanceOf<T>> for Pallet<T> {
 	fn locks(account_id: &T::AccountId) -> BalanceOf<T> {
-		// let mut total_locked: BalanceOf<T> = Zero::zero();
-		//
-		// for (block_number, locked_balance) in &locks {
-		// 	total_locked = total_locked.saturating_add(*locked_balance);
-		// }
 		Self::reward_locks(account_id)
 			.iter()
 			.fold(
