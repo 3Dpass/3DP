@@ -35,7 +35,7 @@ futures = { version = "0.3", features = ["compat"] }
 futures-timer = "3.0"
 parking_lot = "0.12"
 derive_more = "0.99"
-lazy_static = { version = "1.4.0", features = ["spin_no_std"] }
+lazy_static = { version = "1.4.0" }
 prometheus-endpoint = { package = "substrate-prometheus-endpoint", default-features = false, git = "https://github.com/paritytech/substrate", rev = "b0777b4c7f7" }
 
 [features]

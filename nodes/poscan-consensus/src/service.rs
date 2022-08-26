@@ -388,23 +388,21 @@ pub fn new_full(
 			thread::spawn(move || loop {
 				let metadata = worker.metadata();
 				if let Some(metadata) = metadata {
+					if let Some(ref psdata) = poscan_data {
+						let compute = Compute {
+							difficulty: metadata.difficulty,
+							pre_hash: metadata.pre_hash,
+							poscan_hash,
+						};
 
-					let compute = Compute {
-						difficulty: metadata.difficulty,
-						pre_hash: metadata.pre_hash,
-						poscan_hash,
-					};
-
-					let signature = compute.sign(&pair);
-					let seal = compute.seal(signature.clone());
-					if hash_meets_difficulty(&seal.work, seal.difficulty) {
-
-						if let Some(ref psdata) = poscan_data {
-							// let _ = psdata.encode();
+						let signature = compute.sign(&pair);
+						let seal = compute.seal(signature.clone());
+						if hash_meets_difficulty(&seal.work, seal.difficulty) {
 							info!(">>> hash_meets_difficulty: submit it: {}, {}, {}",  &seal.work, &seal.poscan_hash, &seal.difficulty);
 							info!(">>> check verify: {}", compute.verify(&signature.clone(), &author));
 							let _ = futures::executor::block_on(worker.submit(seal.encode(), &psdata));
 						}
+						poscan_data = None;
 					} else {
 						let mut lock = DEQUE.lock();
 						let maybe_mining_prop = (*lock).pop_front();
