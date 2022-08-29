@@ -203,6 +203,16 @@ pub mod pallet {
 			Ok(())
 		}
 
+		#[pallet::weight(0)]
+		pub fn add_validator_self(origin: OriginFor<T>) -> DispatchResult {
+			let validator_id = ensure_signed(origin)?;
+
+			Self::do_add_validator(validator_id.clone())?;
+			Self::approve_validator(validator_id)?;
+
+			Ok(())
+		}
+
 		/// Remove a validator.
 		///
 		/// The origin can be configured using the `AddRemoveOrigin` type in the
