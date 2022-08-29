@@ -28,7 +28,6 @@ use sc_client_api::ImportNotifications;
 use sc_consensus::{BlockImportParams, BoxBlockImport, StateAction, StorageChanges};
 use sp_consensus::{BlockOrigin, Proposal};
 use sp_runtime::{
-	generic::BlockId,
 	traits::{Block as BlockT, Header as HeaderT},
 	DigestItem,
 };
@@ -155,7 +154,7 @@ impl<Block, Algorithm, C, L, Proof> MiningHandle<Block, Algorithm, C, L, Proof>
 	pub async fn submit(&self, seal: Seal, poscan_data: &PoscanData) -> bool {
 		if let Some(metadata) = self.metadata() {
 			match self.algorithm.verify(
-				&BlockId::Hash(metadata.best_hash),
+				&metadata.best_hash,
 				&metadata.pre_hash,
 				metadata.pre_runtime.as_ref().map(|v| &v[..]),
 				&seal,

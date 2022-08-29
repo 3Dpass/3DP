@@ -147,7 +147,7 @@ where
 
 	fn verify(
 		&self,
-		_parent: &BlockId<B>,
+		parent: &H256,
 		pre_hash: &H256,
 		pre_digest: Option<&[u8]>,
 		seal: &RawSeal,
@@ -217,7 +217,7 @@ where
 			obj = decompress_obj(&obj[4..]);
 		}
 
-		let hashes = get_obj_hashes(&obj);
+		let hashes = get_obj_hashes(&obj, parent);
 		if hashes != poscan_data.hashes {
 			info!(">>> verify: hashes != poscan_data.hashes");
 			return Ok(false)
@@ -231,11 +231,13 @@ where
 use p3d;
 use log::*;
 use std::str::FromStr;
+use std::convert::TryInto;
 
-pub fn get_obj_hashes(data: &Vec<u8>) -> Vec<H256> {
+pub fn get_obj_hashes(data: &Vec<u8>, pre: &H256) -> Vec<H256> {
 	let mut buf: Vec<H256> = Vec::new();
-	// TODO: pass params as args
-	let res = p3d::p3d_process(data, p3d::AlgoType::Grid2d, 8, 66);
+
+	let pre = pre.encode()[0..4].try_into().ok();
+	let res = p3d::p3d_process(data, p3d::AlgoType::Grid2d, 8, 66, pre);
 
 	match res {
 		Ok(v) => {

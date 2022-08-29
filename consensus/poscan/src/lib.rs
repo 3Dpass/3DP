@@ -241,7 +241,7 @@ pub trait PowAlgorithm<B: BlockT> {
 	/// Verify that the difficulty is valid against given seal.
 	fn verify(
 		&self,
-		parent: &BlockId<B>,
+		parent: &B::Hash,
 		pre_hash: &B::Hash,
 		pre_digest: Option<&[u8]>,
 		seal: &Seal,
@@ -542,7 +542,7 @@ impl<B, I, C, S, Algorithm, CAW, CIDP> BlockImport<B> for PowBlockImport<B, I, C
 
 		// let pre_digest = find_pre_digest::<B>(&block.header)?;
 		if !self.algorithm.verify(
-			&BlockId::hash(parent_hash),
+			&parent_hash,
 			&pre_hash,
 			Some(pre_digest.as_slice()),
 			&inner_seal,

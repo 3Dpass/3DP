@@ -408,7 +408,7 @@ pub fn new_full(
 						let maybe_mining_prop = (*lock).pop_front();
 						drop(lock);
 						if let Some(mp) = maybe_mining_prop {
-							let hashes = get_obj_hashes(&mp.pre_obj);
+							let hashes = get_obj_hashes(&mp.pre_obj, &metadata.best_hash);
 							if hashes.len() > 0 {
 								let obj_hash = hashes[0];
 								let dh = DoubleHash { pre_hash: metadata.pre_hash, obj_hash };
