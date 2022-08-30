@@ -23,7 +23,7 @@ sp-runtime = { default-features = false, git = "https://github.com/paritytech/su
 # frame-system = { version = "3.0" }
 log = "0.4"
 
-p3d = { git = "https://github.com/3Dpass/p3d", tag = "v0.4.0" }
+p3d = { git = "https://github.com/3Dpass/p3d", tag = "v0.5.0" }
 
 [features]
 default = ["std"]
