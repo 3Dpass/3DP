@@ -406,7 +406,7 @@ impl difficulty::Config for Runtime {
 }
 
 //------------------- rewards
-
+const TESTNET_LAST_BLOCK: u32 = 106390;
 const REWARDS_STEP: usize = 243000;
 const MAX_REWARS_IDX: usize = 90;
 const REWARDS: [u128; MAX_REWARS_IDX] = [
@@ -486,7 +486,7 @@ impl rewards::GenerateRewardLocks<Runtime> for GenerateRewardLocks {
 
 	fn calc_rewards(current_block: BlockNumber) -> Balance {
 		let b: BlockNumber = REWARDS_STEP.try_into().unwrap();
-		let idx: usize = (current_block / b).try_into().unwrap();
+		let idx: usize = ((current_block + TESTNET_LAST_BLOCK) / b).try_into().unwrap();
 		if idx >= MAX_REWARS_IDX {
 			return 0
 		}
