@@ -17,7 +17,7 @@ RUN --mount=type=cache,target=/usr/local/cargo/registry \
 FROM ubuntu:kinetic
 ARG APP=/usr/src/app
 COPY --from=builder /app/target/release/poscan-consensus ${APP}/p3d
-COPY ./testnetSpecRaw.json ${APP}/testnetSpecRaw.json
+COPY ./mainnetSpecRaw.json ${APP}/mainnetSpecRaw.json
 COPY ./docker/node.sh ${APP}/node.sh
 RUN chmod +x ${APP}/node.sh
 WORKDIR ${APP}
