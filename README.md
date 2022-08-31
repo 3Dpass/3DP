@@ -1,7 +1,7 @@
 
 [![logo](https://3dpass.org/assets/img/3DPass_on_the_moon.png)](https://3dpass.org)
 
-# 3Dpass Node
+# 3Dpass Node - mainnet
 
 3DPass is an OpenSource decentralized WEB 3.0 P2P platform for tokenization of real physical and virtual things and its transformation into digital assets. The main idea of 3DPass is to make it possible for people to use real world objects in digital within smart-contracts and deals and to take all advantages from that (learn more about 3DPass [features](https://3dpass.org/features.html) ). Follow the [White Paper](https://3dpass.org/3DPass_white_paper.pdf) for the details.
 
@@ -140,27 +140,21 @@ Run the second Node:
 ```bash
 target/release/poscan-consensus --base-path /tmp/bob --chain local --bob --port 30334 --ws-port 9945 --rpc-port 9934  --bootnodes /ip4/127.0.0.1/tcp/30333/p2p/12D3KooWEyoppNCUx8Yx66oV9fJnriXwCcXwDDUA2kj6vnc6iDEp --validator
 ```
-Run miner:
-you have to install [miner](https://github.com/3Dpass/miner)
-
 For more details, refer to Subsrtate
 [Start a Private Network tutorial](https://docs.substrate.io/tutorials/v3/private-network).
 
+Install miner (You have to install [NodeJS v16](https://nodejs.org/en/) and [Yarn](https://classic.yarnpkg.com/lang/en/docs/install/) before)):
+```bash
+yarn
+```
+Run miner:
+```bash
+yarn miner
+```
+
 ### Join the remote Testnet
 
-In order to join your Node to the Testnet and get rewarded follow the links down below:
+In order to join the Mainnet and get rewarded follow the link down below:
 
-- [Join as a simple node](https://3dpass.org/testnet.html#how_to_join_as_a_simple_node)
-- [Join as Miner and Validator](https://3dpass.org/testnet.html#how_to_join_as_a_miner)
+- [Guidelines how to run the node](https://3dpass.org/mainnet.html)
 
-### Run the local Testnet in Docker
-
-First, install [Docker](https://docs.docker.com/get-docker/) and
-[Docker Compose](https://docs.docker.com/compose/install/).
-
-Then run the following command to start two local nodes and a [miner](https://github.com/3Dpass/miner) in development chain:
-
-```bash
-docker compose up --build
-```
-Learn more about [how does it work](https://3dpass.org/testnet.html).
