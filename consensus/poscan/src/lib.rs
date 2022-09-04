@@ -470,17 +470,11 @@ impl<B, I, C, S, Algorithm, CAW, CIDP> BlockImport<B> for PowBlockImport<B, I, C
 			.await
 			.map_err(|e| format!("Fetch best chain failed via select chain: {:?}", e))?;
 		let best_hash = best_header.hash();
-		let best_num = best_header.number();
 
 		let info = self.client.info();
 		let block_id = BlockId::Hash(info.finalized_hash);
 		let fin_num = self.client.block_number_from_id(&block_id).unwrap().unwrap();
-
-		if fin_num + 3u32.into() < *best_num {
-			error!(">>> Too far from finalized block");
-			return Err(Error::<B>::CheckFinalized.into())
-		}
-
+		
 		let parent_hash = *block.header.parent_hash();
 		let best_aux = PowAux::read::<_, B>(self.client.as_ref(), &best_hash)?;
 		let mut aux = PowAux::read::<_, B>(self.client.as_ref(), &parent_hash)?;
@@ -916,19 +910,6 @@ pub fn start_mining_worker<Block, C, S, Algorithm, E, SO, L, CIDP, CAW>(
 				}
 			};
 			let best_hash = best_header.hash();
-			let best_num = best_header.number();
-
-			let info = client.info();
-			let block_id = BlockId::Hash(info.finalized_hash);
-			let num = client.block_number_from_id(&block_id).unwrap().unwrap();
-
-			if num + 3u32.into() < *best_num {
-				warn!(
-					target: "pow",
-					"Skipping proposal. Too far from best_block",
-				);
-				continue;
-			}
 
 			if let Err(err) = can_author_with.can_author_with(&BlockId::Hash(best_hash)) {
 				warn!(
