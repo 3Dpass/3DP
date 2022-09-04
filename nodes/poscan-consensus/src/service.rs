@@ -418,8 +418,6 @@ pub fn new_full(
 									hashes, obj:
 									mp.pre_obj
 								});
-							} else {
-								warn!(">>> Empty hash set for obj {}", mp.id);
 							}
 						} else {
 							thread::sleep(Duration::new(1, 0));

@@ -474,7 +474,7 @@ impl<B, I, C, S, Algorithm, CAW, CIDP> BlockImport<B> for PowBlockImport<B, I, C
 		let info = self.client.info();
 		let block_id = BlockId::Hash(info.finalized_hash);
 		let fin_num = self.client.block_number_from_id(&block_id).unwrap().unwrap();
-		
+
 		let parent_hash = *block.header.parent_hash();
 		let best_aux = PowAux::read::<_, B>(self.client.as_ref(), &best_hash)?;
 		let mut aux = PowAux::read::<_, B>(self.client.as_ref(), &parent_hash)?;
