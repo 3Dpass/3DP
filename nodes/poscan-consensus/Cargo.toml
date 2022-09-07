@@ -48,6 +48,7 @@ sp-blockchain = { git = "https://github.com/paritytech/substrate", rev = "b0777b
 sp-std = { git = "https://github.com/paritytech/substrate", rev = "b0777b4c7f7" }
 sp-core = { git = "https://github.com/paritytech/substrate", rev = "b0777b4c7f7" }
 sp-finality-grandpa = { git = "https://github.com/paritytech/substrate", rev = "b0777b4c7f7" }
+sc-finality-grandpa-rpc = { git = "https://github.com/paritytech/substrate", rev = "b0777b4c7f7" }
 sp-inherents = { git = "https://github.com/paritytech/substrate", rev = "b0777b4c7f7" }
 sp-io = { git = "https://github.com/paritytech/substrate", rev = "b0777b4c7f7" }
 sp-runtime = { git = "https://github.com/paritytech/substrate", rev = "b0777b4c7f7" }

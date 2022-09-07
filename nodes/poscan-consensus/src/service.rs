@@ -24,6 +24,8 @@ use sp_core::crypto::{Ss58Codec,UncheckedFrom, Ss58AddressFormat, set_default_ss
 use sp_core::Pair;
 use sp_consensus_poscan::{POSCAN_COIN_ID,POSCAN_ALGO_GRID2D} ;
 use async_trait::async_trait;
+use sc_rpc::SubscriptionTaskExecutor;
+use sc_finality_grandpa::{FinalityProofProvider as GrandpaFinalityProofProvider};
 
 pub struct MiningProposal {
 	pub id: i32,
@@ -284,13 +286,30 @@ pub fn new_full(
 	let prometheus_registry = config.prometheus_registry().cloned();
 	let enable_grandpa = !config.disable_grandpa;
 
+	let justification_stream = grandpa_link.justification_stream();
+	let shared_authority_set = grandpa_link.shared_authority_set().clone();
+	let finality_proof_provider = GrandpaFinalityProofProvider::new_for_service(
+		backend.clone(),
+		Some(shared_authority_set.clone()),
+	);
+
 	let rpc_extensions_builder = {
 		let client = client.clone();
 		let pool = transaction_pool.clone();
+		let shared_voter_state = shared_voter_state.clone();
 
-		Box::new(move |deny_unsafe, _| {
+		Box::new(move |deny_unsafe, subscription_executor: SubscriptionTaskExecutor| {
 			let deps =
-				crate::rpc::FullDeps { client: client.clone(), pool: pool.clone(), deny_unsafe };
+				crate::rpc::FullDeps { client: client.clone(), pool: pool.clone(), deny_unsafe,
+					grandpa:
+						crate::rpc::GrandpaDeps {
+						shared_voter_state: shared_voter_state.clone(),
+						shared_authority_set: shared_authority_set.clone(),
+						justification_stream: justification_stream.clone(),
+						subscription_executor: subscription_executor.clone(),
+						finality_provider: finality_proof_provider.clone(),
+					},
+				};
 			crate::rpc::create_full(deps).map_err(Into::into)
 		})
 	};
@@ -454,7 +473,7 @@ pub fn new_full(
 			network,
 			voting_rule: sc_finality_grandpa::VotingRulesBuilder::default().build(),
 			prometheus_registry,
-			shared_voter_state,
+			shared_voter_state: shared_voter_state.clone(),
 			telemetry: telemetry.as_ref().map(|x| x.handle()),
 		};
 
