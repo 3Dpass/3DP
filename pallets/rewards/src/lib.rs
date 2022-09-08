@@ -142,30 +142,10 @@ decl_error! {
 		LockParamsOutOfBounds,
 		/// Lock period is not a mutiple of the divide.
 		LockPeriodNotDivisible,
-	}
-}
-
-decl_storage! {
-	trait Store for Module<T: Config> as Rewards {
-		/// Current block author.
-		Author get(fn author): Option<T::AccountId>;
-
-		/// Current block reward for miner.
-		Reward get(fn reward) config(): BalanceOf<T>;
-		/// Pending reward locks.
-		RewardLocks get(fn reward_locks): map hasher(twox_64_concat) T::AccountId => BTreeMap<T::BlockNumber, BalanceOf<T>>;
-		/// Reward changes planned in the future.
-		RewardChanges get(fn reward_changes): BTreeMap<T::BlockNumber, BalanceOf<T>>;
-
-		/// Current block mints.
-		Mints get(fn mints) config(): BTreeMap<T::AccountId, BalanceOf<T>>;
-		/// Mint changes planned in the future.
-		MintChanges get(fn mint_changes): BTreeMap<T::BlockNumber, BTreeMap<T::AccountId, BalanceOf<T>>>;
-
-		/// Lock parameters (period and divide).
-		LockParams get(fn lock_params): Option<LockParameters>;
-
-		StorageVersion build(|_| migrations::StorageVersion::V1): migrations::StorageVersion;
+		/// Unsufficient balance
+		UnsufficientBalance,
+		/// decrease lock amount not allowed .
+		DecreaseLockAmountNotAllowed,
 	}
 }
 
@@ -323,18 +303,47 @@ decl_module! {
 			let current_number = frame_system::Pallet::<T>::block_number();
 			let free = T::Currency::free_balance(&target);
 
-			if amount > 0u32.into() && when > current_number && free > amount {
+			let total_locked = Self::total_locked(&target);
+			if amount > 0u32.into() && when > current_number {
 				let mut locks = Self::reward_locks(&target);
-				let old_balance = *locks
-					.get(&when)
-					.unwrap_or(&BalanceOf::<T>::default());
-				let new_balance = old_balance.saturating_add(amount);
-				locks.insert(when, new_balance);
+				// let old_balance = *locks
+				// 	.get(&when)
+				// 	.unwrap_or(&BalanceOf::<T>::default());
+				// let new_locked_balance = old_balance.saturating_add(amount);
+
+				ensure!(free >= amount, Error::<T>::UnsufficientBalance);
+				ensure!(total_locked <= amount, Error::<T>::DecreaseLockAmountNotAllowed);
+
+				locks.insert(when, amount);
 
 				Self::do_update_reward_locks(&target, locks, current_number);
 				Self::deposit_event(RawEvent::Locked(target, amount));
             }
 		}
+	}
+}
+
+decl_storage! {
+	trait Store for Module<T: Config> as Rewards {
+		/// Current block author.
+		Author get(fn author): Option<T::AccountId>;
+
+		/// Current block reward for miner.
+		Reward get(fn reward) config(): BalanceOf<T>;
+		/// Pending reward locks.
+		RewardLocks get(fn reward_locks): map hasher(twox_64_concat) T::AccountId => BTreeMap<T::BlockNumber, BalanceOf<T>>;
+		/// Reward changes planned in the future.
+		RewardChanges get(fn reward_changes): BTreeMap<T::BlockNumber, BalanceOf<T>>;
+
+		/// Current block mints.
+		Mints get(fn mints) config(): BTreeMap<T::AccountId, BalanceOf<T>>;
+		/// Mint changes planned in the future.
+		MintChanges get(fn mint_changes): BTreeMap<T::BlockNumber, BTreeMap<T::AccountId, BalanceOf<T>>>;
+
+		/// Lock parameters (period and divide).
+		LockParams get(fn lock_params): Option<LockParameters>;
+
+		StorageVersion build(|_| migrations::StorageVersion::V1): migrations::StorageVersion;
 	}
 }
 
@@ -360,6 +369,16 @@ decl_event! {
 const REWARDS_ID: LockIdentifier = *b"rewards ";
 
 impl<T: Config> Module<T> {
+	fn total_locked(author: &T::AccountId) -> BalanceOf<T> {
+		let mut total_locked: BalanceOf<T> = Zero::zero();
+		let locks = Self::reward_locks(&author);
+
+		for (_block_number, locked_balance) in &locks {
+			total_locked = total_locked.saturating_add(*locked_balance);
+		}
+		total_locked
+	}
+
 	fn do_reward(author: &T::AccountId, reward: BalanceOf<T>, when: T::BlockNumber) {
 		let miner_total = Perbill::from_percent(T::MinerRewardsPercent::get()) * reward;
 		let validator_total = reward - miner_total;

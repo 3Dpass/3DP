@@ -799,6 +799,10 @@ parameter_types! {
 	pub const FilterLevels: [(u128, u32);4] = LEVELS;
 	pub const MaxMinerDepth: u32 = 1000;
 	pub const PenaltyOffline: u128 = 20_000 * DOLLARS;
+	pub const MinLockAmount: u128 = 100_000 * DOLLARS;
+	pub const MinLockPeriod: u32 = 24 * 30;
+	pub const SlashValidatorFor: u32 = 24 * 7;
+	pub const AddAfterSlashPeriod: u32 = 24 * 7;
 }
 
 impl pallet_validator_set::Config for Runtime {
@@ -812,6 +816,10 @@ impl pallet_validator_set::Config for Runtime {
 	type MaxMinerDepth = MaxMinerDepth;
 	type RewardLocksApi = Rewards;
 	type PenaltyOffline = PenaltyOffline;
+	type MinLockAmount = MinLockAmount;
+	type MinLockPeriod = MinLockPeriod;
+	type SlashValidatorFor = SlashValidatorFor;
+	type AddAfterSlashPeriod = AddAfterSlashPeriod;
 	type Slash = Treasury;
 }
 
