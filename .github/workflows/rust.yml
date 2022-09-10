@@ -3,8 +3,6 @@ name: Rust
 on:
   push:
     branches: [ "main" ]
-  pull_request:
-    branches: [ "main" ]
 
 env:
   CARGO_TERM_COLOR: always
@@ -22,7 +20,9 @@ jobs:
         rustup target add wasm32-unknown-unknown --toolchain nightly
     - name: Build
       run: cargo build --release --verbose
-    - uses: actions/upload-artifact@v3
+    - name: Upload the artifacts
+      uses: skx/github-action-publish-binaries@master
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
-        name: poscan-consensus
-        path: target/release/poscan-consensus
+        args: 'target/release/poscan-consensus'
