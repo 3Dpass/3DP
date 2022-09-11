@@ -3,28 +3,15 @@
 
 # 3Dpass Node - mainnet
 
-3DPass is an OpenSource decentralized WEB 3.0 P2P platform for tokenization of real physical and virtual things and its transformation into digital assets. The main idea of 3DPass is to make it possible for people to use real world objects in digital within smart-contracts and deals and to take all advantages from that (learn more about 3DPass [features](https://3dpass.org/features.html) ). Follow the [White Paper](https://3dpass.org/3DPass_white_paper.pdf) for the details.
+3DPass is an OpenSource decentralized WEB 3.0 P2P platform for tokenization of real physical and virtual objects and its transformation into digital assets. The main idea of 3DPass is to make it possible for people to use real world objects in digital within smart-contracts and deals and to take all advantages from that (learn more about 3DPass [features](https://3dpass.org/features.html) ). Follow the [White Paper](https://3dpass.org/3DPass_white_paper.pdf) for the details.
 
-Every object, transformed by 3DPass, has its own unique and stable identity called [HASH ID](https://github.com/3Dpass/3DP/wiki/HASH-ID-vs-NFT-difference) the object might be recognized by. In order to encourage users to maintain the network and to solve issues there is a cryptocurrency 3DP Coin which is also required for transactions related to user's assets.
+Every object, transformed by 3DPass, has its own unique and stable identity called [HASH ID](https://github.com/3Dpass/3DP/wiki/HASH-ID-vs-NFT-difference) the object might be recognized by. In order to encourage users to maintain the network and to solve issues there is a cryptocurrency 3DP Coin.
 
-3D Pass NODE is one layer blockchain based on [Substrate](https://www.substrate.io/) with brandnew consensus [Proof of Scan](https://3dpass.org/proof_of_scan.html) using 3D object shape recognition algorithm called [Grid2d](https://3dpass.org/grid2d.html), which is implemented into the Node with the recognition tool [pass3d](https://github.com/3Dpass/pass3d). [Proof of Scan](https://3dpass.org/proof_of_scan.html) is a kind of non-conventional PoW consensus because of the computing power is used for 3D shape recognition. 3Dpass NODEs are designed to provide objects authenticity check. You might call it The Ledger of unique things, which allows to utilize them within smart-contracts and dApps. The network nodes will stand guard preventing assets from copy making.
-
-## Mining with Docker
-First, install [Docker](https://docs.docker.com/get-docker/) and
-[Docker Compose](https://docs.docker.com/compose/install/).
-
-Run the following command to run the Node and a [miner](https://github.com/3Dpass/miner):
-
-```shell
-cp docker-compose.override.yml.example docker-compose.override.yml
-// TODO: put your `MEMO_SEED` and `ADDRESS` in `docker-compose.override.yml`
-docker compose build
-docker compose up
-```
+3D Pass NODE is a Layer 1 blockchain based on [Substrate](https://www.substrate.io/) with brandnew consensus [Proof of Scan](https://3dpass.org/proof_of_scan.html) using 3D object shape recognition algorithm called [Grid2d](https://3dpass.org/grid2d.html), which is implemented into the Node with the recognition tool [pass3d](https://github.com/3Dpass/pass3d). [Proof of Scan](https://3dpass.org/proof_of_scan.html) is a kind of non-conventional PoW consensus because of the computing power is used for 3D shape recognition. 3Dpass NODEs are designed to provide objects authenticity check. You might call it The Ledger of unique things, which allows to utilize them within smart-contracts and dApps. The network nodes will prevent assets from copying.
 
 ---How to contribute---
 
-In order to contribute on solving the global digital transformation challenge feel free to implement or develop new recognition algorithms into pass3d toolkt (e.x.face recognition, fingerprint recognition, radio signal, 2D drawings, melody, voice, 3D objects, etc.) or make your suggessions about. It always encourages that developers contribute to 3DPass growth, would it be miner tools, network features, dApps, smart-contracts, impementations, new projects and ideas etc. Dive down into [3DPass contribution rewards program](https://3dpass.org/distribution.html#contribution)
+In order to contribute on solving the global digital transformation challenge feel free to implement or develop new recognition algorithms into pass3d toolkit (e.x.face recognition, fingerprint recognition, radio signal, 2D drawings, melody, voice, 3D objects, etc.) or make your suggessions about. It always encourages that developers contribute to 3DPass growth, would it be miner tools, network features, dApps, smart-contracts, impementations, new projects and ideas etc. Dive down into [3DPass contribution rewards program](https://3dpass.org/distribution.html#contribution)
 
 Join 3Dass community:
 - [Discord chat](https://discord.gg/u24WkXcwug)
@@ -59,20 +46,15 @@ This toolkit consists of stable recognition algorithms used for identification o
 
 Follow the steps below to get started with the 3DPass Node:
 
-### Using Nix
-
-Install [nix](https://nixos.org/) and optionally [direnv](https://github.com/direnv/direnv) and
-[lorri](https://github.com/target/lorri) for a fully plug and play experience for setting up the
-development environment. To get all the correct dependencies activate direnv `direnv allow` and
-lorri `lorri shell`.
-
 ### Rust Setup
 
 First, complete the [basic Rust setup instructions](./docs/rust-setup.md).
 
-### Run
+### Run a temporary node
 
-Use Rust's native `cargo` command to build and launch the template node:
+The provided `cargo run` command will launch a temporary node and its state will be discarded after
+you terminate the process. After the project has been built, there are other ways to launch the
+node.
 
 ```sh
 cargo run --release -- --dev --tmp
@@ -95,11 +77,43 @@ subcommands:
 ```sh
 ./target/release/poscan-consensus -h
 ```
-## Run
 
-The provided `cargo run` command will launch a temporary node and its state will be discarded after
-you terminate the process. After the project has been built, there are other ways to launch the
-node.
+## Mining with Docker
+This procedure will build the Node and Miner automatically with Docker. 
+
+First, install [Docker](https://docs.docker.com/get-docker/) and
+[Docker Compose](https://docs.docker.com/compose/install/).
+
+Run the following command:
+
+```shell
+cp docker-compose.override.yml.example docker-compose.override.yml
+// TODO: put your `MEMO_SEED` and `ADDRESS` in `docker-compose.override.yml`
+docker compose build
+docker compose up
+```
+`docker-compose.override.yml` example:
+
+```shell
+version: "3.9"
+
+  services:
+      node:
+        environment:
+          - MEMO_SEED=[PLACE MEMO SEED HERE]
+          - ADDRESS=[PLACE MINER ADDRESS HERE]
+          - THREADS=2
+          - INTERVAL=100
+```
+- `THREADS=2` is the amount of threads you are about to use for mining
+- `INTERVAL=100` is the amount of time in miliseconds between the last and the next one objects being sent towards the Node. Dependidng on how much threads are you mining with, reduce the interval until you reach desired proc load. 
+
+You can generate your ADDRESS and MEMO_SEED phrase in the [wallet](https://wallet.3dpass.org/) (add new address). Make sure you can see your node in the [list](https://telemetry.3dpass.org/). Use this [tutorial](https://3dpass.org/mainnet.html#mining_docker) for more details.
+
+## Mining: manual set up
+Follow this [tutorial] to 
+
+## Development
 
 ### Single-Node Development Chain
 
@@ -121,7 +135,7 @@ Start the development chain with detailed logging:
 RUST_BACKTRACE=1 ./target/release/poscan-consensus -ldebug --dev
 ```
 
-### Multi-Node Local Testnet
+### Multi-Node Development Chain
 
 Clear keystore for Alice and Bob:
 
@@ -143,7 +157,7 @@ target/release/poscan-consensus --base-path /tmp/bob --chain local --bob --port 
 For more details, refer to Subsrtate
 [Start a Private Network tutorial](https://docs.substrate.io/tutorials/v3/private-network).
 
-Install miner (You have to install [NodeJS v16](https://nodejs.org/en/) and [Yarn](https://classic.yarnpkg.com/lang/en/docs/install/) before)):
+Install miner (You have to install [NodeJS v16](https://nodejs.org/en/) and [Yarn](https://classic.yarnpkg.com/lang/en/docs/install/) before):
 ```bash
 yarn
 ```
@@ -151,10 +165,3 @@ Run miner:
 ```bash
 yarn miner
 ```
-
-### Join the remote Testnet
-
-In order to join the Mainnet and get rewarded follow the link down below:
-
-- [Guidelines how to run the node](https://3dpass.org/mainnet.html)
-
