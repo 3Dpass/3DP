@@ -48,7 +48,7 @@ Follow the steps below to get started with the 3DPass Node:
 
 ### Rust Setup
 
-First, complete the [basic Rust setup instructions](./docs/rust-setup.md).
+First, complete the [basic Rust setup instructions](https://github.com/substrate-developer-hub/substrate-node-template/blob/main/docs/rust-setup.md).
 
 ### Run a temporary node
 
