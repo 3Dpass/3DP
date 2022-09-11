@@ -31,7 +31,7 @@ This toolkit consists of stable recognition algorithms used for identification o
 
 - [Proof of Scan](https://3dpass.org/proof_of_scan.html) consensus - the logic, using 3D objects recognition toolkit, that allows network participants to agree on the state of the blockchain
 
-- 3DPass light wallet - desktop users and 3D printing labs integration
+- [3DPass light wallet](https://github.com/3Dpass/wallet) - desktop users and 3D printing labs integration
 - [Pass3d mobile](https://github.com/3Dpass/threedpass) - smartphone and tablets users integration
 - Smart contracts toolkit - Substrate based smart contract tools using [ink](https://paritytech.github.io/ink-docs/), a Rust-based embedded domain specific language (eDSL) for writing WebAssembly smart contracts. Learn more about [how it compares to Solidity](https://paritytech.github.io/ink-docs/ink-vs-solidity). As well, it allows unmodified EVM code to be executed in the 3DPass blockchain. Some special Substrate fetures are designed to closely emulate the functionality of executing contracts on the Ethereum mainnet within the 3DPass network.
 - IPFS storage - embedded decentralized storage for assets
