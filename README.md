@@ -22,7 +22,7 @@ Join 3Dass community:
 
 # Integration
 
- Given the fact that 3DPass is an open source and non-profit project, meaning anyone can add to development, there is an eco-system scheme (exposed down below) representing general functional elements:
+ This is an eco-system scheme, which represents general functional elements:
 
 - 3DPass NODE (based on [Substrate](https://substrate.io/)) - wallets, dApps, smart-contracts, IoT devices integration using API and RPC
 - [Pass3d](https://github.com/3Dpass/pass3d) and [p3d](https://github.com/3Dpass/p3d) recognition toolkit - recognition algorithms integration
@@ -35,7 +35,7 @@ This toolkit consists of stable recognition algorithms used for identification o
 - [Pass3d mobile](https://github.com/3Dpass/threedpass) - smartphone and tablets users integration
 - Smart contracts toolkit - Substrate based smart contract tools using [ink](https://paritytech.github.io/ink-docs/), a Rust-based embedded domain specific language (eDSL) for writing WebAssembly smart contracts. Learn more about [how it compares to Solidity](https://paritytech.github.io/ink-docs/ink-vs-solidity). As well, it allows unmodified EVM code to be executed in the 3DPass blockchain. Some special Substrate fetures are designed to closely emulate the functionality of executing contracts on the Ethereum mainnet within the 3DPass network.
 - IPFS storage - embedded decentralized storage for assets
-- RPC (remote procedure call) - the capabilities that allow blockchain users to interact with the network. The NODE provides HTTP and WebSocket RPC servers
+- RPC (remote procedure call) - the capabilities that allow blockchain users to interact with the network. The NODE provides HTTP and WebSocket RPC servers. [How to set up websocket](https://github.com/3Dpass/3DP/wiki/Set-up-WSS-for-Remote-Connections)
 - Networking: we use the [`libp2p`](https://libp2p.io/) networking stack to allow the
   nodes in the network to communicate with one another.
 
@@ -111,7 +111,45 @@ version: "3.9"
 You can generate your ADDRESS and MEMO_SEED phrase in the [wallet](https://wallet.3dpass.org/) (add new address). Make sure you can see your node in the [list](https://telemetry.3dpass.org/). Use this [tutorial](https://3dpass.org/mainnet.html#mining_docker) for more details.
 
 ## Mining: manual set up
-Follow this [tutorial] to 
+
+Generate youur mining address and keys:
+```bash
+./target/release/poscan-consensus generate-mining-key --base-path ~/3dp-chain/ --chain mainnetSpecRaw.json
+```
+Register your mining key in the keystore:
+```bash
+./target/release/poscan-consensus import-mining-key 'your secret phrase' --base-path ~/3dp-chain/ --chain mainnetSpecRaw.json
+```
+Generate your GRANDPA keys for finalization. Use the same secret phrase as it's used for mining address (The account is defined by the secret phrase):
+```bash
+./target/release/poscan-consensus import-mining-key 'your secret phrase' --base-path ~/3dp-chain/ --chain mainnetSpecRaw.json
+## Development
+```
+Insert Grandpa key into the keystore: 
+```bash
+./target/release/poscan-consensus key insert --base-path ~/3dp-chain/ --chain mainnetSpecRaw.json --scheme Ed25519 --suri <secret seed from Grandpa> --key-type gran
+```
+Make sure you have both keys in the keystore `~/3dp-chain/chains/3dpass/keystore`
+
+Start the Node with the following command:
+```bash
+./target/release/poscan-consensus --base-path ~/3dp-chain/ --chain mainnetSpecRaw.json --name MyNodeName --validator --telemetry-url "wss://submit.telemetry.3dpass.org/submit 0" --author <your mining address or pub key> --threads 2 --no-mdns
+```
+Install miner (You have to install [NodeJS v16](https://nodejs.org/en/) and [Yarn](https://classic.yarnpkg.com/lang/en/docs/install/) before):
+```bash
+yarn
+```
+Run miner:
+```bash
+yarn miner --interval 100
+```
+- `--interval 100` is the amount of time in miliseconds between the last and the next one objects being sent towards the Node. Dependidng on how much threads are you mining with, reduce the interval until you reach desired proc load. 
+
+Make sure you can see your node in the [list](https://telemetry.3dpass.org/). Use this [tutorial](https://3dpass.org/mainnet.html#mining_docker) for more details.
+
+## Connect to the wallet Front-end
+Open the wallet page: https://wallet.3dpass.org/. In order to connect your Node to the wallet in local you need to set up your local API endpoint as `ws://127.0.0.1:9944` in the Settings.
+Follow this [guidelines](https://3dpass.org/mainnet.html#how_to_use_web3_wallet) for more details.
 
 ## Development
 
@@ -157,11 +195,3 @@ target/release/poscan-consensus --base-path /tmp/bob --chain local --bob --port 
 For more details, refer to Subsrtate
 [Start a Private Network tutorial](https://docs.substrate.io/tutorials/v3/private-network).
 
-Install miner (You have to install [NodeJS v16](https://nodejs.org/en/) and [Yarn](https://classic.yarnpkg.com/lang/en/docs/install/) before):
-```bash
-yarn
-```
-Run miner:
-```bash
-yarn miner
-```
