@@ -31,10 +31,8 @@ jobs:
       with:
         toolchain: nightly
         target: ${{ matrix.target }}
-        override: true
     - uses: actions-rs/cargo@v1
       with:
-        use-cross: true
         command: build
         args: --release --target ${{ matrix.target }}
     - name: Package
