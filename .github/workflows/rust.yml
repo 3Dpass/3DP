@@ -21,11 +21,14 @@ jobs:
     - name: Update local toolchain
       run: |
         curl https://sh.rustup.rs -sSf | sh -s -- -y --default-toolchain nightly
+        source "$HOME/.cargo/env"
         rustup update nightly
         rustup target add wasm32-unknown-unknown --toolchain nightly
         rustup target add ${{ matrix.target }} --toolchain nightly
     - name: Build
-      run: cargo build --release --target ${{ matrix.target }}
+      run: |
+        source "$HOME/.cargo/env"
+        cargo build --release --target ${{ matrix.target }}
     - name: Package
       shell: bash
       run: |
