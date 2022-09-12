@@ -1,16 +1,21 @@
 name: Rust
 
 on:
-  release:
-    types: [created]
-
-env:
-  CARGO_TERM_COLOR: always
+  pull_request:
+  push:
+    branches:
+      - main
+    tags:
+      - "v*.*.*"
 
 jobs:
   build:
 
     runs-on: ubuntu-latest
+    
+    strategy: 
+      matrix:
+        target: [x86_64-apple-darwin,x86_64-unknown-linux-gnu]
 
     steps:
     - uses: actions/checkout@v3
@@ -18,11 +23,18 @@ jobs:
       run: |
         rustup update nightly
         rustup target add wasm32-unknown-unknown --toolchain nightly
+        rustup target add ${{ matrix.target }}
     - name: Build
-      run: cargo build --release --verbose
-    - name: Upload the artifacts
-      uses: skx/github-action-publish-binaries@master
+      run: cargo build --release --target ${{ matrix.target }}
+    - name: Package
+      shell: bash
+      run: |
+        cd target/${{ matrix.target }}/release          
+        tar czvf ../../../poscan-consensus-${{ matrix.target }}.tar.gz poscan-consensus
+        cd -
+    - name: Publish
+      uses: softprops/action-gh-release@v1
+      with:
+        files: 'poscan-consensus-*'
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        args: 'target/release/poscan-consensus'
