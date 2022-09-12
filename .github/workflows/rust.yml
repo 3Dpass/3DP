@@ -18,23 +18,14 @@ jobs:
 
     steps:
     - uses: actions/checkout@v3
-    - uses: actions/cache@v3
-      with:
-        path: |
-          ~/.cargo/bin/
-          ~/.cargo/registry/index/
-          ~/.cargo/registry/cache/
-          ~/.cargo/git/db/
-          target/
-        key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
-    - uses: actions-rs/toolchain@v1
-      with:
-        toolchain: nightly
-        target: ${{ matrix.target }}
-    - uses: actions-rs/cargo@v1
-      with:
-        command: build
-        args: --release --target ${{ matrix.target }}
+    - name: Update local toolchain
+      run: |
+        curl https://sh.rustup.rs -sSf | sh -s -- -y --default-toolchain nightly
+        rustup update nightly
+        rustup target add wasm32-unknown-unknown --toolchain nightly
+        rustup target add ${{ matrix.target }} --toolchain nightly
+    - name: Build
+      run: cargo build --release --target ${{ matrix.target }}
     - name: Package
       shell: bash
       run: |
