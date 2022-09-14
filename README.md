@@ -26,17 +26,14 @@ Join 3Dass community:
 
 - 3DPass NODE (based on [Substrate](https://substrate.io/)) - wallets, dApps, smart-contracts, IoT devices integration using API and RPC
 - [Pass3d](https://github.com/3Dpass/pass3d) and [p3d](https://github.com/3Dpass/p3d) recognition toolkit - recognition algorithms integration
-
-This toolkit consists of stable recognition algorithms used for identification of things (3D objects and others, learn more >> ). Since the recognition technology is what the digital transformation process of anything is beginning from, and the result of the processing would always be its HASH ID, it implies every application, integrated into 3DPass eco-system, to have Pass3d or p3d toolkit implemented.
-
 - [Proof of Scan](https://3dpass.org/proof_of_scan.html) consensus - the logic, using 3D objects recognition toolkit, that allows network participants to agree on the state of the blockchain
 
 - [3DPass light wallet](https://github.com/3Dpass/wallet) - desktop users and 3D printing labs integration
 - [Pass3d mobile](https://github.com/3Dpass/threedpass) - smartphone and tablets users integration
 - Smart contracts toolkit - Substrate based smart contract tools using [ink](https://paritytech.github.io/ink-docs/), a Rust-based embedded domain specific language (eDSL) for writing WebAssembly smart contracts. Learn more about [how it compares to Solidity](https://paritytech.github.io/ink-docs/ink-vs-solidity). As well, it allows unmodified EVM code to be executed in the 3DPass blockchain. Some special Substrate fetures are designed to closely emulate the functionality of executing contracts on the Ethereum mainnet within the 3DPass network.
 - IPFS storage - embedded decentralized storage for assets
-- RPC (remote procedure call) - the capabilities that allow blockchain users to interact with the network. The NODE provides HTTP and WebSocket RPC servers. [How to set up websocket](https://github.com/3Dpass/3DP/wiki/Set-up-WSS-for-Remote-Connections)
-- Networking: we use the [`libp2p`](https://libp2p.io/) networking stack to allow the
+- RPC (remote procedure call) - the capabilities that allow blockchain users to interact with the network. The NODE provides HTTP and [WebSocket](https://github.com/3Dpass/3DP/wiki/Set-up-WSS-for-Remote-Connections) RPC servers.
+- Networking: we use the [`libp2p`](https://libp2p.io/) networking stack to allow for the
   nodes in the network to communicate with one another.
 
 [![Architecture](https://3dpass.org/assets/img/eco_system.png)](https://3dpass.org/features.html#integration)
