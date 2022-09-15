@@ -40,8 +40,14 @@ Join 3Dass community:
 
 ## Getting started with 3DPass Node
 
-### Rust Setup
+### Download the latest release
+```sh
+wget https://github.com/3Dpass/3DP/releases/download/v0.0.6/poscan-consensus-x86_64-unknown-linux-gnu.tar.gz
+tar xzf poscan-consensus-x86_64-unknown-linux-gnu.tar.gz
+```
 
+### Rust Setup
+If you need to build the Node manually you have to set up the environment.
 First, complete the [basic Rust setup instructions](https://github.com/substrate-developer-hub/substrate-node-template/blob/main/docs/rust-setup.md). You can also use this command to clone 3DP folder and set up Rust:
 
 ```sh
