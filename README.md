@@ -9,16 +9,7 @@ Every object, transformed by 3DPass, has its own unique and sustainable identity
 
 3DPass NODE is a Layer 1 blockchain based on [Substrate](https://www.substrate.io/) with brandnew consensus [Proof of Scan](https://3dpass.org/proof_of_scan.html) leveraging 3D object shape recognition algorithm called [Grid2d](https://3dpass.org/grid2d.html), which is implemented as [pass3d](https://github.com/3Dpass/pass3d) tool. 3Dpass NODEs are designed to provide object authenticity check. We call it "The Ledger of Unique Things". In order to encourage users to maintain the network and to solve issues there is a cryptocurrency 3DPass Coin.
 
----How to contribute---
-
-In order to contribute on solving the global digital transformation challenge feel free to implement or develop new recognition algorithms into pass3d toolkit (e.x.face recognition, fingerprint recognition, radio signal, 2D drawings, melody, voice, 3D objects, etc.) or make your suggessions about. It always encourages that developers contribute to 3DPass growth, would it be miner tools, network features, dApps, smart-contracts, impementations, new projects and ideas etc. Dive down into [3DPass contribution rewards program](https://3dpass.org/distribution.html#contribution)
-
-Join 3Dass community:
-- [Discord chat](https://discord.gg/u24WkXcwug)
-- [Bitcointalk](https://bitcointalk.org/index.php?topic=5382009.0)
-- [GutHub discussion](https://github.com/3Dpass/3DP/discussions/4)
-
----How to contribute---
+[Contribution program](https://3dpass.org/distribution.html#contribution)  |  [Contributing guidelines](https://github.com/3Dpass/3DP/blob/main/CONTRIBUTING.md)  |  [Discord](https://discord.gg/u24WkXcwug)
 
 # Integration
 
