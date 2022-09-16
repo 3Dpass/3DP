@@ -1,29 +1,30 @@
-# Contributing Guidelines
+# Contributing
 
-The Substrate Recipes strive to identify and extract useful patterns and examples of developing on
-Substrate, and to present those patterns in an approachable and fun format. **Your help is
-Welcome!**
+In order to contribute and help 3DPass solve the Global Digital Transformation Challenge feel free to implement or develop new recognition algorithms into [pass3d](https://github.com/3Dpass/pass3d) toolkit (e.x. face recognition, fingerprint recognition, radio signal, 2D drawings, melody, voice, 3D objects, etc.). 
 
-The Recipes are part of the Substrate Developer Hub, so inter-linking between the Recipes and other
-DevHub facets is common. In particular, the Recipes frequently links to:
+However, it always encourages that developers contribute to 3DPass growth, would it be mining tools, network features, dApps, smart-contracts, impementations, new projects and ideas etc. Dive down into [3DPass contribution rewards program](https://3dpass.org/distribution.html#contribution).
 
--   The [Reference Docs](https://substrate.dev/rustdocs/v3.0.0/)
--   The [Tutorials](https://substrate.dev/en/tutorials)
--   The [Knowledge Base](https://substrate.dev/docs/en/)
+- [Discord chat](https://discord.gg/u24WkXcwug)
+
+# Guidelines
+
+ **Your help is always Welcome!**
+
+Feel free to open Pull Request if you already have somethinfg useful to add. If you haven't yet, we gathered some docs down below:
+-   The [HASH ID](https://3dpass.org/features.html#3D_object_recognition)
+-   The [Multi object options](https://3dpass.org/features.html#multi_object_options)
+-   The [Proof of Scan](https://3dpass.org/proof_of_scan.html) docs
+-   The [Grid2D](https://3dpass.org/grid2d.html) recognition algorithm description
+-   The [Node interaction API](https://github.com/3Dpass/3DP/wiki)
+-   The [Integration](https://3dpass.org/features.html#integration)
 
 ## Reporting Bugs
 
-One way to contribute to the Recipes, is to report issues you find when using the Recipes. You may
-report new issues at https://github.com/substrate-developer-hub/recipes/issues. When reporting an
-issue, please inlcude the following information.
+Another way to contribute, is to report issues you find when using the 3DPass. You may
+report new issues at [here](https://github.com/3Dpass/3DP/issues). When reporting, please inlcude the following information.
 
 -   **Short summary of the issue encountered** - In a sentence or two explain what the issue is at a
     high level.
--   **What recipe has the issue** - You may specify the recipe by name (e.g. "Basic PoW Node"),
-    directory (eg. `/nodes/basic-pow`), or GitHub link (eg.
-    https://github.com/substrate-developer-hub/recipes/tree/master/nodes/basic-pow). Other
-    unambiguous ways of specifying the particular recipe are also acceptable (e.g. crates.io link,
-    or rendered text link).
 -   **Steps to reproduce** - What actions did you take to notice the issue? Did you submit a
     particular extrinsic? Did you compile the code a particular way? What command did you run the
     node with?
@@ -34,51 +35,23 @@ issue, please inlcude the following information.
 
 ## Proposing Changes and Additions
 
-If you would like to make a change or addition to the recipes, you do not need anyone's permission
+If you would like to make a change or addition to 3DPass Node, you do not need anyone's permission
 to get started. You simply open a Pull Request against. Of course, not all changes will be accepted,
-and changes should either be in line with the existing Recipes structure or refactor that structure
-for a good reason. If you want preliminary input from the Recipes' maintainers before beginning,
-please [open an issue](https://github.com/substrate-developer-hub/recipes/issues) discussing your
+and changes should either be in line with the existing structure or refactor that structure
+for a good reason. If you want preliminary input from the Nodes' maintainers before beginning,
+please [open an issue](https://github.com/3Dpass/3DP/issues) discussing your
 idea first. Either approach (PR or issue) is welcome.
 
 ### What to Contribute
 
-Anything you think will make the Recipes better, is worth proposing. Here are some ideas to get you
+Anything you think will make 3DPass better, is worth proposing. Here are some ideas to get you
 started. All of these ideas and more are listed in our
-[issue queue](https://github.com/substrate-developer-hub/recipes/issues)
+[issue queue](https://github.com/3Dpass/3DP/issues)
 
 -   **Test Coverage** - Not all code is covered, and not all covered code is covered well, but we
     would like more and better coverage.
--   **New recipes** - If you know how to do something useful in Substrate that is not yet covered in
-    the Recipes, please contribute.
+-   **New recipes** - If you know how to do something useful that is not yet covered in
+    3DPass, please contribute.
 -   **UX improvements** - Any way to make it easier and less confusing to get new users onboarded is
     welcome.
--   **CI Improvements** - The more tests we have automated, the higher quality the Recipes will be.
-
-## Style
-
-### Rust Code
-
-There is not yet strict enforcement of the
-[Rust in Substrate coding style](https://github.com/paritytech/substrate/blob/master/docs/STYLE_GUIDE.md),
-but it is highly encouraged to wrap lines at 120 characters a line (or less) for improving reviewer
-experience on GitHub.
-
-Graciously invoke `cargo fmt` and `cargo clippy` on any Rust code; This should soon be enforced by
-CI.
-
-### Cargo.toml
-
-Prefer listing dependencies under a single `[dependencies]` header in lieu of using a
-`[dependencies.some_import]` for every `some_import` module imported.
-
-### English
-
-No standards for language style are enforced aside from the common English spelling/grammar rules.
-@4meta5 has a few _preferences_:
-
--   Avoid using "we", "our", "you" because it often is conducive to unnecessary language
--   Prefer active voice ("you may want to use active voice" `=>` "use active voice")
--   Link as often as possible to outside content and useful resources including other recipes,
-    knowledge base, tutorials, Wikipedia, and 3rd party content. It is not necessary to re-link the
-    same external resource on subsequent mentions in a single document.
+-   **CI Improvements** - The more tests we have automated, the higher quality 3DPass Node will be.
