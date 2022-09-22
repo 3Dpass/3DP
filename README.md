@@ -3,7 +3,7 @@
 
 # 3Dpass Node - mainnet
 
-3DPass is an OpenSource decentralized WEB 3.0 P2P platform for tokenization of real physical and virtual objects and its transformation into digital assets. The main idea of 3DPass is to make it possible for people to use real world objects in digital within smart-contracts and dApps and have full control over its copies (learn more about 3DPass [features](https://3dpass.org/features.html) ). This allows to establish 1:1 corespondence between an object and its asset and define ownership as an additional property of the asset providing zero-knowledge proof. Follow the [White Paper](https://3dpass.org/3DPass_white_paper.pdf) for the details.
+3DPass is an OpenSource decentralized WEB 3.0 P2P Layer 1 blockchain platform for tokenization of real physical and virtual objects and its transformation into digital assets. The main idea of 3DPass is to make it possible for people to use real world objects in digital within smart-contracts and dApps and have full control over its copies (learn more about 3DPass [features](https://3dpass.org/features.html) ). This allows to establish 1:1 corespondence between an object and its asset and define ownership as an additional property of the asset providing zero-knowledge proof. Follow the [White Paper](https://3dpass.org/3DPass_white_paper.pdf) for the details.
 
 Every object, transformed by 3DPass, has its own unique and sustainable identity called [HASH ID](https://3dpass.org/features.html#3D_object_recognition) the object might be recognized by. The algorithm is flexible enough to adjust the definition of error to certain level of scanning precision.
 
