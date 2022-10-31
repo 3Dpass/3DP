@@ -22,7 +22,9 @@ use frame_support::{
 	traits::{
 		Currency, LockableCurrency, EstimateNextSessionRotation,
 		Get, ValidatorSet, ValidatorSetWithIdentification,
+		OnUnbalanced, ExistenceRequirement,
 	},
+	sp_runtime::SaturatedConversion,
 };
 use log;
 pub use pallet::*;
@@ -38,6 +40,13 @@ pub const LOG_TARGET: &'static str = "runtime::validator-set";
 pub type BalanceOf<T> =
 <<T as Config>::Currency as Currency<<T as frame_system::Config>::AccountId>>::Balance;
 
+type PositiveImbalanceOf<T> = <<T as Config>::Currency as Currency<
+	<T as frame_system::Config>::AccountId,
+>>::PositiveImbalance;
+type NegativeImbalanceOf<T> = <<T as Config>::Currency as Currency<
+	<T as frame_system::Config>::AccountId,
+>>::NegativeImbalance;
+
 #[frame_support::pallet]
 pub mod pallet {
 	use super::*;
@@ -46,7 +55,7 @@ pub mod pallet {
 	/// Configure the pallet by specifying the parameters and types on which it
 	/// depends.
 	#[pallet::config]
-	pub trait Config: frame_system::Config + pallet_session::Config {
+	pub trait Config: frame_system::Config + pallet_session::Config + pallet_treasury::Config {
 		/// The Event type.
 		type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
 
@@ -69,6 +78,11 @@ pub mod pallet {
 		type MaxMinerDepth: Get<u32>;
 
 		type RewardLocksApi: RewardLocksApi<Self::AccountId, BalanceOf<Self>>;
+
+		#[pallet::constant]
+		type PenaltyOffline: Get<u128>;
+
+		type Slash: OnUnbalanced<NegativeImbalanceOf<Self>>;
 	}
 
 	#[pallet::pallet]
@@ -100,6 +114,8 @@ pub mod pallet {
 
 		/// Validator removal initiated. Effective in ~2 sessions.
 		ValidatorRemovalInitiated(T::AccountId),
+
+		ValidatorSlash(T::AccountId, BalanceOf<T>),
 	}
 
 	// Errors inform users that something went wrong.
@@ -354,6 +370,22 @@ impl<T: Config> Pallet<T> {
 		log::debug!(target: LOG_TARGET, "Offline validator marked for auto removal.");
 	}
 
+	// Adds offline validators to a local cache for removal at new session.
+	fn slash(validator_id: &T::AccountId, val: BalanceOf<T>) {
+		// <OfflineValidators<T>>::mutate(|v| v.push(validator_id));
+		let pot_id = pallet_treasury::Pallet::<T>::account_id();
+
+		// !!!!
+		if let Err(_) = <T as pallet::Config>::Currency::transfer(&validator_id, &pot_id, val, ExistenceRequirement::KeepAlive) {
+			log::error!(target: LOG_TARGET, "Error slash validator {:?} by {:?}.", validator_id, &val);
+			return
+		}
+
+		log::debug!(target: LOG_TARGET, "Slash validator {:?} by {:?}.", validator_id, &val);
+		Self::deposit_event(Event::ValidatorSlash(validator_id.clone(), val));
+	}
+
+
 	// Removes offline validators from the validator set and clears the offline
 	// cache. It is called in the session change hook and removes the validators
 	// who were reported offline during the session that is ending. We do not
@@ -445,8 +477,11 @@ impl<T: Config, O: Offence<(T::AccountId, T::AccountId)>>
 {
 	fn report_offence(_reporters: Vec<T::AccountId>, offence: O) -> Result<(), OffenceError> {
 		let offenders = offence.offenders();
+		let penalty: u128 = T::PenaltyOffline::get();
+		let val: BalanceOf<T> = penalty.saturated_into();
 
 		for (v, _) in offenders.into_iter() {
+			Self::slash(&v, val);
 			Self::mark_for_removal(v);
 		}
 

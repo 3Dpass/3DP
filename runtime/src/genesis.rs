@@ -87,6 +87,7 @@ pub fn testnet_genesis(
 		},
 		sudo: SudoConfig { key: Some(root_key) },
 		grandpa: Default::default(),
+		im_online: Default::default(),
 		difficulty: DifficultyConfig {
 			initial_difficulty,
 		},

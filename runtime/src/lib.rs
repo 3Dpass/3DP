@@ -26,6 +26,7 @@ use pallet_contracts::{migration, DefaultContractAccessWeight};
 
 use core::convert::TryInto;
 use pallet_grandpa::{AuthorityId as GrandpaId, AuthorityList as GrandpaAuthorityList};
+use pallet_im_online::sr25519::AuthorityId as ImOnlineId;
 use sp_api::impl_runtime_apis;
 use sp_core::{crypto::KeyTypeId, OpaqueMetadata, H256};
 // use sp_core::u32_trait::{_1, _2, _4, _5};
@@ -35,7 +36,7 @@ use sp_runtime::{
 		AccountIdLookup, BlakeTwo256, Block as BlockT, IdentifyAccount, Verify,
 		NumberFor, ConvertInto, OpaqueKeys,
 	},
-	transaction_validity::{TransactionSource, TransactionValidity},
+	transaction_validity::{TransactionPriority, TransactionSource, TransactionValidity},
 	ApplyExtrinsicResult, MultiSignature,
 };
 use sp_std::{
@@ -797,6 +798,7 @@ parameter_types! {
 	pub const PoscanEngineId: [u8;4] = POSCAN_ENGINE_ID;
 	pub const FilterLevels: [(u128, u32);4] = LEVELS;
 	pub const MaxMinerDepth: u32 = 1000;
+	pub const PenaltyOffline: u128 = 20_000 * DOLLARS;
 }
 
 impl pallet_validator_set::Config for Runtime {
@@ -809,6 +811,8 @@ impl pallet_validator_set::Config for Runtime {
 	type FilterLevels = FilterLevels;
 	type MaxMinerDepth = MaxMinerDepth;
 	type RewardLocksApi = Rewards;
+	type PenaltyOffline = PenaltyOffline;
+	type Slash = Treasury;
 }
 
 parameter_types! {
@@ -935,6 +939,35 @@ impl pallet_grandpa::Config for Runtime {
 }
 
 parameter_types! {
+	pub const NposSolutionPriority: TransactionPriority = TransactionPriority::max_value() / 2;
+	pub const ImOnlineUnsignedPriority: TransactionPriority = TransactionPriority::max_value();
+	// pub const MaxKeys: u32 = 10_000;
+	// pub const MaxPeerInHeartbeats: u32 = 10_000;
+	// pub const MaxPeerDataEncodingSize: u32 = 1_000;
+}
+
+impl pallet_im_online::Config for Runtime {
+	type AuthorityId = ImOnlineId;
+	type Event = Event;
+	type ValidatorSet = ValidatorSet;
+	type NextSessionRotation = pallet_session::PeriodicSessions<Period, Offset>;
+	type ReportUnresponsiveness = ValidatorSet; // Offences;
+	type UnsignedPriority = ImOnlineUnsignedPriority;
+	type WeightInfo = (); // weights::pallet_im_online::WeightInfo<Runtime>;
+	type MaxKeys = MaxKeys;
+	type MaxPeerInHeartbeats = MaxPeerInHeartbeats;
+	type MaxPeerDataEncodingSize = MaxPeerDataEncodingSize;
+}
+
+impl<C> frame_system::offchain::SendTransactionTypes<C> for Runtime
+	where
+		Call: From<C>,
+{
+	type OverarchingCall = Call;
+	type Extrinsic = UncheckedExtrinsic;
+}
+
+parameter_types! {
 	pub const MinVestedTransfer: Balance = 100 * CENTS;
 }
 
@@ -1056,6 +1089,7 @@ construct_runtime!(
 		Bounties: pallet_bounties,
 		ChildBounties: pallet_child_bounties,
 		Grandpa: pallet_grandpa,
+		ImOnline: pallet_im_online,
 		Identity: pallet_identity, // ::{Pallet, Call, Storage, Event<T>},
 		Vesting: pallet_vesting,
 		Whitelist: pallet_whitelist,

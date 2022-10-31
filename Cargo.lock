@@ -3889,6 +3889,25 @@ dependencies = [
 ]
 
 [[package]]
+name = "pallet-im-online"
+version = "4.0.0-dev"
+source = "git+https://github.com/paritytech/substrate?rev=b0777b4c7f7#b0777b4c7f7d8d3c635319d0153953d0a22aa58e"
+dependencies = [
+ "frame-support",
+ "frame-system",
+ "log",
+ "pallet-authorship",
+ "parity-scale-codec",
+ "scale-info",
+ "sp-application-crypto",
+ "sp-core",
+ "sp-io",
+ "sp-runtime",
+ "sp-staking",
+ "sp-std",
+]
+
+[[package]]
 name = "pallet-indices"
 version = "4.0.0-dev"
 source = "git+https://github.com/paritytech/substrate?rev=b0777b4c7f7#b0777b4c7f7d8d3c635319d0153953d0a22aa58e"
@@ -4218,6 +4237,7 @@ dependencies = [
  "frame-system",
  "log",
  "pallet-session",
+ "pallet-treasury",
  "parity-scale-codec",
  "rewards-api",
  "scale-info",
@@ -4663,6 +4683,7 @@ dependencies = [
  "pallet-difficulty",
  "pallet-grandpa",
  "pallet-identity",
+ "pallet-im-online",
  "pallet-indices",
  "pallet-multisig",
  "pallet-poscan",
