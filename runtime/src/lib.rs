@@ -824,7 +824,7 @@ impl pallet_validator_set::Config for Runtime {
 }
 
 parameter_types! {
-	pub const Period: u32 = 100 * MINUTES;
+	pub const Period: u32 = 30 * MINUTES;
 	pub const Offset: u32 = 0;
 }
 
