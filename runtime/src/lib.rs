@@ -123,6 +123,7 @@ pub mod opaque {
 	impl_opaque_keys! {
 		pub struct SessionKeys {
 			pub grandpa: Grandpa,
+			pub imonline: ImOnline,
 		}
 	}
 }

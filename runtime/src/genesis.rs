@@ -12,6 +12,7 @@ use super::{
 };
 use sp_core::{sr25519, Pair, Public, U256};
 use sp_finality_grandpa::AuthorityId as GrandpaId;
+use pallet_im_online::sr25519::AuthorityId as ImOnlineId;
 use sp_runtime::traits::{IdentifyAccount, Verify};
 use sp_consensus_poscan::DOLLARS;
 
@@ -33,15 +34,16 @@ where
 }
 
 /// Helper function to generate session key from seed
-pub fn authority_keys_from_seed(seed: &str) -> (AccountId, GrandpaId) {
+pub fn authority_keys_from_seed(seed: &str) -> (AccountId, GrandpaId, ImOnlineId) {
 	(
 		account_id_from_seed::<sr25519::Public>(seed),
 		get_from_seed::<GrandpaId>(seed),
+		get_from_seed::<ImOnlineId>(seed),
 	)
 }
 
-fn session_keys(grandpa: GrandpaId) -> SessionKeys {
-	SessionKeys { grandpa }
+fn session_keys(grandpa: GrandpaId, imonline: ImOnlineId) -> SessionKeys {
+	SessionKeys { grandpa, imonline }
 }
 
 pub fn dev_genesis(wasm_binary: &[u8]) -> GenesisConfig {
@@ -65,7 +67,7 @@ pub fn dev_genesis(wasm_binary: &[u8]) -> GenesisConfig {
 /// Helper function to build a genesis configuration
 pub fn testnet_genesis(
 	wasm_binary: &[u8],
-	initial_authorities: Vec<(AccountId, GrandpaId)>,
+	initial_authorities: Vec<(AccountId, GrandpaId, ImOnlineId)>,
 	root_key: AccountId,
 	endowed_accounts: Vec<AccountId>,
 	initial_difficulty: U256,
@@ -112,8 +114,7 @@ pub fn testnet_genesis(
 		},
 		session: SessionConfig {
 			keys: initial_authorities.iter().map(|x| {
-				// (x.0.clone(), x.0.clone(), session_keys(x.1.clone(), x.2.clone()))
-				(x.0.clone(), x.0.clone(), session_keys(x.1.clone()))
+				(x.0.clone(), x.0.clone(), session_keys(x.1.clone(), x.2.clone()))
 			}).collect::<Vec<_>>(),
 		},
 	}
