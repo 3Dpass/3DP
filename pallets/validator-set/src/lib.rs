@@ -608,6 +608,11 @@ impl<T: Config> Pallet<T> {
 
 	fn mark_if_no_locks() {
 		let current_block = <frame_system::Pallet<T>>::block_number();
+		// WIP: do not check locks in first 100 blocks
+		if current_block < 100u32.into() {
+			return
+		}
+
 		let levels = T::FilterLevels::get();
 		let default_enter_depo: BalanceOf<T> = levels[0].0.saturated_into();
 
