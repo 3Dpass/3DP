@@ -795,15 +795,15 @@ const LEVELS: [(u128, u32); 4] = [
 ];
 
 parameter_types! {
-	pub const MinAuthorities: u32 = 2;
+	pub const MinAuthorities: u32 = 3;
 	pub const PoscanEngineId: [u8;4] = POSCAN_ENGINE_ID;
 	pub const FilterLevels: [(u128, u32);4] = LEVELS;
 	pub const MaxMinerDepth: u32 = 1000;
 	pub const PenaltyOffline: u128 = 20_000 * DOLLARS;
 	pub const MinLockAmount: u128 = 100_000 * DOLLARS;
-	pub const MinLockPeriod: u32 = 24 * 30;
-	pub const SlashValidatorFor: u32 = 24 * 7;
-	pub const AddAfterSlashPeriod: u32 = 24 * 7;
+	pub const MinLockPeriod: u32 = 500;
+	pub const SlashValidatorFor: u32 = 100;
+	pub const AddAfterSlashPeriod: u32 = 100;
 }
 
 impl pallet_validator_set::Config for Runtime {
