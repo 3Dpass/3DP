@@ -142,7 +142,7 @@ pub mod pallet {
 
 	#[pallet::storage]
 	#[pallet::getter(fn removed)]
-	pub type Removed<T: Config> = StorageMap<_, Twox64Concat, T::AccountId, Option<(T::BlockNumber, RemoveReason)>, ValueQuery>;
+	pub type AccountRemoveReason<T: Config> = StorageMap<_, Twox64Concat, T::AccountId, Option<(T::BlockNumber, RemoveReason)>, ValueQuery>;
 
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(super) fn deposit_event)]
@@ -194,21 +194,11 @@ pub mod pallet {
 	#[pallet::hooks]
 	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
 		fn on_finalize(n: T::BlockNumber) {
-			extern crate alloc;
-			use alloc::string::String;
-			log::debug!(target: LOG_TARGET, "on_finalize2");
-			log::debug!(target: LOG_TARGET, "logs len");
-			let len = frame_system::Pallet::<T>::digest().logs.len();
-			log::debug!(target: LOG_TARGET, "logs len = {:?}", len);
-
 			let author = frame_system::Pallet::<T>::digest()
 				.logs
 				.iter()
 				.filter_map(|s| s.as_pre_runtime())
 				.filter_map(|(id, mut data)| {
-					log::debug!(target: LOG_TARGET, "PreRuntime");
-					let aa = T::PoscanEngineId::get();
-					log::debug!(target: LOG_TARGET, "engine_id = {:?}", String::from_utf8(aa.into()));
 					if id == T::PoscanEngineId::get() {
 						T::AccountId::decode(&mut data).ok()
 					} else {
@@ -285,7 +275,17 @@ pub mod pallet {
 
 			Self::do_remove_validator(validator_id.clone())?;
 			Self::unapprove_validator(validator_id.clone())?;
-			Removed::<T>::insert(&validator_id, Some((current_block, RemoveReason::Normal)));
+			AccountRemoveReason::<T>::insert(&validator_id, Some((current_block, RemoveReason::Normal)));
+
+			Ok(())
+		}
+
+		#[pallet::weight(0)]
+		pub fn add_validator_self(origin: OriginFor<T>) -> DispatchResult {
+			let validator_id = ensure_signed(origin)?;
+
+			Self::do_add_validator(validator_id.clone(), true)?;
+			Self::approve_validator(validator_id)?;
 
 			Ok(())
 		}
@@ -308,7 +308,7 @@ pub mod pallet {
 			let suspend_period = T::SlashValidatorFor::get();
 			let allow_period = T::AddAfterSlashPeriod::get();
 			let mut check_block_num = true;
-			let maybe_removed = Removed::<T>::get(&validator_id);
+			let maybe_removed = AccountRemoveReason::<T>::get(&validator_id);
 
 			if let Some(remove_data) = maybe_removed {
 				check_block_num = false;
@@ -374,23 +374,6 @@ pub mod pallet {
 
 			Self::deposit_event(Event::ValidatorLockBalance(validator_id.clone(), when, amount, period));
 			log::debug!(target: LOG_TARGET, "Locked {:?} for validator_id: {:?} up to block {:?}.", amount, validator_id, when);
-
-			Ok(())
-		}
-
-		#[pallet::weight(0)]
-		pub fn get_lock(
-			_origin: OriginFor<T>,
-			validator_id: T::AccountId,
-		) -> DispatchResult {
-			match ValidatorLock::<T>::get(&validator_id) {
-				Some(lock_item) => Self::deposit_event(
-					Event::ValidatorLockBalance(validator_id.clone(), lock_item.0, lock_item.1, lock_item.2)
-				),
-				None => Self::deposit_event(
-					Event::ValidatorLockBalance(validator_id.clone(), Zero::zero(), Zero::zero(), None)
-				),
-			}
 
 			Ok(())
 		}
@@ -542,7 +525,7 @@ impl<T: Config> Pallet<T> {
 	// Adds offline validators to a local cache for removal at new session.
 	fn mark_for_removal(validator_id: T::AccountId, reason: RemoveReason) {
 		let current_block = <frame_system::Pallet<T>>::block_number();
-		Removed::<T>::insert(&validator_id, Some((current_block, reason)));
+		AccountRemoveReason::<T>::insert(&validator_id, Some((current_block, reason)));
 
 		<OfflineValidators<T>>::mutate(|v| v.push(validator_id));
 		log::debug!(target: LOG_TARGET, "Offline validator marked for auto removal.");
@@ -585,10 +568,6 @@ impl<T: Config> Pallet<T> {
 		let validators_to_remove: BTreeSet<_> = <OfflineValidators<T>>::get().into_iter().collect();
 
 		let mut validators = <Validators<T>>::get();
-		if validators.len() as u32 <= T::MinAuthorities::get() {
-			return
-		}
-
 		for r in validators_to_remove.iter() {
 			validators.retain(|v| *v != *r);
 			if validators.len() as u32 <= T::MinAuthorities::get() {
@@ -741,6 +720,8 @@ impl<T: Config, O: Offence<(T::AccountId, T::AccountId)>>
 		let val: BalanceOf<T> = penalty.saturated_into();
 
 		for (v, _) in offenders.into_iter() {
+			log::debug!(target: LOG_TARGET, "offender reported: {:?}", &v);
+
 			Self::slash(&v, val);
 			Self::mark_for_removal(v, RemoveReason::ImOnlineSlash);
 		}
