@@ -292,7 +292,19 @@ decl_module! {
 
 			let locks = Self::reward_locks(&target);
 			let current_number = frame_system::Pallet::<T>::block_number();
-			Self::do_update_reward_locks(&target, locks, current_number);
+			Self::do_update_reward_locks(&target, locks, current_number, false);
+		}
+
+		#[weight = 0]
+		fn force_unlock(
+			origin,
+			account_id: T::AccountId,
+		) {
+			ensure_root(origin)?;
+
+			let locks = Self::reward_locks(&account_id);
+			let current_number = frame_system::Pallet::<T>::block_number();
+			Self::do_update_reward_locks(&account_id, locks, current_number, true);
 		}
 
 		/// Unlock any vested rewards for `target` account.
@@ -316,7 +328,7 @@ decl_module! {
 
 				locks.insert(when, amount);
 
-				Self::do_update_reward_locks(&target, locks, current_number);
+				Self::do_update_reward_locks(&target, locks, current_number, false);
 				Self::deposit_event(RawEvent::Locked(target, amount));
             }
 		}
@@ -417,7 +429,7 @@ impl<T: Config> Module<T> {
 				locks.insert(new_lock_number, new_balance);
 			}
 
-			Self::do_update_reward_locks(&account, locks, when);
+			Self::do_update_reward_locks(&account, locks, when, false);
 		}
 	}
 
@@ -425,28 +437,46 @@ impl<T: Config> Module<T> {
 		author: &T::AccountId,
 		mut locks: BTreeMap<T::BlockNumber, BalanceOf<T>>,
 		current_number: T::BlockNumber,
+		force: bool,
 	) {
 		let mut expired = Vec::new();
-		let mut total_locked: BalanceOf<T> = Zero::zero();
 
-		for (block_number, locked_balance) in &locks {
-			if block_number <= &current_number {
+		if force {
+			for (block_number, _) in &locks {
 				expired.push(*block_number);
-			} else {
-				total_locked = total_locked.saturating_add(*locked_balance);
 			}
-		}
 
-		for block_number in expired {
-			locks.remove(&block_number);
-		}
+			for block_number in expired {
+				locks.remove(&block_number);
+			}
 
-		T::Currency::set_lock(
-			REWARDS_ID,
-			&author,
-			total_locked,
-			WithdrawReasons::except(WithdrawReasons::TRANSACTION_PAYMENT),
-		);
+			T::Currency::remove_lock(
+				REWARDS_ID,
+				&author,
+			);
+		}
+		else {
+			let mut total_locked: BalanceOf<T> = Zero::zero();
+
+			for (block_number, locked_balance) in &locks {
+				if block_number <= &current_number {
+					expired.push(*block_number);
+				} else {
+					total_locked = total_locked.saturating_add(*locked_balance);
+				}
+			}
+
+			for block_number in expired {
+				locks.remove(&block_number);
+			}
+
+			T::Currency::set_lock(
+				REWARDS_ID,
+				&author,
+				total_locked,
+				WithdrawReasons::except(WithdrawReasons::TRANSACTION_PAYMENT),
+			);
+		}
 
 		<Self as Store>::RewardLocks::insert(author, locks);
 	}
