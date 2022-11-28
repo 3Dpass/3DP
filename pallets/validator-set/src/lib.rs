@@ -351,7 +351,7 @@ pub mod pallet {
 				return Err(Error::<T>::UnsufficientBalance.into());
 			}
 
-			if when - current_number > min_period.into() {
+			if when - current_number < min_period.into() {
 				return Err(Error::<T>::LockPeriodBellowLimit.into());
 			}
 
@@ -495,7 +495,7 @@ impl<T: Config> Pallet<T> {
 		// Ensuring that the post removal, target validator count doesn't go
 		// below the minimum.
 		ensure!(
-			validators.len().saturating_sub(1) as u32 >= T::MinAuthorities::get(),
+			validators.len() as u32 <= T::MinAuthorities::get(),
 			Error::<T>::TooLowValidatorCount
 		);
 
