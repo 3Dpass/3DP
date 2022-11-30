@@ -495,7 +495,7 @@ impl<T: Config> Pallet<T> {
 		// Ensuring that the post removal, target validator count doesn't go
 		// below the minimum.
 		ensure!(
-			validators.len() as u32 <= T::MinAuthorities::get(),
+			validators.len() as u32 > T::MinAuthorities::get(),
 			Error::<T>::TooLowValidatorCount
 		);
 
