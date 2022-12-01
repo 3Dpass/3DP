@@ -568,19 +568,22 @@ impl<T: Config> Pallet<T> {
 		let validators_to_remove: BTreeSet<_> = <OfflineValidators<T>>::get().into_iter().collect();
 
 		let mut validators = <Validators<T>>::get();
+		let mut to_remove = 0;
 		for r in validators_to_remove.iter() {
-			validators.retain(|v| *v != *r);
 			if validators.len() as u32 <= T::MinAuthorities::get() {
 				break
 			}
+			validators.retain(|v| *v != *r);
+			to_remove += 1;
 		}
-		<Validators<T>>::put(validators);
-		log::debug!(
-			target: LOG_TARGET,
-			"Initiated removal of {:?} offline validators.",
-			validators_to_remove.len()
-		);
-
+		if to_remove > 0 {
+			<Validators<T>>::put(validators);
+			log::debug!(
+				target: LOG_TARGET,
+				"Initiated removal of {:?} offline validators.",
+				to_remove,
+			);
+		}
 		// Clear the offline validator list to avoid repeated deletion.
 		<OfflineValidators<T>>::put(Vec::<T::AccountId>::new());
 	}
