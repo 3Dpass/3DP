@@ -180,7 +180,7 @@ pub mod pallet {
 		/// Decrease lcck prolongation not allowed.
 		DecreaseLockPeriodNotAllowed,
 		/// Lcck prolongation period too little.
-		LockPeriodBellowLimit, // {pub limit: u32},
+		LockPeriodBelowLimit, // {pub limit: u32},
 		/// No lock.
 		NotLocked,
 		/// Unsufficient Balance,
@@ -352,12 +352,12 @@ pub mod pallet {
 			}
 
 			if when - current_number < min_period.into() {
-				return Err(Error::<T>::LockPeriodBellowLimit.into());
+				return Err(Error::<T>::LockPeriodBelowLimit.into());
 			}
 
 			if let Some(per) = period {
 				if per < min_period {
-					return Err(Error::<T>::LockPeriodBellowLimit.into());
+					return Err(Error::<T>::LockPeriodBelowLimit.into());
 				}
 			}
 
