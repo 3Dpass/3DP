@@ -71,6 +71,8 @@ pallet-elections-phragmen = { default-features = false, git = "https://github.co
 pallet-ranked-collective = { default-features = false, git = "https://github.com/paritytech/substrate", rev = "b0777b4c7f7" }
 
 pallet-validator-set = { path = "../pallets/validator-set", default-features = false }
+pallet-mining-pool = { path = "../pallets/mining-pool", default-features = false }
+mining-pool-stat-api = { path = "../traits/mining-pool", default-features = false }
 difficulty = { package = "pallet-difficulty", path = "../pallets/difficulty", default-features = false }
 rewards = { package = "pallet-rewards", path = "../pallets/rewards", default-features = false }
 pallet-referenda = { default-features = false, path = "../pallets/referenda" }
@@ -161,6 +163,7 @@ std = [
 	"pallet-elections-phragmen/std",
 	"pallet-ranked-collective/std",
 	"pallet-validator-set/std",
+	"pallet-mining-pool/std",
 	"pallet-poscan/std",
 	"difficulty/std",
 	"rewards/std",

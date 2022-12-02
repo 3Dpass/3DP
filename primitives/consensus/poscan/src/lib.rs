@@ -23,7 +23,7 @@
 
 
 use sp_std::vec::Vec;
-use sp_runtime::ConsensusEngineId;
+use sp_runtime::{ConsensusEngineId, Percent};
 use codec::Decode;
 use lzss::{Lzss, SliceReader, VecWriter};
 
@@ -120,6 +120,14 @@ sp_api::decl_runtime_apis! {
 	pub trait DifficultyApi<Difficulty: Decode> {
 		/// Return the target difficulty of the next block.
 		fn difficulty() -> Difficulty;
+	}
+
+	pub trait MiningPoolApi<AccountId>
+	where
+		AccountId: codec::Decode + codec::Encode,
+	{
+		fn difficulty(pool_id: &AccountId) -> Difficulty;
+		fn get_stat(pool_id: &AccountId) -> Option<(Percent, Vec<(AccountId, u32)>)>;
 	}
 
 	pub trait AlgorithmApi {

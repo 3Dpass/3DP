@@ -25,9 +25,14 @@ tokio = "1.19"
 lazy_static = { version = "1.4.0" }
 async-trait = "0.1.50"
 jsonrpsee = { version = "0.14.0", features = ["server"] }
+hex = { version = "0.4", default-features = false, features = ["alloc"] }
 
 
 # Substrate packages
+# serde = { version = "1.0.101", optional = true }
+codec = { package = "parity-scale-codec", version = "3.1", default-features = false, features = ["derive"] }
+scale-info = { version = "2.0", default-features = false, features = ["derive"] }
+
 sc-basic-authorship = { git = "https://github.com/paritytech/substrate", rev = "b0777b4c7f7" }
 sc-cli = { git = "https://github.com/paritytech/substrate", rev = "b0777b4c7f7" }
 sc-client-api = { git = "https://github.com/paritytech/substrate", rev = "b0777b4c7f7" }
@@ -55,6 +60,7 @@ sp-runtime = { git = "https://github.com/paritytech/substrate", rev = "b0777b4c7
 sp-timestamp = { git = "https://github.com/paritytech/substrate", rev = "b0777b4c7f7" }
 sp-transaction-pool = { git = "https://github.com/paritytech/substrate", rev = "b0777b4c7f7" }
 sp-keystore = { git = "https://github.com/paritytech/substrate", rev = "b0777b4c7f7" }
+sp-offchain = { git = "https://github.com/paritytech/substrate", rev = "b0777b4c7f7" }
 sc-telemetry = { git = "https://github.com/paritytech/substrate", rev = "b0777b4c7f7" }
 
 substrate-frame-rpc-system = { git = "https://github.com/paritytech/substrate", rev = "b0777b4c7f7", package = "substrate-frame-rpc-system" }

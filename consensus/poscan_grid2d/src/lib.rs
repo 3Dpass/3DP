@@ -67,6 +67,10 @@ impl Compute {
 		}
 	}
 
+	pub fn get_work(&self) -> H256 {
+		H256::from_slice(Sha3_256::digest(&self.encode()[..]).as_slice())
+	}
+
 	fn signing_message(&self) -> [u8; 32] {
 		let calculation = Self {
 			difficulty: self.difficulty,

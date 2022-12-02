@@ -1,0 +1,57 @@
+[package]
+name = 'pallet-mining-pool'
+version = '0.1.0'
+authors = ['Gautam Dhameja <quasijatt@outlook.com>']
+edition = '2021'
+license = 'Apache-2.0'
+repository = 'https://github.com/gautamdhameja/substrate-validator-set'
+
+[dev-dependencies]
+serde = { features = ['derive'], version = '1.0.126' }
+
+[dependencies]
+log = { default-features = false, version = '0.4.17'}
+codec = { default-features = false, features = ['derive'], package = 'parity-scale-codec', version = '3.1' }
+hex = { version = "0.4", default-features = false, features = ["alloc"] }
+
+sp-core = { default-features = false, git = "tps://github.com/paritytech/substrate", rev = "b0777b4c7f7" }
+sp-io = { default-features = false, git = "https://github.com/paritytech/substrate", rev = "b0777b4c7f7" }
+sp-runtime = { default-features = false, git = "https://github.com/paritytech/substrate", rev = "b0777b4c7f7" }
+sp-std = { default-features = false, git = "https://github.com/paritytech/substrate", rev = "b0777b4c7f7" }
+sp-staking = { default-features = false, git = "https://github.com/paritytech/substrate", rev = "b0777b4c7f7" }
+sp-application-crypto = { version = "6.0.0", default-features = false, git = "https://github.com/paritytech/substrate", rev = "b0777b4c7f7" }
+
+frame-benchmarking = { default-features = false, git = "tps://github.com/paritytech/substrate", rev = "b0777b4c7f7", optional = true }
+frame-support = { default-features = false, git = "https://github.com/paritytech/substrate", rev = "b0777b4c7f7" }
+frame-system = { default-features = false, git = "https://github.com/paritytech/substrate", rev = "b0777b4c7f7" }
+pallet-session = { default-features = false, features = ['historical'], git = "https://github.com/paritytech/substrate", rev = "b0777b4c7f7" }
+#pallet-treasury = { default-features = false, git = "https://github.com/paritytech/substrate", rev = "b0777b4c7f7" }
+pallet-identity = { default-features = false, git = "https://github.com/paritytech/substrate", rev = "b0777b4c7f7" }
+
+scale-info = { default-features = false, features = ['derive'], version = '2.1.1' }
+
+rewards-api = { default-features = false, path = "../../traits/rewards" }
+mining-pool-stat-api = { default-features = false, path = "../../traits/mining-pool" }
+# sc-consensus-poscan = { path = "../../consensus/poscan" }
+
+
+[features]
+default = ['std']
+runtime-benchmarks = ['frame-benchmarking']
+std = [
+    'codec/std',
+    'frame-benchmarking/std',
+    'frame-support/std',
+    'frame-system/std',
+    'scale-info/std',
+    'sp-core/std',
+    'sp-io/std',
+    'sp-std/std',
+    'sp-runtime/std',
+    'pallet-session/std',
+    'pallet-identity/std',
+    'rewards-api/std',
+    "sp-application-crypto/std",
+    "mining-pool-stat-api/std",
+]
+try-runtime = ['frame-support/try-runtime']

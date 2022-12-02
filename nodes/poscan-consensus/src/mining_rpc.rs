@@ -4,6 +4,7 @@ use jsonrpsee::{
 	proc_macros::rpc,
 	types::error::{CallError, ErrorCode, ErrorObject},
 };
+
 use sp_runtime::{generic::BlockId, traits::Block as BlockT};
 use sp_api::ProvideRuntimeApi;
 use sp_runtime::generic::DigestItem;
@@ -23,6 +24,14 @@ const RES_OK: u64 = 0;
 const RES_QUEUE_FULL: u64 = 1;
 const RES_OBJ_MAX_LEN: u64 = 2;
 
+// #[derive(Encode, Decode, Clone, Eq, PartialEq, RuntimeDebug, TypeInfo)]
+// #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
+// struct WorkParams {
+// 	difficulty: Difficulty,
+// 	pre_hash: Hash,
+// 	parent_hash: Hash,
+// };
+
 #[rpc(client, server)]
 pub trait PoscanMiningRpcApi<BlockHash> {
 	#[method(name = "poscan_pushMiningObject")]
@@ -36,7 +45,6 @@ pub trait PoscanMiningRpcApi<BlockHash> {
 pub struct MiningRpc<C, Block> {
 	client: Arc<C>,
 	_marker: std::marker::PhantomData<Block>,
-
 }
 
 impl<C, Block> MiningRpc<C, Block> {

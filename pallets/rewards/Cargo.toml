@@ -19,6 +19,7 @@ frame-system = { default-features = false, git = "https://github.com/paritytech/
 
 rewards-api = { default-features = false, path = "../../traits/rewards" }
 validator-set-api = { default-features = false, path = "../../traits/validator-set" }
+mining-pool-stat-api = { default-features = false, path = "../../traits/mining-pool" }
 
 # Benchmarking
 frame-benchmarking = { default-features = false, optional = true, git = "https://github.com/paritytech/substrate", rev = "b0777b4c7f7" }

@@ -39,7 +39,7 @@ use frame_support::{
 use frame_system::{ensure_root, ensure_signed};
 use sp_consensus_poscan::POSCAN_ENGINE_ID;
 use sp_runtime::traits::{Saturating, Zero};
-use sp_runtime::Perbill;
+use sp_runtime::{Perbill, Percent};
 use sp_std::{
 	collections::btree_map::BTreeMap, iter::FromIterator, ops::Bound::Included, prelude::*,
 };
@@ -49,6 +49,8 @@ use scale_info::TypeInfo;
 use log;
 use rewards_api::RewardLocksApi;
 use validator_set_api::ValidatorSetApi;
+use mining_pool_stat_api::MiningPoolStatApi;
+use sp_consensus_poscan::Difficulty;
 pub const LOG_TARGET: &'static str = "runtime::validator-set";
 
 
@@ -124,6 +126,8 @@ pub trait Config: frame_system::Config {
 	type ValidatorSet: ValidatorSetApi<Self::AccountId>;
 	// Percent of rewars for miner
 	type MinerRewardsPercent: Get<u32>;
+	// Percent of rewars for miner
+	type MiningPool: MiningPoolStatApi<Difficulty, Self::AccountId>;
 }
 
 /// Type alias for currency balance.
@@ -392,7 +396,25 @@ impl<T: Config> Module<T> {
 	}
 
 	fn do_reward(author: &T::AccountId, reward: BalanceOf<T>, when: T::BlockNumber) {
-		let miner_total = Perbill::from_percent(T::MinerRewardsPercent::get()) * reward;
+		let mut miner_total = Perbill::from_percent(T::MinerRewardsPercent::get()) * reward;
+
+		let pool_stat = T::MiningPool::get_stat(author);
+		if let Some(pool_stat) = pool_stat {
+			let pool_total = pool_stat.0 * miner_total;
+			let members_total = miner_total - pool_total;
+			let tot_weight: u32 = pool_stat.1.iter().map(|a| a.1).sum();
+			let mut sum_rewards: BalanceOf<T> = Zero::zero();
+			for (member_id, w) in pool_stat.1.iter() {
+				let rewards = Percent::from_rational(*w, tot_weight) * members_total;
+				let d = u128::from_le_bytes(rewards.encode().try_into().unwrap());
+				log::debug!(target: LOG_TARGET, "miner_member_reword: {}", d);
+				Self::do_reward_per_account(member_id, rewards, when);
+				sum_rewards = sum_rewards.saturating_add(rewards);
+			}
+			miner_total = pool_total + (members_total - sum_rewards);
+		}
+		Self::do_reward_per_account(author, miner_total, when);
+
 		let validator_total = reward - miner_total;
 
 		let d = u128::from_le_bytes(miner_total.encode().try_into().unwrap());
@@ -402,8 +424,6 @@ impl<T: Config> Module<T> {
 
 		let n_val: usize = validators.len();
 		let per_val = Perbill::from_rational(1, n_val as u32) * validator_total;
-
-		Self::do_reward_per_account(author, miner_total, when);
 
 		let d = u128::from_le_bytes(per_val.encode().try_into().unwrap());
 		for val in validators.iter() {

@@ -6,6 +6,7 @@
 #![warn(missing_docs)]
 
 use std::sync::Arc;
+use parking_lot::Mutex;
 
 use runtime::{opaque::Block, AccountId, Balance, BlockNumber, Hash, Index};
 use jsonrpsee::RpcModule;
@@ -22,6 +23,10 @@ use pallet_contracts_rpc::{Contracts, ContractsApiServer};
 use pallet_transaction_payment_rpc::{TransactionPayment, TransactionPaymentApiServer};
 use substrate_frame_rpc_system::{System, SystemApiServer};
 use crate::mining_rpc::{MiningRpc, PoscanMiningRpcApiServer};
+use sp_consensus_poscan::MiningPoolApi;
+use crate::pool::MiningPool;
+use crate::pool_rpc::{MiningPoolRpc, PoscanPoolRpcApiServer};
+
 
 /// Dependencies for GRANDPA
 pub struct GrandpaDeps<B> {
@@ -49,6 +54,10 @@ pub struct FullDeps<C, P, B> {
 	// pub command_sink:Sender<EngineComman>,
 	/// GRANDPA specific dependencies.
 	pub grandpa: GrandpaDeps<B>,
+
+	pub mining_pool: Option<Arc<Mutex<MiningPool>>>,
+
+	pub backend: Arc<B>,
 }
 
 /// Instantiate all full RPC extensions.
@@ -64,11 +73,12 @@ where
 	C::Api: pallet_contracts_rpc::ContractsRuntimeApi<Block, AccountId, Balance, BlockNumber, Hash>,
 	C::Api: pallet_transaction_payment_rpc::TransactionPaymentRuntimeApi<Block, Balance>,
 	C::Api: BlockBuilder<Block>,
+	C::Api: MiningPoolApi<Block, AccountId>,
 	P: TransactionPool + 'static,
 	B: sc_client_api::Backend<Block> + Send + Sync + 'static,
 {
 	let mut module = RpcModule::new(());
-	let FullDeps { client, pool, deny_unsafe, grandpa } = deps;
+	let FullDeps { client, pool, deny_unsafe, grandpa, mining_pool, backend } = deps;
 	let GrandpaDeps {
 		shared_voter_state,
 		shared_authority_set,
@@ -91,6 +101,10 @@ where
 	)?;
 
 	module.merge(MiningRpc::new(client.clone()).into_rpc())?;
+
+	if let Some(mining_pool) = mining_pool {
+	 	module.merge(MiningPoolRpc::<C, Block, B>::new(client.clone(), backend.clone(), mining_pool.clone()).into_rpc())?;
+	}
 
 	// Add a silly RPC that returns constant values
 	// io.extend_with(crate::mining_rpc::PoscanMiningRpc::to_delegate(

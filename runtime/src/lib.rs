@@ -26,12 +26,12 @@ use sp_version::RuntimeVersion;
 
 #[cfg(any(feature = "std", test))]
 pub use sp_runtime::BuildStorage;
-pub use sp_runtime::{Perbill, Permill};
+pub use sp_runtime::{Perbill, Permill, Percent};
 
 use frame_support::{
 	construct_runtime, parameter_types,
 	traits::{
-		AsEnsureOriginWithArg, ChangeMembers, ConstU128, ConstU16, ConstU32, Currency,
+		AsEnsureOriginWithArg, ChangeMembers, ConstU128, ConstU16, ConstU32, ConstU64, Currency,
 		EitherOfDiverse, EqualPrivilegeOnly, InitializeMembers, KeyOwnerProofSystem,
 		LockIdentifier, OnRuntimeUpgrade, OnUnbalanced, U128CurrencyToVote,
 	},
@@ -52,6 +52,7 @@ use sp_runtime::{
 	traits::{
 		AccountIdLookup, BlakeTwo256, Block as BlockT, ConvertInto, IdentifyAccount,
 		Identity as IdentityTrait, NumberFor, OpaqueKeys, Verify,
+		Extrinsic, SaturatedConversion, StaticLookup,
 	},
 	transaction_validity::{TransactionPriority, TransactionSource, TransactionValidity},
 	ApplyExtrinsicResult, MultiSignature,
@@ -63,11 +64,15 @@ use pallet_grandpa::{AuthorityId as GrandpaId, AuthorityList as GrandpaAuthority
 use pallet_im_online::sr25519::AuthorityId as ImOnlineId;
 pub use pallet_timestamp::Call as TimestampCall;
 use pallet_transaction_payment::CurrencyAdapter;
+// use pallet_mining_pool::crypto::PoolAuthorityId;
+use pallet_mining_pool::sr25519::PoolAuthorityId;
 
 use sp_consensus_poscan::{
 	deposit, BLOCK_TIME, CENTS, DAYS, DOLLARS, HOURS, MICROCENTS, MILLICENTS, MINUTES,
 	POSCAN_COIN_ID, POSCAN_ENGINE_ID,
 };
+
+use mining_pool_stat_api::MiningPoolStatApi;
 
 /// An index to a block.
 pub type BlockNumber = u32;
@@ -218,7 +223,7 @@ impl frame_system::Config for Runtime {
 	/// The aggregated dispatch type that is available for extrinsics.
 	type Call = Call;
 	/// The lookup mechanism to get account ID from whatever is passed in dispatchers.
-	type Lookup = AccountIdLookup<AccountId, ()>;
+	type Lookup = AccountIdLookup<AccountId, AccountIndex>;
 	/// The index type for storing how many extrinsics an account has signed.
 	type Index = Index;
 	/// The index type for blocks.
@@ -500,6 +505,7 @@ impl rewards::Config for Runtime {
 	type LockParametersBounds = LockBounds;
 	type ValidatorSet = ValidatorSet;
 	type MinerRewardsPercent = MinerRewardsPercent;
+	type MiningPool = MiningPool;
 }
 
 pub struct Author;
@@ -975,6 +981,29 @@ impl pallet_validator_set::Config for Runtime {
 	type AddAfterSlashPeriod = AddAfterSlashPeriod;
 	type Slash = Treasury;
 }
+use sp_core::U256;
+
+parameter_types! {
+	pub const MaxPoolPercent: Percent = Percent::from_percent(50);
+}
+
+impl pallet_mining_pool::Config for Runtime {
+	type Event = Event;
+	type Call = Call;
+	type AddRemoveOrigin = EnsureRootOrHalfCouncil;
+	// type AddRemoveOrigin = EnsureRoot<AccountId>;
+	type MaxKeys = ConstU32<1000>;
+	type MaxMembers = ConstU32<1000>;
+	type Currency = Balances;
+	type PoscanEngineId = PoscanEngineId;
+	type RewardLocksApi = Rewards;
+	type Difficulty = U256;
+	type PoolAuthorityId = PoolAuthorityId;
+	type UnsignedPriority = ConstU64<{TransactionPriority::max_value() / 2}>;
+	type StatPeriod = ConstU32<2>;
+	type MaxPoolPercent = MaxPoolPercent;
+	// type PoolAuthorityId = AccountId; // pallet_mining_pool::crypto::PoolAuthorityId;
+}
 
 parameter_types! {
 	pub const Period: u32 = 30 * MINUTES;
@@ -1206,6 +1235,58 @@ impl pallet_contracts::Config for Runtime {
 	type MaxStorageKeyLen = ConstU32<128>;
 }
 
+impl frame_system::offchain::SigningTypes for Runtime {
+	type Public = <Signature as Verify>::Signer;
+	type Signature = Signature;
+}
+
+use codec::Encode;
+
+impl<LocalCall> frame_system::offchain::CreateSignedTransaction<LocalCall> for Runtime
+	where
+		Call: From<LocalCall>,
+{
+	fn create_transaction<C: frame_system::offchain::AppCrypto<Self::Public, Self::Signature>>(
+		call: Call,
+		public: <Signature as Verify>::Signer,
+		account: AccountId,
+		nonce: Index,
+	) -> Option<(Call, <UncheckedExtrinsic as Extrinsic>::SignaturePayload)> {
+		let _tip = 0;
+		// take the biggest period possible.
+		let period =
+			BlockHashCount::get().checked_next_power_of_two().map(|c| c / 2).unwrap_or(2) as u64;
+		let current_block = System::block_number()
+			.saturated_into::<u32>()
+			// The `System::block_number` is initialized with `n+1`,
+			// so the actual block number is `n`.
+			.saturating_sub(1);
+		// let era = Era::mortal(period, current_block);
+		let extra = (
+			frame_system::CheckNonZeroSender::<Runtime>::new(),
+			frame_system::CheckSpecVersion::<Runtime>::new(),
+			frame_system::CheckTxVersion::<Runtime>::new(),
+			frame_system::CheckGenesis::<Runtime>::new(),
+			frame_system::CheckEra::<Runtime>::from(generic::Era::mortal(
+				period,
+				current_block.saturated_into(),
+			)),
+			frame_system::CheckNonce::<Runtime>::from(nonce),
+			frame_system::CheckWeight::<Runtime>::new(),
+			pallet_transaction_payment::ChargeTransactionPayment::<Runtime>::from(0),
+		);
+		let raw_payload = SignedPayload::new(call, extra)
+			.map_err(|e| {
+				log::warn!("Unable to create signed payload: {:?}", e);
+			})
+			.ok()?;
+		let signature = raw_payload.using_encoded(|payload| C::sign(payload, public))?;
+		let address = Indices::unlookup(account);
+		let (call, extra, _) = raw_payload.deconstruct();
+		Some((call, (address, signature, extra)))
+	}
+}
+
 impl pallet_poscan::Config for Runtime {
 	type Event = Event;
 	// type MaxBytesInHash = frame_support::traits::ConstU32<64>;
@@ -1286,12 +1367,13 @@ construct_runtime!(
 		RankedPolls: pallet_referenda::<Instance2>,
 		RankedCollective: pallet_ranked_collective,
 		PoScan: pallet_poscan::{Pallet, Call, Storage, Event<T>},
+		MiningPool: pallet_mining_pool,
 		Sudo: pallet_sudo,
 	}
 );
 
 /// The address format for describing accounts.
-pub type Address = sp_runtime::MultiAddress<AccountId, ()>;
+pub type Address = sp_runtime::MultiAddress<AccountId, AccountIndex>;
 /// Block header type as expected by this runtime.
 pub type Header = generic::Header<BlockNumber, BlakeTwo256>;
 /// Block type as expected by this runtime.
@@ -1493,6 +1575,16 @@ impl_runtime_apis! {
 	impl sp_consensus_poscan::DifficultyApi<Block, sp_consensus_poscan::Difficulty> for Runtime {
 		fn difficulty() -> sp_consensus_poscan::Difficulty {
 			difficulty::Module::<Runtime>::difficulty()
+		}
+	}
+
+	impl sp_consensus_poscan::MiningPoolApi<Block, AccountId> for Runtime {
+		fn difficulty(pool_id: &AccountId) -> sp_consensus_poscan::Difficulty {
+			// MiningPool::difficulty(pool_id)
+			<MiningPool as MiningPoolStatApi<sp_consensus_poscan::Difficulty, AccountId>>::difficulty(pool_id)
+		}
+		fn get_stat(pool_id: &AccountId) -> Option<(Percent, Vec<(AccountId,u32)>)> {
+			<MiningPool as MiningPoolStatApi<sp_consensus_poscan::Difficulty, AccountId>>::get_stat(pool_id)
 		}
 	}
 
