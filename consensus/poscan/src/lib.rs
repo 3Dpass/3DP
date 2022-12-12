@@ -649,11 +649,8 @@ impl<B: BlockT, Algorithm> PowVerifier<B, Algorithm> {
 	) -> Result<(B::Header, Vec<DigestItem>), Error<B>> where
 		Algorithm: PowAlgorithm<B>,
 	{
-		let hash = header.hash();
 		let mut digests: Vec<DigestItem> = Vec::new();
 		let n = header.digest().logs().len();
-		let mut pre_run: Option<DigestItem> = None;
-		let mut cons: Option<DigestItem> = None;
 		for _ in 0..n {
 			match header.digest_mut().pop() {
 				Some(DigestItem::Seal(id, seal)) => {
@@ -663,34 +660,25 @@ impl<B: BlockT, Algorithm> PowVerifier<B, Algorithm> {
 						return Err(Error::WrongEngine(id))
 					}
 				},
-				Some(DigestItem::Consensus(id, data)) => {
-					if id == GRANDPA_ENGINE_ID {
-						cons = Some(DigestItem::Consensus(id, data.clone()));
-						digests.push(DigestItem::Consensus(id, data.clone()))
-					} else {
-						return Err(Error::WrongEngine(id))
-					}
-				},
 				Some(DigestItem::Other(item)) => {
 					digests.push(DigestItem::Other(item.clone()))
 				},
-				Some(DigestItem::PreRuntime(id, pre_runtime)) => {
-					pre_run = Some(DigestItem::PreRuntime(id, pre_runtime.clone()));
-					digests.push(DigestItem::PreRuntime(id, pre_runtime.clone()))
-				},
 				_ => {
-					error!(">>> Header unsealed in check_header");
-					return Err(Error::HeaderUnsealed(hash))
+					let msg = ">>> Header invalid in check_header";
+					error!("{}", msg);
+					return Err(Error::Other(msg.to_string()))
 				},
 			};
 		}
-
-		if let Some(r) = pre_run {
-			header.digest_mut().push(r);
-		}
-
-		if let Some(r) = cons {
-			header.digest_mut().push(r);
+		for item in header.digest().logs().iter() {
+			match item {
+				DigestItem::Consensus(id, _) => {
+					if *id != GRANDPA_ENGINE_ID {
+						return Err(Error::WrongEngine(*id))
+					}
+				},
+				_ => {},
+			};
 		}
 
 		Ok((header, digests))
