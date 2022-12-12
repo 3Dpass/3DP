@@ -61,8 +61,7 @@ pallet-remark = { default-features = false, git = "https://github.com/paritytech
 pallet-assets = { default-features = false, git = "https://github.com/paritytech/substrate", rev = "b0777b4c7f7" }
 pallet-uniques = { default-features = false, git = "https://github.com/paritytech/substrate", rev = "b0777b4c7f7" }
 pallet-session = { default-features = false, git = "https://github.com/paritytech/substrate", rev = "b0777b4c7f7" }
-# pallet-im-online = { default-features = false, git = "https://github.com/paritytech/substrate", rev = "b0777b4c7f7" }
-pallet-im-online = { default-features = false, path = "../pallets/im-online" }
+pallet-im-online = { default-features = false, git = "https://github.com/paritytech/substrate", rev = "b0777b4c7f7" }
 
 pallet-validator-set = { path = "../pallets/validator-set", default-features = false }
 difficulty = { package = "pallet-difficulty", path = "../pallets/difficulty", default-features = false }
