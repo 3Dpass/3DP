@@ -650,8 +650,8 @@ impl<B: BlockT, Algorithm> PowVerifier<B, Algorithm> {
 		Algorithm: PowAlgorithm<B>,
 	{
 		let mut digests: Vec<DigestItem> = Vec::new();
-		let n = header.digest().logs().len();
-		for _ in 0..n {
+		// pop last 3 DigestItem: Seal, Other, Other
+		for _ in 0..3 {
 			match header.digest_mut().pop() {
 				Some(DigestItem::Seal(id, seal)) => {
 					if id == POSCAN_ENGINE_ID {
@@ -697,9 +697,15 @@ impl<B: BlockT, Algorithm> Verifier<B> for PowVerifier<B, Algorithm> where
 
 		let (checked_header, items) = self.check_header(block.header)?;
 
-		let seal = items[2].clone();
-		let poscan_hashes = items[1].clone();
-		let poscan_obj = items[0].clone();
+		let mut seal: Option<DigestItem> = None;
+		let mut poscan_hashes: Option<DigestItem> = None;
+		let mut poscan_obj: Option<DigestItem> = None;
+
+		if items.len() == 3 {
+			seal = Some(items[2].clone());
+			poscan_hashes = Some(items[1].clone());
+			poscan_obj = Some(items[0].clone());
+		}
 
 		let intermediate = PowIntermediate::<Algorithm::Difficulty> {
 			difficulty: None,
@@ -707,9 +713,9 @@ impl<B: BlockT, Algorithm> Verifier<B> for PowVerifier<B, Algorithm> where
 
 		let mut import_block = BlockImportParams::new(block.origin, checked_header);
 
-		import_block.post_digests.push(seal);
-		import_block.post_digests.push(poscan_hashes);
-		import_block.post_digests.push(poscan_obj);
+		if let Some(seal) = seal { import_block.post_digests.push(seal) };
+		if let Some(poscan_hashes) = poscan_hashes { import_block.post_digests.push(poscan_hashes) };
+		if let Some(poscan_obj) = poscan_obj { import_block.post_digests.push(poscan_obj) };
 		import_block.body = block.body;
 		import_block.justifications = block.justifications;
 		import_block.intermediates.insert(
