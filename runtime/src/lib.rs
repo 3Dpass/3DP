@@ -22,8 +22,7 @@ use frame_system::limits::{BlockLength, BlockWeights};
 use frame_system::EnsureRoot;
 use pallet_contracts::{migration, DefaultContractAccessWeight};
 
-// use pallet_bounties::Bounties;
-
+use log;
 use core::convert::TryInto;
 use pallet_grandpa::{AuthorityId as GrandpaId, AuthorityList as GrandpaAuthorityList};
 use pallet_im_online::sr25519::AuthorityId as ImOnlineId;
@@ -119,6 +118,12 @@ pub mod opaque {
 	pub type BlockId = generic::BlockId<Block>;
 
 	pub type SessionHandlers = Grandpa;
+
+	impl_opaque_keys! {
+		pub struct OldSessionKeys {
+			pub grandpa: Grandpa,
+		}
+	}
 
 	impl_opaque_keys! {
 		pub struct SessionKeys {
@@ -1062,6 +1067,26 @@ impl OnRuntimeUpgrade for Migrations {
 	}
 }
 
+const LOG_TARGET: &'static str = "runtime::runtime";
+
+pub struct SessionUpgrade;
+impl frame_support::traits::OnRuntimeUpgrade for SessionUpgrade {
+	fn on_runtime_upgrade() -> frame_support::weights::Weight {
+		use sp_core::sr25519;
+		log::debug!(target: LOG_TARGET, "SessionUpgrade::on_runtime_upgrade");
+		Session::upgrade_keys(
+			|v, old_keys: opaque::OldSessionKeys| {
+				let keys = opaque::SessionKeys {
+					grandpa: old_keys.get(KeyTypeId([b'g', b'r', b'a', b'n'])).unwrap(),
+					imonline: sr25519::Public::from_raw(v.into()).into(),
+				};
+				keys
+			}
+		);
+		0
+	}
+}
+
 // Create the runtime by composing the FRAME pallets that were previously configured.
 construct_runtime!(
 	pub enum Runtime where
@@ -1135,7 +1160,10 @@ pub type Executive = frame_executive::Executive<
 	frame_system::ChainContext<Runtime>,
 	Runtime,
 	AllPalletsWithSystem,
-	Migrations,
+    (
+		Migrations,
+		SessionUpgrade,
+    )
 >;
 
 impl_runtime_apis! {

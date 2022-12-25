@@ -12,6 +12,7 @@ build = "build.rs"
 targets = ["x86_64-unknown-linux-gnu"]
 
 [dependencies]
+log = { default-features = false, version = '0.4.17'}
 codec = { package = "parity-scale-codec", version = "3.1", default-features = false, features = ["derive"] }
 scale-info = { version = "2.1.1", default-features = false, features = ["derive"] }
 smallvec = "1.4.0"
@@ -29,6 +30,7 @@ frame-executive = { git = "https://github.com/paritytech/substrate", rev = "b077
 sp-api = { git = "https://github.com/paritytech/substrate", rev = "b0777b4c7f7", package = "sp-api", default-features = false }
 sp-block-builder = { git = "https://github.com/paritytech/substrate", rev = "b0777b4c7f7", package = "sp-block-builder", default-features = false }
 sp-core = { git = "https://github.com/paritytech/substrate", rev = "b0777b4c7f7", package = "sp-core", default-features = false }
+sp-io = { git = "https://github.com/paritytech/substrate", rev = "b0777b4c7f7", package = "sp-io", default-features = false }
 sp-inherents = { git = "https://github.com/paritytech/substrate", rev = "b0777b4c7f7", package = "sp-inherents", default-features = false }
 sp-offchain = { git = "https://github.com/paritytech/substrate", rev = "b0777b4c7f7", package = "sp-offchain", default-features = false }
 sp-runtime = { git = "https://github.com/paritytech/substrate", rev = "b0777b4c7f7", package = "sp-runtime", default-features = false }
