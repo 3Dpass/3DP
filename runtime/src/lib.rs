@@ -45,7 +45,7 @@ use sp_std::{
 };
 
 use sp_arithmetic::Percent;
-use sp_consensus_poscan::{DOLLARS, CENTS, MILLICENTS, MICROCENTS, DAYS, BLOCK_TIME, MINUTES, deposit};
+use sp_consensus_poscan::{DOLLARS, CENTS, MILLICENTS, MICROCENTS, DAYS, BLOCK_TIME, HOURS, MINUTES, deposit};
 use sp_consensus_poscan::{POSCAN_COIN_ID, POSCAN_ENGINE_ID};
 
 #[cfg(feature = "std")]
@@ -803,9 +803,9 @@ parameter_types! {
 	pub const MaxMinerDepth: u32 = 1000;
 	pub const PenaltyOffline: u128 = 20_000 * DOLLARS;
 	pub const MinLockAmount: u128 = 100_000 * DOLLARS;
-	pub const MinLockPeriod: u32 = 500;
-	pub const SlashValidatorFor: u32 = 100;
-	pub const AddAfterSlashPeriod: u32 = 100;
+	pub const MinLockPeriod: u32 = 30 * 24 * HOURS;
+	pub const SlashValidatorFor: u32 = 2 * HOURS;
+	pub const AddAfterSlashPeriod: u32 = 7 * 24 * HOURS;
 }
 
 impl pallet_validator_set::Config for Runtime {

@@ -46,7 +46,7 @@ type NegativeImbalanceOf<T> = <<T as Config>::Currency as Currency<
 	<T as frame_system::Config>::AccountId,
 >>::NegativeImbalance;
 
-const VALIDATOR_LOCKS_DEADLINE: u32 = 500_000;
+const VALIDATOR_LOCKS_DEADLINE: u32 = 5_000;
 
 #[derive(Encode, Decode, Debug, Clone, PartialEq, TypeInfo)]
 pub enum RemoveReason {
