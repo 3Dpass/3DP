@@ -339,7 +339,7 @@ pub mod pallet {
 		pub fn lock(
 			origin: OriginFor<T>,
 			amount: BalanceOf<T>,
-			when: T::BlockNumber,
+			until: T::BlockNumber,
 			period: Option<u32>,
 		) -> DispatchResult {
 			let validator_id = ensure_signed(origin)?;
@@ -351,7 +351,7 @@ pub mod pallet {
 				return Err(Error::<T>::UnsufficientBalance.into());
 			}
 
-			if when - current_number < min_period.into() {
+			if until - current_number < min_period.into() {
 				return Err(Error::<T>::LockPeriodBelowLimit.into());
 			}
 
@@ -365,15 +365,15 @@ pub mod pallet {
 				if amount < val {
 					return Err(Error::<T>::DecreaseLockAmountNotAllowed.into());
 				}
-				if when < to_block {
+				if until < to_block {
 					return Err(Error::<T>::DecreaseLockPeriodNotAllowed.into());
 				}
 			}
 
-			Self::set_lock(validator_id.clone(), when, amount, period);
+			Self::set_lock(validator_id.clone(), until, amount, period);
 
-			Self::deposit_event(Event::ValidatorLockBalance(validator_id.clone(), when, amount, period));
-			log::debug!(target: LOG_TARGET, "Locked {:?} for validator_id: {:?} up to block {:?}.", amount, validator_id, when);
+			Self::deposit_event(Event::ValidatorLockBalance(validator_id.clone(), until, amount, period));
+			log::debug!(target: LOG_TARGET, "Locked {:?} for validator_id: {:?} up to block {:?}.", amount, validator_id, until);
 
 			Ok(())
 		}
