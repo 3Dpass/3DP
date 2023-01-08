@@ -30,12 +30,16 @@ use log;
 pub use pallet::*;
 use sp_runtime::traits::{Convert, Zero};
 use sp_staking::offence::{Offence, OffenceError, ReportOffence};
+use sp_version::RuntimeVersion;
 use sp_std::{collections::btree_set::BTreeSet, prelude::*};
 use core::convert::TryInto;
+use sp_consensus_poscan::HOURS;
 
 use rewards_api::RewardLocksApi;
 use validator_set_api::ValidatorSetApi;
 
+const CUR_SPEC_VERSION: u32 = 101;
+const UPGRADE_SLASH_DELAY: u32 = 5 * 24 * HOURS;
 const LOCK_ID: LockIdentifier = *b"validatr";
 pub const LOG_TARGET: &'static str = "runtime::validator-set";
 
@@ -46,7 +50,6 @@ type NegativeImbalanceOf<T> = <<T as Config>::Currency as Currency<
 	<T as frame_system::Config>::AccountId,
 >>::NegativeImbalance;
 
-const VALIDATOR_LOCKS_DEADLINE: u32 = 5_000;
 
 #[derive(Encode, Decode, Debug, Clone, PartialEq, TypeInfo)]
 pub enum RemoveReason {
@@ -69,7 +72,7 @@ pub mod pallet {
 	/// Configure the pallet by specifying the parameters and types on which it
 	/// depends.
 	#[pallet::config]
-	pub trait Config: frame_system::Config + pallet_session::Config + pallet_treasury::Config {
+	pub trait Config: frame_system::Config + pallet_session::Config + pallet_treasury::Config + pallet_balances::Config {
 		/// The Event type.
 		type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
 
@@ -144,6 +147,10 @@ pub mod pallet {
 	#[pallet::getter(fn removed)]
 	pub type AccountRemoveReason<T: Config> = StorageMap<_, Twox64Concat, T::AccountId, Option<(T::BlockNumber, RemoveReason)>, ValueQuery>;
 
+	#[pallet::storage]
+	#[pallet::getter(fn upgrades)]
+	pub type LastUpgrade<T: Config> = StorageValue<_, T::BlockNumber, ValueQuery>;
+
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(super) fn deposit_event)]
 	pub enum Event<T: Config> {
@@ -173,14 +180,14 @@ pub mod pallet {
 		BadOrigin,
 		/// Has not mined.
 		ValidatorHasNotMined,
-		/// Has not mined.
-		TooLowDeposit,
+		/// Locked amount too low.
+		AmountLockedBelowLimit,
 		/// decrease lock amount not allowed .
 		DecreaseLockAmountNotAllowed,
 		/// Decrease lcck prolongation not allowed.
 		DecreaseLockPeriodNotAllowed,
 		/// Lcck prolongation period too little.
-		LockPeriodBelowLimit, // {pub limit: u32},
+		PeriodLockBelowLimit, // {pub limit: u32},
 		/// No lock.
 		NotLocked,
 		/// Unsufficient Balance,
@@ -212,14 +219,19 @@ pub mod pallet {
 				let deposit = T::RewardLocksApi::locks(&author);
 				let d = u128::from_le_bytes(deposit.encode().try_into().unwrap());
 
-				log::debug!(target: LOG_TARGET, "Account: {:?}", author.encode());
-				log::debug!(target: LOG_TARGET, "Deposit: {:?}", d);
-				// let cur_block_number = <frame_system::Pallet<T>>::block_number();
+				log::debug!(target: LOG_TARGET, "Account: {:?}", &author);
+				log::debug!(target: LOG_TARGET, "Deposit: {}", d);
 				Authors::<T>::insert(n, Some(author));
 			}
 			else {
 				log::debug!(target: LOG_TARGET, "No authon");
 			}
+		}
+
+		fn on_runtime_upgrade() -> frame_support::weights::Weight {
+			let current_block = frame_system::Pallet::<T>::block_number();
+			<LastUpgrade<T>>::put(current_block);
+			0
 		}
 	}
 
@@ -255,7 +267,7 @@ pub mod pallet {
 		pub fn add_validator(origin: OriginFor<T>, validator_id: T::AccountId) -> DispatchResult {
 			T::AddRemoveOrigin::ensure_origin(origin)?;
 
-			Self::do_add_validator(validator_id.clone(), true)?;
+			Self::do_add_validator(validator_id.clone(), false)?;
 			Self::approve_validator(validator_id)?;
 
 			Ok(())
@@ -294,7 +306,7 @@ pub mod pallet {
 		///
 		/// For this call, the dispatch origin must be the validator itself.
 		#[pallet::weight(0)]
-		pub fn add_validator_again(
+		pub fn rejoin_validator(
 			origin: OriginFor<T>,
 			validator_id: T::AccountId,
 		) -> DispatchResult {
@@ -352,12 +364,12 @@ pub mod pallet {
 			}
 
 			if until - current_number < min_period.into() {
-				return Err(Error::<T>::LockPeriodBelowLimit.into());
+				return Err(Error::<T>::PeriodLockBelowLimit.into());
 			}
 
 			if let Some(per) = period {
 				if per < min_period {
-					return Err(Error::<T>::LockPeriodBelowLimit.into());
+					return Err(Error::<T>::PeriodLockBelowLimit.into());
 				}
 			}
 
@@ -440,18 +452,31 @@ impl<T: Config> Pallet<T> {
 	fn do_add_validator(validator_id: T::AccountId, check_block_num: bool) -> DispatchResult {
 		let cur_block_number = <frame_system::Pallet<T>>::block_number();
 
-		let item_lock = ValidatorLock::<T>::get(&validator_id).ok_or(Error::<T>::TooLowDeposit)?;
-		let deposit = item_lock.1;
+		let item_lock = ValidatorLock::<T>::get(&validator_id).ok_or(Error::<T>::AmountLockedBelowLimit)?;
+		let deposit =
+			if item_lock.0 < cur_block_number  {
+				BalanceOf::<T>::zero()
+			}
+			else {
+				item_lock.1
+			};
 		{
-			let deposit = u128::from_le_bytes(deposit.encode().try_into().unwrap());
-			log::debug!(target: LOG_TARGET, "Deposit: {:?}", deposit.encode());
+			let d = u128::from_le_bytes(deposit.encode().try_into().unwrap());
+			log::debug!(target: LOG_TARGET, "Deposit: {}", d);
 		}
 		if check_block_num {
 			let levels = T::FilterLevels::get();
 			let mut depth: u32 = T::MaxMinerDepth::get();
-			for i in 0..levels.len() {
-				if deposit < levels[i].0.saturated_into() {
-					depth = levels[i].1
+
+			if deposit < levels[0].0.saturated_into() {
+				log::debug!(target: LOG_TARGET, "Too low deposit to be validator");
+				return Err(Error::<T>::AmountLockedBelowLimit.into());
+			}
+
+			for i in (0..levels.len()).rev() {
+				if deposit >= levels[i].0.saturated_into() {
+					depth = levels[i].1;
+					break
 				}
 			}
 
@@ -474,6 +499,11 @@ impl<T: Config> Pallet<T> {
 			if !found {
 				log::debug!(target: LOG_TARGET, "Validator NOT found as miner within {} blocks", depth);
 				return Err(Error::<T>::ValidatorHasNotMined.into());
+			}
+		}
+		else {
+			if !Self::check_lock(&validator_id) {
+				return Err(Error::<T>::AmountLockedBelowLimit.into());
 			}
 		}
 
@@ -527,31 +557,49 @@ impl<T: Config> Pallet<T> {
 		let current_block = <frame_system::Pallet<T>>::block_number();
 		AccountRemoveReason::<T>::insert(&validator_id, Some((current_block, reason)));
 
-		<OfflineValidators<T>>::mutate(|v| v.push(validator_id));
-		log::debug!(target: LOG_TARGET, "Offline validator marked for auto removal.");
+		<OfflineValidators<T>>::mutate(|v| v.push(validator_id.clone()));
+		log::debug!(target: LOG_TARGET, "Offline validator marked for auto removal: {:#?}", validator_id);
 	}
 
-	// Adds offline validators to a local cache for removal at new session.
-	fn slash(validator_id: &T::AccountId, mut amount: BalanceOf<T>) {
+	fn slash(validator_id: &T::AccountId, amount: BalanceOf<T>) {
 		let pot_id = pallet_treasury::Pallet::<T>::account_id();
-		let free = <T as pallet::Config>::Currency::free_balance(&validator_id);
 		let min_bal = <T as pallet::Config>::Currency::minimum_balance();
+
+		let zero = BalanceOf::<T>::zero();
 		let maybe_lock = ValidatorLock::<T>::get(&validator_id);
+		let mut usable: u128 = pallet_balances::Pallet::<T>::usable_balance(validator_id).saturated_into();
 
-		// if free - min_bal < amount {
-		// 	amount = free - min_bal;
-		// }
-		amount = core::cmp::min(amount, free - min_bal);
-
-		if let Err(_) = <T as pallet::Config>::Currency::transfer(&validator_id, &pot_id, amount, ExistenceRequirement::KeepAlive) {
-			log::error!(target: LOG_TARGET, "Error slash validator {:?} by {:?}.", validator_id, &amount);
-			return
+		let unlock_amount = amount - usable.saturated_into();
+		if unlock_amount > zero {
+			if let Some(lock_item) = maybe_lock {
+				if unlock_amount <= lock_item.1 {
+					Self::set_lock(
+						validator_id.clone(),
+						lock_item.0,
+						lock_item.1 - unlock_amount,
+						lock_item.2,
+					);
+					usable = pallet_balances::Pallet::<T>::usable_balance(validator_id).saturated_into();
+				}
+			}
+			let unlock_amount = amount - usable.saturated_into();
+			if unlock_amount > zero {
+				log::debug!(target: LOG_TARGET, "Try to unlock rewards locks for {:#?}, usable: {}", validator_id, usable);
+				let total_reward_locked = T::RewardLocksApi::locks(&validator_id);
+				T::RewardLocksApi::unlock_upto(&validator_id, total_reward_locked - unlock_amount);
+				usable = pallet_balances::Pallet::<T>::usable_balance(validator_id).saturated_into();
+				log::debug!(target: LOG_TARGET, "After unlock rewards locks for {:#?} usable: {}", validator_id, usable);
+			}
 		}
 
-		if let Some(lock_item) = maybe_lock {
-			if free - amount < lock_item.1 {
-				Self::set_lock(validator_id.clone(), lock_item.0, free - amount, lock_item.2);
-			}
+		let amount = core::cmp::min(amount, usable.saturated_into()) - min_bal;
+		let res = <T as pallet::Config>::Currency::transfer(
+			&validator_id, &pot_id, amount, ExistenceRequirement::KeepAlive,
+		);
+
+		if let Err(e) = res {
+			log::error!(target: LOG_TARGET, "Error slash validator {:#?} by {:?}: {:?}.", validator_id, &amount, &e);
+			return
 		}
 
 		log::debug!(target: LOG_TARGET, "Slash validator {:?} by {:?}.", validator_id, &amount);
@@ -590,33 +638,31 @@ impl<T: Config> Pallet<T> {
 
 	fn mark_if_no_locks() {
 		let current_block = <frame_system::Pallet<T>>::block_number();
-		// WIP: do not check locks in first 100 blocks
 		if current_block < 100u32.into() {
 			return
 		}
 
-		let levels = T::FilterLevels::get();
-		let default_enter_depo: BalanceOf<T> = levels[0].0.saturated_into();
-
 		for v in Self::validators().into_iter() {
-			let maybe_enter_depo = EnterDeposit::<T>::get(&v);
-			let maybe_lock = ValidatorLock::<T>::get(&v);
-			let reward_locks = T::RewardLocksApi::locks(&v);
-
-			let (enter_depo, locked_amount): (BalanceOf<T>, BalanceOf<T>) = match (maybe_enter_depo, maybe_lock) {
-				(Some(enter_depo), Some(lock_item)) => (enter_depo.1, lock_item.1),
-				(None, Some(lock_item)) => (default_enter_depo, lock_item.1),
-				(None, None) if current_block < VALIDATOR_LOCKS_DEADLINE.into() => (default_enter_depo, reward_locks),
-				_ => {
-					Self::mark_for_removal(v, RemoveReason::DepositBelowLimit);
-					continue;
-				},
-			};
-
-			if locked_amount < enter_depo {
+			if !Self::check_lock(&v) {
 				Self::mark_for_removal(v, RemoveReason::DepositBelowLimit)
 			}
 		}
+	}
+
+	fn check_lock(validator_id: &T::AccountId) -> bool {
+		let levels = T::FilterLevels::get();
+		let zero = BalanceOf::<T>::zero();
+
+		let maybe_enter_depo = EnterDeposit::<T>::get(&validator_id);
+		let maybe_lock = ValidatorLock::<T>::get(&validator_id);
+		let mut true_locked: BalanceOf<T> = zero;
+
+		if let Some(lock) = maybe_lock {
+			let current_block = frame_system::Pallet::<T>::block_number();
+			true_locked = if lock.0 < current_block { zero } else { lock.1.into() };
+		}
+
+		true_locked >= maybe_enter_depo.map_or_else(|| levels[0].0.saturated_into(), |d| d.1)
 	}
 
 	fn set_lock(
@@ -647,6 +693,21 @@ impl<T: Config> Pallet<T> {
 			}
 		}
 	}
+
+	fn is_slash_delay() -> bool {
+		let s: RuntimeVersion = <T as frame_system::Config>::Version::get();
+		let sv = s.spec_version;
+
+		if sv == CUR_SPEC_VERSION {
+			let current_block = frame_system::Pallet::<T>::block_number();
+			let upgrade_block = <LastUpgrade<T>>::get();
+
+			if current_block - upgrade_block <= UPGRADE_SLASH_DELAY.into() {
+				return true
+			}
+		}
+		false
+	}
 }
 
 // Provides the new set of validators to the session module when session is
@@ -655,6 +716,13 @@ impl<T: Config> pallet_session::SessionManager<T::AccountId> for Pallet<T> {
 	// Plan a new session and provide new validator set.
 	fn new_session(_new_index: u32) -> Option<Vec<T::AccountId>> {
 		Self::renew_locks();
+
+		if Self::is_slash_delay() {
+			log::debug!(target: LOG_TARGET, "New session called; within slash delay.");
+			<OfflineValidators<T>>::put(Vec::<T::AccountId>::new());
+			return Some(Self::validators())
+		}
+
 		Self::mark_if_no_locks();
 		// Remove any offline and slashed validators.
 		Self::remove_offline_validators();
@@ -718,12 +786,20 @@ impl<T: Config, O: Offence<(T::AccountId, T::AccountId)>>
 	ReportOffence<T::AccountId, (T::AccountId, T::AccountId), O> for Pallet<T>
 {
 	fn report_offence(_reporters: Vec<T::AccountId>, offence: O) -> Result<(), OffenceError> {
+		if Self::is_slash_delay() {
+			return Ok(())
+		}
+
 		let offenders = offence.offenders();
 		let penalty: u128 = T::PenaltyOffline::get();
 		let val: BalanceOf<T> = penalty.saturated_into();
 
 		for (v, _) in offenders.into_iter() {
 			log::debug!(target: LOG_TARGET, "offender reported: {:?}", &v);
+
+			if !Self::validators().contains(&v) {
+				continue
+			}
 
 			Self::slash(&v, val);
 			Self::mark_for_removal(v, RemoveReason::ImOnlineSlash);

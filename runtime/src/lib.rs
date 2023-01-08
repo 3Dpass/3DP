@@ -290,7 +290,7 @@ impl pallet_timestamp::Config for Runtime {
 }
 
 parameter_types! {
-	pub const ExistentialDeposit: u128 = 0;
+	pub const ExistentialDeposit: u128 = 1;
 	pub const MaxLocks: u32 = 50;
 	pub const MaxReserves: u32 = 50;
 }
@@ -800,7 +800,7 @@ parameter_types! {
 	pub const MinAuthorities: u32 = 3;
 	pub const PoscanEngineId: [u8;4] = POSCAN_ENGINE_ID;
 	pub const FilterLevels: [(u128, u32);4] = LEVELS;
-	pub const MaxMinerDepth: u32 = 1000;
+	pub const MaxMinerDepth: u32 = 10000;
 	pub const PenaltyOffline: u128 = 20_000 * DOLLARS;
 	pub const MinLockAmount: u128 = 100_000 * DOLLARS;
 	pub const MinLockPeriod: u32 = 30 * 24 * HOURS;

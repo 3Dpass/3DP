@@ -481,6 +481,59 @@ impl<T: Config> Module<T> {
 		<Self as Store>::RewardLocks::insert(author, locks);
 	}
 
+	pub fn unlock_upto(author: &T::AccountId, amount: BalanceOf<T>) {
+		let mut locks = Self::reward_locks(&author);
+		let locked_amount = Self::total_locked(&author);
+		let mut total_unlock: BalanceOf<T> = Zero::zero();
+		let mut to_unlock = Vec::new();
+		let unlock_amount = locked_amount - amount;
+
+		let d = u128::from_le_bytes(locked_amount.encode().try_into().unwrap());
+		log::debug!(target: LOG_TARGET, "locked_amount: {}", d);
+		let d = u128::from_le_bytes(amount.encode().try_into().unwrap());
+		log::debug!(target: LOG_TARGET, "amount: {}", d);
+
+		for (block_number, locked_balance) in locks.iter() {
+			if total_unlock.saturating_add(*locked_balance) >= unlock_amount {
+				let adj = total_unlock.saturating_add(*locked_balance) - unlock_amount;
+				total_unlock = total_unlock.saturating_add(adj);
+				if adj == Zero::zero() {
+					to_unlock.push(*block_number);
+				}
+				break
+			}
+			to_unlock.push(*block_number);
+			total_unlock = total_unlock.saturating_add(*locked_balance);
+		}
+		let d = u128::from_le_bytes(total_unlock.encode().try_into().unwrap());
+		log::debug!(target: LOG_TARGET, "total_unlocked: {}", d);
+
+		let total_locked = locked_amount -  total_unlock;
+
+		for block_number in to_unlock {
+			locks.remove(&block_number);
+		}
+
+		let d = u128::from_le_bytes(total_locked.encode().try_into().unwrap());
+		log::debug!(target: LOG_TARGET, "total_locked: {}", d);
+
+		if total_locked <= Zero::zero()  {
+			T::Currency::remove_lock(
+				REWARDS_ID,
+				&author,
+			);
+		}
+		else {
+			T::Currency::set_lock(
+				REWARDS_ID,
+				&author,
+				total_locked,
+				WithdrawReasons::except(WithdrawReasons::TRANSACTION_PAYMENT),
+			);
+		}
+		<Self as Store>::RewardLocks::insert(author, locks);
+	}
+
 	fn do_mints(mints: &BTreeMap<T::AccountId, BalanceOf<T>>) {
 		for (destination, mint) in mints {
 			drop(T::Currency::deposit_creating(&destination, *mint));
@@ -496,5 +549,9 @@ impl<T: Config> RewardLocksApi<T::AccountId, BalanceOf<T>> for Pallet<T> {
 				Zero::zero(),
 				|s, (_block_number, locked_balance)| s.saturating_add(*locked_balance)
 			)
+	}
+
+	fn unlock_upto(author: &T::AccountId, amount: BalanceOf<T>) {
+		Self::unlock_upto(author, amount);
 	}
 }

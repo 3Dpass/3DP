@@ -18,16 +18,19 @@ sp-io = { default-features = false, git = "https://github.com/paritytech/substra
 sp-runtime = { default-features = false, git = "https://github.com/paritytech/substrate", rev = "b0777b4c7f7" }
 sp-std = { default-features = false, git = "https://github.com/paritytech/substrate", rev = "b0777b4c7f7" }
 sp-staking = { default-features = false, git = "https://github.com/paritytech/substrate", rev = "b0777b4c7f7" }
+sp-version = { default-features = false, git = "https://github.com/paritytech/substrate", rev = "b0777b4c7f7" }
 frame-benchmarking = { default-features = false, git = "tps://github.com/paritytech/substrate", rev = "b0777b4c7f7", optional = true }
 frame-support = { default-features = false, git = "https://github.com/paritytech/substrate", rev = "b0777b4c7f7" }
 frame-system = { default-features = false, git = "https://github.com/paritytech/substrate", rev = "b0777b4c7f7" }
 pallet-session = { default-features = false, features = ['historical'], git = "https://github.com/paritytech/substrate", rev = "b0777b4c7f7" }
 pallet-treasury = { default-features = false, git = "https://github.com/paritytech/substrate", rev = "b0777b4c7f7" }
+pallet-balances = { default-features = false, git = "https://github.com/paritytech/substrate", rev = "b0777b4c7f7" }
 
 scale-info = { default-features = false, features = ['derive'], version = '2.1.1' }
 
 rewards-api = { default-features = false, path = "../../traits/rewards" }
 validator-set-api = { default-features = false, path = "../../traits/validator-set" }
+sp-consensus-poscan = { path = "../../primitives/consensus/poscan", default-features = false }
 
 [features]
 default = ['std']
