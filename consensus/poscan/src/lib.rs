@@ -75,7 +75,13 @@ use lazy_static::lazy_static;
 use sp_core::ExecutionContext;
 
 use crate::worker::UntilImportedOrTimeout;
-use sp_consensus_poscan::{Difficulty, DifficultyApi, MAX_MINING_OBJ_LEN, POSCAN_ALGO_GRID2D};
+use sp_consensus_poscan::{
+	Difficulty,
+	DifficultyApi,
+	MAX_MINING_OBJ_LEN,
+	POSCAN_ALGO_GRID2D,
+	POSCAN_ALGO_GRID2D_V2,
+};
 
 lazy_static! {
     pub static ref CACHE: Mutex<BTreeSet<u64>> = {
@@ -510,13 +516,13 @@ impl<B, I, C, S, Algorithm, CAW, CIDP> BlockImport<B> for PowBlockImport<B, I, C
 			return Err(Error::<B>::Other("Mining object too large".to_string()).into());
 		}
 
-		let alg_id = &pscan_hashes[0..16];
-		if alg_id != POSCAN_ALGO_GRID2D {
+		let alg_id: &[u8; 16] = &pscan_hashes[0..16].try_into().unwrap();
+		if *alg_id != POSCAN_ALGO_GRID2D && *alg_id != POSCAN_ALGO_GRID2D_V2 {
 			return Err(Error::<B>::Other("Unknown algorithm".to_string()).into());
 		}
 		let hs: Vec<H256> = pscan_hashes[16..].chunks(32).map(|h| H256::from_slice(h)).collect();
 
-		let psdata = PoscanData{ alg_id: POSCAN_ALGO_GRID2D, hashes: hs.clone(), obj: pscan_obj };
+		let psdata = PoscanData{ alg_id: *alg_id, hashes: hs.clone(), obj: pscan_obj };
 
 		let intermediate = block.take_intermediate::<PowIntermediate::<Algorithm::Difficulty>>(
 			INTERMEDIATE_KEY

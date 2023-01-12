@@ -217,7 +217,7 @@ where
 			obj = decompress_obj(&obj[4..]);
 		}
 
-		let hashes = get_obj_hashes(&obj, parent);
+		let hashes = get_obj_hashes(&poscan_data.alg_id, &obj, parent);
 		if hashes != poscan_data.hashes {
 			info!(">>> verify: hashes != poscan_data.hashes");
 			return Ok(false)
@@ -233,20 +233,30 @@ use log::*;
 use std::str::FromStr;
 use std::convert::TryInto;
 
-pub fn get_obj_hashes(data: &Vec<u8>, pre: &H256) -> Vec<H256> {
+use sp_consensus_poscan::POSCAN_ALGO_GRID2D_V2;
+
+pub fn get_obj_hashes(ver: &[u8; 16], data: &Vec<u8>, pre: &H256) -> Vec<H256> {
 	let mut buf: Vec<H256> = Vec::new();
+	let grid_size = 8;
+	let (alg_type, n_sect) =
+		if *ver == POSCAN_ALGO_GRID2D_V2 {
+			(p3d::AlgoType::Grid2dV2, 12)
+		}
+		else {
+			(p3d::AlgoType::Grid2d, 66)
+		};
+
+	log::debug!("Calc hashes for algorithm {}", String::from_utf8(ver.to_vec()).unwrap());
 
 	let pre = pre.encode()[0..4].try_into().ok();
-	let res = p3d::p3d_process(data, p3d::AlgoType::Grid2d, 8, 66, pre);
+	let res = p3d::p3d_process(data, alg_type, grid_size, n_sect, pre);
 
 	match res {
 		Ok(v) => {
 			for i in 0..v.len() {
-				// prn(v[i].as_str());
 				let h = H256::from_str(v[i].as_str()).unwrap();
 				buf.push(h);
 			}
-			// buf.extend(v.concat().as_bytes().to_vec());
 		},
 		Err(_) => {
 			// runtime_print!(">>> Error");
