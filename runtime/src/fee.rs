@@ -15,7 +15,7 @@
 // GNU General Public License for more details.
 //
 // You should have received a copy of the GNU General Public License
-// along with Kulupu. If not, see <http://www.gnu.org/licenses/>.
+// along with 3DPass. If not, see <http://www.gnu.org/licenses/>.
 
 use crate::{Balance, ExtrinsicBaseWeight};
 use frame_support::weights::{
