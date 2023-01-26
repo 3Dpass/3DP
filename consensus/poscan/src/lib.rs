@@ -572,11 +572,6 @@ impl<B, I, C, S, Algorithm, CAW, CIDP> BlockImport<B> for PowBlockImport<B, I, C
 							if n >= 3 {
 								let di = h.digest().logs()[n - 2].clone();
 								if let DigestItem::Other(v) = di {
-									if v[0..16] != *alg_id {
-										// TODO: if prev block used other algorithm?
-										// Skip block.
-										continue
-									}
 									let hashes: Vec<H256> = v[16..].chunks(32).map(|h| H256::from_slice(h)).collect();
 									for hh in hashes[..1].iter() {
 										if hs[..1].contains(hh) {
