@@ -44,7 +44,6 @@ use sp_std::{
 	prelude::*,
 };
 
-use sp_arithmetic::Percent;
 use sp_consensus_poscan::{DOLLARS, CENTS, MILLICENTS, MICROCENTS, DAYS, BLOCK_TIME, HOURS, MINUTES, deposit};
 use sp_consensus_poscan::{POSCAN_COIN_ID, POSCAN_ENGINE_ID};
 
@@ -557,19 +556,12 @@ impl pallet_identity::Config for Runtime {
 }
 
 parameter_types! {
-	pub const ProposalBond: Permill = Permill::from_percent(5);
+	pub const ProposalBond: Permill = Permill::from_percent(0);
 	pub const ProposalBondMinimum: Balance = 100 * DOLLARS;
 	pub const ProposalBondMaximum: Balance = 500 * DOLLARS;
-	pub const SpendPeriod: BlockNumber = 24 * DAYS;
-	pub const Burn: Permill = Permill::from_percent(1);
+	pub const SpendPeriod: BlockNumber = u32::MAX;
+	pub const Burn: Permill = Permill::from_percent(0);
 	pub const TreasuryPalletId: PalletId = PalletId(*b"py/trsry");
-
-	pub const TipCountdown: BlockNumber = 1 * DAYS;
-	pub const TipFindersFee: Percent = Percent::from_percent(20);
-	pub const TipReportDepositBase: Balance = 1 * DOLLARS;
-	pub const DataDepositPerByte: Balance = 1 * CENTS;
-	pub const MaxApprovals: u32 = 100;
-	pub const MaxAuthorities: u32 = 100_000;
 }
 
 type ApproveOrigin = EitherOfDiverse<
@@ -604,7 +596,7 @@ impl pallet_treasury::Config for Runtime {
 	type ProposalBondMaximum = ProposalBondMaximum;
 	type SpendPeriod = SpendPeriod;
 	type Burn = Burn;
-	type BurnDestination = (); // Society;
+	type BurnDestination = Treasury;
 	type MaxApprovals = MaxApprovals;
 	type WeightInfo = (); // weights::pallet_treasury::WeightInfo<Runtime>;
 	type SpendFunds = Bounties;
@@ -852,6 +844,7 @@ parameter_types! {
 	pub const CuratorDepositMin: Balance = 10 * CENTS;
 	pub const CuratorDepositMax: Balance = 500 * CENTS;
 	pub const BountyValueMinimum: Balance = 200 * CENTS;
+	pub const DataDepositPerByte: Balance = 1 * CENTS;
 }
 
 impl pallet_bounties::Config for Runtime {
@@ -932,6 +925,11 @@ impl pallet_child_bounties::Config for Runtime {
 	type MaxActiveChildBountyCount = MaxActiveChildBountyCount;
 	type ChildBountyValueMinimum = ChildBountyValueMinimum;
 	type WeightInfo = (); // weights::pallet_child_bounties::WeightInfo<Runtime>;
+}
+
+parameter_types! {
+	pub const MaxApprovals: u32 = 100;
+	pub const MaxAuthorities: u32 = 100_000;
 }
 
 impl pallet_grandpa::Config for Runtime {
