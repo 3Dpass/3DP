@@ -34,7 +34,7 @@ jobs:
       uses: actions-rs/cargo@v1
       with:
         command: build
-        args: --target ${{ matrix.target }}
+        args: --release --target ${{ matrix.target }}
     - name: Package
       shell: bash
       run: |
