@@ -16,6 +16,7 @@ log = { default-features = false, version = '0.4.17'}
 codec = { package = "parity-scale-codec", version = "3.1", default-features = false, features = ["derive"] }
 scale-info = { version = "2.1.1", default-features = false, features = ["derive"] }
 smallvec = "1.4.0"
+static_assertions = "1.1.0"
 
 pallet-authorship = { git = "https://github.com/paritytech/substrate", rev = "b0777b4c7f7", package = "pallet-authorship", default-features = false }
 pallet-balances = { git = "https://github.com/paritytech/substrate", rev = "b0777b4c7f7", package = "pallet-balances", default-features = false }
@@ -49,12 +50,13 @@ sp-arithmetic = { default-features = false, git = "https://github.com/paritytech
 pallet-grandpa = { default-features = false, git = "https://github.com/paritytech/substrate", rev = "b0777b4c7f7" }
 pallet-democracy = { default-features = false, git = "https://github.com/paritytech/substrate", rev = "b0777b4c7f7" }
 pallet-identity = { default-features = false, git = "https://github.com/paritytech/substrate", rev = "b0777b4c7f7" }
+pallet-referenda = { default-features = false, git = "https://github.com/paritytech/substrate", rev = "b0777b4c7f7" }
 pallet-indices = { default-features = false, git = "https://github.com/paritytech/substrate", rev = "b0777b4c7f7" }
 pallet-multisig = { default-features = false, git = "https://github.com/paritytech/substrate", rev = "b0777b4c7f7" }
 pallet-preimage = { default-features = false, git = "https://github.com/paritytech/substrate", rev = "b0777b4c7f7" }
 pallet-whitelist = { default-features = false, git = "https://github.com/paritytech/substrate", rev = "b0777b4c7f7" }
 pallet-scheduler = { default-features = false, git = "https://github.com/paritytech/substrate", rev = "b0777b4c7f7" }
-pallet-tips = { default-features = false, git = "https://github.com/paritytech/substrate", rev = "b0777b4c7f7" }
+# pallet-tips = { default-features = false, git = "https://github.com/paritytech/substrate", rev = "b0777b4c7f7" }
 pallet-vesting = { default-features = false, git = "https://github.com/paritytech/substrate", rev = "b0777b4c7f7" }
 pallet-recovery = { default-features = false, git = "https://github.com/paritytech/substrate", rev = "b0777b4c7f7" }
 pallet-scored-pool = { default-features = false, git = "https://github.com/paritytech/substrate", rev = "b0777b4c7f7" }
@@ -64,6 +66,10 @@ pallet-assets = { default-features = false, git = "https://github.com/paritytech
 pallet-uniques = { default-features = false, git = "https://github.com/paritytech/substrate", rev = "b0777b4c7f7" }
 pallet-session = { default-features = false, git = "https://github.com/paritytech/substrate", rev = "b0777b4c7f7" }
 pallet-im-online = { default-features = false, git = "https://github.com/paritytech/substrate", rev = "b0777b4c7f7" }
+pallet-membership = { default-features = false, git = "https://github.com/paritytech/substrate", rev = "b0777b4c7f7" }
+pallet-conviction-voting = { default-features = false, git = "https://github.com/paritytech/substrate", rev = "b0777b4c7f7" }
+pallet-elections-phragmen = { default-features = false, git = "https://github.com/paritytech/substrate", rev = "b0777b4c7f7" }
+pallet-ranked-collective = { default-features = false, git = "https://github.com/paritytech/substrate", rev = "b0777b4c7f7" }
 
 pallet-validator-set = { path = "../pallets/validator-set", default-features = false }
 difficulty = { package = "pallet-difficulty", path = "../pallets/difficulty", default-features = false }
@@ -137,7 +143,7 @@ std = [
 	"pallet-multisig/std",
 	"pallet-preimage/std",
 	"pallet-scheduler/std",
-	"pallet-tips/std",
+	# "pallet-tips/std",
 	"pallet-vesting/std",
 	"pallet-whitelist/std",
 	"pallet-recovery/std",
@@ -149,7 +155,11 @@ std = [
 	"pallet-session/std",
 	"pallet-im-online/std",
 	# "pallet-offences/std",
-
+	"pallet-referenda/std",
+	"pallet-membership/std",
+	"pallet-conviction-voting/std",
+	"pallet-elections-phragmen/std",
+	"pallet-ranked-collective/std",
 	"pallet-validator-set/std",
 	"pallet-poscan/std",
 	"difficulty/std",

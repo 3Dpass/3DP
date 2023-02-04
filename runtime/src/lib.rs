@@ -14,7 +14,7 @@ mod weights;
 
 use frame_support::{
 	traits::{
-		InitializeMembers, ChangeMembers, OnRuntimeUpgrade,
+		InitializeMembers, ChangeMembers, OnRuntimeUpgrade, LockIdentifier, U128CurrencyToVote,
 	},
 	weights::DispatchClass,
 };
@@ -23,6 +23,7 @@ use frame_system::EnsureRoot;
 use pallet_contracts::{migration, DefaultContractAccessWeight};
 
 use log;
+use static_assertions::const_assert;
 use core::convert::TryInto;
 use pallet_grandpa::{AuthorityId as GrandpaId, AuthorityList as GrandpaAuthorityList};
 use pallet_im_online::sr25519::AuthorityId as ImOnlineId;
@@ -33,7 +34,7 @@ use sp_runtime::{
 	create_runtime_str, generic, impl_opaque_keys,
 	traits::{
 		AccountIdLookup, BlakeTwo256, Block as BlockT, IdentifyAccount, Verify,
-		NumberFor, ConvertInto, OpaqueKeys,
+		NumberFor, ConvertInto, OpaqueKeys, Identity as IdentityTrait
 	},
 	transaction_validity::{TransactionPriority, TransactionSource, TransactionValidity},
 	ApplyExtrinsicResult, MultiSignature,
@@ -66,7 +67,7 @@ pub use frame_support::{
 	StorageValue, PalletId,
 };
 pub use frame_system::Call as SystemCall;
-pub use frame_system::{EnsureSigned, EnsureSignedBy};
+pub use frame_system::{EnsureSigned, EnsureSignedBy, EnsureRootWithSuccess};
 pub use pallet_balances::Call as BalancesCall;
 pub use pallet_timestamp::Call as TimestampCall;
 use pallet_transaction_payment::CurrencyAdapter;
@@ -670,6 +671,184 @@ impl pallet_democracy::Config for Runtime {
 	type MaxProposals = MaxProposals;
 }
 
+
+parameter_types! {
+	pub const VoteLockingPeriod: BlockNumber = 30 * DAYS;
+}
+
+impl pallet_conviction_voting::Config for Runtime {
+	type WeightInfo = pallet_conviction_voting::weights::SubstrateWeight<Self>;
+	type Event = Event;
+	type Currency = Balances;
+	type VoteLockingPeriod = VoteLockingPeriod;
+	type MaxVotes = ConstU32<512>;
+	type MaxTurnout = frame_support::traits::TotalIssuanceOf<Balances, Self::AccountId>;
+	type Polls = Referenda;
+}
+
+
+parameter_types! {
+	pub const AlarmInterval: BlockNumber = 1;
+	pub const SubmissionDeposit: Balance = 100 * DOLLARS;
+	pub const UndecidingTimeout: BlockNumber = 28 * DAYS;
+
+	pub const MaxQueued: u32 = 100;
+	pub const Votes: u32 = 100;
+}
+
+pub struct TracksInfo;
+impl pallet_referenda::TracksInfo<Balance, BlockNumber> for TracksInfo {
+	type Id = u16;
+	type Origin = <Origin as frame_support::traits::OriginTrait>::PalletsOrigin;
+	fn tracks() -> &'static [(Self::Id, pallet_referenda::TrackInfo<Balance, BlockNumber>)] {
+		static DATA: [(u16, pallet_referenda::TrackInfo<Balance, BlockNumber>); 1] = [(
+			0u16,
+			pallet_referenda::TrackInfo {
+				name: "root",
+				max_deciding: 1,
+				decision_deposit: 10,
+				prepare_period: 4,
+				decision_period: 4,
+				confirm_period: 2,
+				min_enactment_period: 4,
+				min_approval: pallet_referenda::Curve::LinearDecreasing {
+					length: Perbill::from_percent(100),
+					floor: Perbill::from_percent(50),
+					ceil: Perbill::from_percent(100),
+				},
+				min_support: pallet_referenda::Curve::LinearDecreasing {
+					length: Perbill::from_percent(100),
+					floor: Perbill::from_percent(0),
+					ceil: Perbill::from_percent(100),
+				},
+			},
+		)];
+		&DATA[..]
+	}
+	fn track_for(id: &Self::Origin) -> Result<Self::Id, ()> {
+		if let Ok(system_origin) = frame_system::RawOrigin::try_from(id.clone()) {
+			match system_origin {
+				frame_system::RawOrigin::Root => Ok(0),
+				_ => Err(()),
+			}
+		} else {
+			Err(())
+		}
+	}
+}
+
+impl pallet_referenda::Config for Runtime {
+	type WeightInfo = pallet_referenda::weights::SubstrateWeight<Self>;
+	type Call = Call;
+	type Event = Event;
+	/// Weight information for extrinsics in this pallet.
+	/// The Scheduler.
+	type Scheduler = Scheduler;
+	/// Currency type for this pallet.
+
+	type Currency = pallet_balances::Pallet<Self>;
+	type SubmitOrigin = EnsureSigned<AccountId>;
+	type CancelOrigin = EnsureRoot<AccountId>;
+	type KillOrigin = EnsureRoot<AccountId>;
+
+	type Votes = pallet_conviction_voting::VotesOf<Runtime>;
+	type Tally = pallet_conviction_voting::TallyOf<Runtime>;
+
+	/// Handler for the unbalanced reduction when slashing a preimage deposit.
+	type Slash = ();
+	type SubmissionDeposit = SubmissionDeposit;
+	/// Maximum size of the referendum queue for a single track.
+	type MaxQueued = MaxQueued;
+	type UndecidingTimeout = UndecidingTimeout;
+	type AlarmInterval = AlarmInterval;
+	/// Information concerning the different referendum tracks.
+	type Tracks = TracksInfo;
+}
+
+impl pallet_referenda::Config<pallet_referenda::Instance2> for Runtime {
+	type WeightInfo = pallet_referenda::weights::SubstrateWeight<Self>;
+	type Call = Call;
+	type Event = Event;
+	type Scheduler = Scheduler;
+	type Currency = pallet_balances::Pallet<Self>;
+	type SubmitOrigin = EnsureSigned<AccountId>;
+	type CancelOrigin = EnsureRoot<AccountId>;
+	type KillOrigin = EnsureRoot<AccountId>;
+	type Slash = ();
+	type Votes = pallet_ranked_collective::Votes;
+	type Tally = pallet_ranked_collective::TallyOf<Runtime>;
+	type SubmissionDeposit = SubmissionDeposit;
+	type MaxQueued = ConstU32<100>;
+	type UndecidingTimeout = UndecidingTimeout;
+	type AlarmInterval = AlarmInterval;
+	type Tracks = TracksInfo;
+}
+
+impl pallet_ranked_collective::Config for Runtime {
+	type WeightInfo = pallet_ranked_collective::weights::SubstrateWeight<Self>;
+	type Event = Event;
+	type PromoteOrigin = EnsureRootWithSuccess<AccountId, ConstU16<65535>>;
+	type DemoteOrigin = EnsureRootWithSuccess<AccountId, ConstU16<65535>>;
+	type Polls = RankedPolls;
+	type MinRankOfClass = IdentityTrait;
+	type VoteWeight = pallet_ranked_collective::Geometric;
+}
+
+
+parameter_types! {
+	pub const MaxMembers: u32 = 100;
+}
+
+impl pallet_membership::Config for Runtime {
+	type Event = Event;
+	type AddOrigin = EnsureRootOrHalfCouncil;
+	type RemoveOrigin = EnsureRootOrHalfCouncil;
+	type SwapOrigin = EnsureRootOrHalfCouncil;
+	type ResetOrigin = EnsureRootOrHalfCouncil;
+	type PrimeOrigin = EnsureRootOrHalfCouncil;
+	type MembershipInitialized = TechnicalCommittee;
+	type MembershipChanged = TechnicalCommittee;
+	type MaxMembers = TechnicalMaxMembers;
+	type WeightInfo = pallet_membership::weights::SubstrateWeight<Runtime>;
+}
+
+
+parameter_types! {
+	pub const CandidacyBond: Balance = 100 * DOLLARS;
+	// 1 storage item created, key size is 32 bytes, value size is 16+16.
+	pub const VotingBondBase: Balance = deposit(1, 64);
+	// additional data per vote is 32 bytes (account id).
+	pub const VotingBondFactor: Balance = deposit(0, 32);
+	/// Weekly council elections; scaling up to monthly eventually.
+	pub TermDuration: BlockNumber = 7 * DAYS; // prod_or_fast!(7 * DAYS, 2 * MINUTES, "DOT_TERM_DURATION");
+	/// 13 members initially, to be increased to 23 eventually.
+	pub const DesiredMembers: u32 = 13;
+	pub const DesiredRunnersUp: u32 = 20;
+	pub const MaxVoters: u32 = 10 * 1000;
+	pub const MaxCandidates: u32 = 1000;
+	pub const PhragmenElectionPalletId: LockIdentifier = *b"phrelect";
+}
+// Make sure that there are no more than `MaxMembers` members elected via phragmen.
+const_assert!(DesiredMembers::get() <= CouncilMaxMembers::get());
+
+impl pallet_elections_phragmen::Config for Runtime {
+	type Event = Event;
+	type PalletId = PhragmenElectionPalletId;
+	type Currency = Balances;
+	type ChangeMembers = Council;
+	type InitializeMembers = Council;
+	type CurrencyToVote = U128CurrencyToVote;
+	type CandidacyBond = CandidacyBond;
+	type VotingBondBase = VotingBondBase;
+	type VotingBondFactor = VotingBondFactor;
+	type LoserCandidate = Treasury;
+	type KickedMember = Treasury;
+	type DesiredMembers = DesiredMembers;
+	type DesiredRunnersUp = DesiredRunnersUp;
+	type TermDuration = TermDuration;
+	type WeightInfo = pallet_elections_phragmen::weights::SubstrateWeight<Runtime>;
+}
+
 parameter_types! {
 	pub const CouncilMotionDuration: BlockNumber = 3 * DAYS;
 	pub const CouncilMaxProposals: u32 = 100;
@@ -1104,9 +1283,13 @@ construct_runtime!(
 		Authorship: pallet_authorship,
 		TransactionPayment: pallet_transaction_payment,
 		Democracy: pallet_democracy,
+		Referenda: pallet_referenda,
+		Membership: pallet_membership,
+		ConvictionVoting: pallet_conviction_voting,
 		Remark: pallet_remark,
 		Council: pallet_collective::<Instance1>,
 		TechnicalCommittee: pallet_collective::<Instance2>,
+		PhragmenElection: pallet_elections_phragmen,
 		Treasury: pallet_treasury,
 		Multisig: pallet_multisig,
 		TransactionStorage: pallet_transaction_storage,
@@ -1123,6 +1306,8 @@ construct_runtime!(
 		Vesting: pallet_vesting,
 		Whitelist: pallet_whitelist,
 		Contracts: pallet_contracts,
+		RankedPolls: pallet_referenda::<Instance2>,
+		RankedCollective: pallet_ranked_collective,
 		PoScan: pallet_poscan::{Pallet, Call, Storage, Event<T>},
 		Sudo: pallet_sudo,
 	}

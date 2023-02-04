@@ -149,6 +149,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e22d1f4b888c298a027c99dc9048015fac177587de20fc30232a057dfbe24a21"
 
 [[package]]
+name = "assert_matches"
+version = "1.5.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9b34d609dfbaf33d6889b2b7106d3ca345eacad44200913df5ba02bfd31d2ba9"
+
+[[package]]
 name = "async-channel"
 version = "1.7.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3817,6 +3823,23 @@ dependencies = [
 ]
 
 [[package]]
+name = "pallet-conviction-voting"
+version = "4.0.0-dev"
+source = "git+https://github.com/paritytech/substrate?rev=b0777b4c7f7#b0777b4c7f7d8d3c635319d0153953d0a22aa58e"
+dependencies = [
+ "assert_matches",
+ "frame-benchmarking",
+ "frame-support",
+ "frame-system",
+ "parity-scale-codec",
+ "scale-info",
+ "serde",
+ "sp-io",
+ "sp-runtime",
+ "sp-std",
+]
+
+[[package]]
 name = "pallet-democracy"
 version = "4.0.0-dev"
 source = "git+https://github.com/paritytech/substrate?rev=b0777b4c7f7#b0777b4c7f7d8d3c635319d0153953d0a22aa58e"
@@ -3847,6 +3870,23 @@ dependencies = [
  "sp-runtime",
  "sp-std",
  "sp-timestamp",
+]
+
+[[package]]
+name = "pallet-elections-phragmen"
+version = "5.0.0-dev"
+source = "git+https://github.com/paritytech/substrate?rev=b0777b4c7f7#b0777b4c7f7d8d3c635319d0153953d0a22aa58e"
+dependencies = [
+ "frame-support",
+ "frame-system",
+ "log",
+ "parity-scale-codec",
+ "scale-info",
+ "sp-core",
+ "sp-io",
+ "sp-npos-elections",
+ "sp-runtime",
+ "sp-std",
 ]
 
 [[package]]
@@ -3924,6 +3964,23 @@ dependencies = [
 ]
 
 [[package]]
+name = "pallet-membership"
+version = "4.0.0-dev"
+source = "git+https://github.com/paritytech/substrate?rev=b0777b4c7f7#b0777b4c7f7d8d3c635319d0153953d0a22aa58e"
+dependencies = [
+ "frame-benchmarking",
+ "frame-support",
+ "frame-system",
+ "log",
+ "parity-scale-codec",
+ "scale-info",
+ "sp-core",
+ "sp-io",
+ "sp-runtime",
+ "sp-std",
+]
+
+[[package]]
 name = "pallet-multisig"
 version = "4.0.0-dev"
 source = "git+https://github.com/paritytech/substrate?rev=b0777b4c7f7#b0777b4c7f7d8d3c635319d0153953d0a22aa58e"
@@ -3982,6 +4039,24 @@ dependencies = [
 ]
 
 [[package]]
+name = "pallet-ranked-collective"
+version = "4.0.0-dev"
+source = "git+https://github.com/paritytech/substrate?rev=b0777b4c7f7#b0777b4c7f7d8d3c635319d0153953d0a22aa58e"
+dependencies = [
+ "frame-benchmarking",
+ "frame-support",
+ "frame-system",
+ "log",
+ "parity-scale-codec",
+ "scale-info",
+ "sp-arithmetic",
+ "sp-core",
+ "sp-io",
+ "sp-runtime",
+ "sp-std",
+]
+
+[[package]]
 name = "pallet-recovery"
 version = "4.0.0-dev"
 source = "git+https://github.com/paritytech/substrate?rev=b0777b4c7f7#b0777b4c7f7d8d3c635319d0153953d0a22aa58e"
@@ -3991,6 +4066,23 @@ dependencies = [
  "frame-system",
  "parity-scale-codec",
  "scale-info",
+ "sp-io",
+ "sp-runtime",
+ "sp-std",
+]
+
+[[package]]
+name = "pallet-referenda"
+version = "4.0.0-dev"
+source = "git+https://github.com/paritytech/substrate?rev=b0777b4c7f7#b0777b4c7f7d8d3c635319d0153953d0a22aa58e"
+dependencies = [
+ "frame-benchmarking",
+ "frame-support",
+ "frame-system",
+ "parity-scale-codec",
+ "scale-info",
+ "serde",
+ "sp-arithmetic",
  "sp-io",
  "sp-runtime",
  "sp-std",
@@ -4116,24 +4208,6 @@ dependencies = [
  "sp-runtime",
  "sp-std",
  "sp-timestamp",
-]
-
-[[package]]
-name = "pallet-tips"
-version = "4.0.0-dev"
-source = "git+https://github.com/paritytech/substrate?rev=b0777b4c7f7#b0777b4c7f7d8d3c635319d0153953d0a22aa58e"
-dependencies = [
- "frame-support",
- "frame-system",
- "log",
- "pallet-treasury",
- "parity-scale-codec",
- "scale-info",
- "serde",
- "sp-core",
- "sp-io",
- "sp-runtime",
- "sp-std",
 ]
 
 [[package]]
@@ -4683,17 +4757,22 @@ dependencies = [
  "pallet-contracts",
  "pallet-contracts-primitives",
  "pallet-contracts-rpc-runtime-api",
+ "pallet-conviction-voting",
  "pallet-democracy",
  "pallet-difficulty",
+ "pallet-elections-phragmen",
  "pallet-grandpa",
  "pallet-identity",
  "pallet-im-online",
  "pallet-indices",
+ "pallet-membership",
  "pallet-multisig",
  "pallet-poscan",
  "pallet-preimage",
  "pallet-randomness-collective-flip",
+ "pallet-ranked-collective",
  "pallet-recovery",
+ "pallet-referenda",
  "pallet-remark",
  "pallet-rewards",
  "pallet-scheduler",
@@ -4701,7 +4780,6 @@ dependencies = [
  "pallet-session",
  "pallet-sudo",
  "pallet-timestamp",
- "pallet-tips",
  "pallet-transaction-payment",
  "pallet-transaction-payment-rpc-runtime-api",
  "pallet-transaction-storage",
@@ -4727,6 +4805,7 @@ dependencies = [
  "sp-std",
  "sp-transaction-pool",
  "sp-version",
+ "static_assertions",
  "substrate-wasm-builder",
 ]
 
@@ -6868,6 +6947,20 @@ source = "git+https://github.com/paritytech/substrate?rev=b0777b4c7f7#b0777b4c7f
 dependencies = [
  "thiserror",
  "zstd",
+]
+
+[[package]]
+name = "sp-npos-elections"
+version = "4.0.0-dev"
+source = "git+https://github.com/paritytech/substrate?rev=b0777b4c7f7#b0777b4c7f7d8d3c635319d0153953d0a22aa58e"
+dependencies = [
+ "parity-scale-codec",
+ "scale-info",
+ "serde",
+ "sp-arithmetic",
+ "sp-core",
+ "sp-runtime",
+ "sp-std",
 ]
 
 [[package]]

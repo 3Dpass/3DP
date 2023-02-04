@@ -98,6 +98,8 @@ pub fn testnet_genesis(
 			mints: Default::default(),
 		},
 		democracy: Default::default(),
+		membership: Default::default(),
+		phragmen_election: Default::default(),
 		council: CouncilConfig {
 			members: initial_authorities.iter().map(|x| x.0.clone()).collect::<Vec<_>>(),
 			phantom: Default::default(),
