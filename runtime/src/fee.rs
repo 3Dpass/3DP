@@ -21,8 +21,8 @@ use crate::{Balance, ExtrinsicBaseWeight};
 use frame_support::weights::{
 	WeightToFeeCoefficient, WeightToFeeCoefficients, WeightToFeePolynomial,
 };
-use sp_consensus_poscan::CENTS;
 use smallvec::smallvec;
+use sp_consensus_poscan::CENTS;
 use sp_runtime::Perbill;
 
 pub struct WeightToFee;

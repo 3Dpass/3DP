@@ -1,20 +1,16 @@
 //! Helper module to build a genesis configuration for the weight-fee-runtime
 
 use super::{
-	AccountId, Signature, GenesisConfig,
-	BalancesConfig, SudoConfig, SystemConfig, IndicesConfig,
-	DifficultyConfig,
-	RewardsConfig,
-	CouncilConfig,
-	SessionConfig,
+	opaque::SessionKeys, AccountId, BalancesConfig, CouncilConfig, DifficultyConfig, GenesisConfig,
+	IndicesConfig, RewardsConfig, SessionConfig, Signature, SudoConfig, SystemConfig,
 	ValidatorSetConfig,
-	opaque::SessionKeys,
 };
+use sp_consensus_poscan::DOLLARS;
 use sp_core::{sr25519, Pair, Public, U256};
 use sp_finality_grandpa::AuthorityId as GrandpaId;
-use pallet_im_online::sr25519::AuthorityId as ImOnlineId;
 use sp_runtime::traits::{IdentifyAccount, Verify};
-use sp_consensus_poscan::DOLLARS;
+
+use pallet_im_online::sr25519::AuthorityId as ImOnlineId;
 
 /// Helper function to generate a crypto pair from seed
 fn get_from_seed<TPublic: Public>(seed: &str) -> <TPublic::Pair as Pair>::Public {
@@ -84,15 +80,13 @@ pub fn testnet_genesis(
 				.map(|k| (k, 1 << 60))
 				.collect(),
 		},
-		indices: IndicesConfig {
-			indices: vec![],
+		indices: IndicesConfig { indices: vec![] },
+		sudo: SudoConfig {
+			key: Some(root_key),
 		},
-		sudo: SudoConfig { key: Some(root_key) },
 		grandpa: Default::default(),
 		im_online: Default::default(),
-		difficulty: DifficultyConfig {
-			initial_difficulty,
-		},
+		difficulty: DifficultyConfig { initial_difficulty },
 		rewards: RewardsConfig {
 			reward: 500 * DOLLARS,
 			mints: Default::default(),
@@ -101,7 +95,10 @@ pub fn testnet_genesis(
 		membership: Default::default(),
 		phragmen_election: Default::default(),
 		council: CouncilConfig {
-			members: initial_authorities.iter().map(|x| x.0.clone()).collect::<Vec<_>>(),
+			members: initial_authorities
+				.iter()
+				.map(|x| x.0.clone())
+				.collect::<Vec<_>>(),
 			phantom: Default::default(),
 		},
 		technical_committee: Default::default(),
@@ -112,12 +109,22 @@ pub fn testnet_genesis(
 		assets: Default::default(),
 		scored_pool: Default::default(),
 		validator_set: ValidatorSetConfig {
-			initial_validators: initial_authorities.iter().map(|x| x.0.clone()).collect::<Vec<_>>(),
+			initial_validators: initial_authorities
+				.iter()
+				.map(|x| x.0.clone())
+				.collect::<Vec<_>>(),
 		},
 		session: SessionConfig {
-			keys: initial_authorities.iter().map(|x| {
-				(x.0.clone(), x.0.clone(), session_keys(x.1.clone(), x.2.clone()))
-			}).collect::<Vec<_>>(),
+			keys: initial_authorities
+				.iter()
+				.map(|x| {
+					(
+						x.0.clone(),
+						x.0.clone(),
+						session_keys(x.1.clone(), x.2.clone()),
+					)
+				})
+				.collect::<Vec<_>>(),
 		},
 	}
 }
