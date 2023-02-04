@@ -1,52 +1,41 @@
-name: Rust
+name: Release CI
 
 on:
-  pull_request:
   push:
     tags:
       - "v*.*.*"
 
 jobs:
   build:
-
-    runs-on: ubuntu-latest
-
     strategy:
+      fail-fast: false
       matrix:
-        target: [x86_64-unknown-linux-gnu]
-        # target: [x86_64-unknown-linux-gnu,x86_64-apple-darwin,x86_64-pc-windows-gnu]
+        platform: [macos-latest, ubuntu-20.04, windows-latest]
+
+    runs-on: ${{ matrix.platform }}
 
     steps:
     - uses: actions/checkout@v3
-    - uses: actions/cache@v3
-      with:
-        path: |
-          ~/.cargo/bin/
-          ~/.cargo/registry/index/
-          ~/.cargo/registry/cache/
-          ~/.cargo/git/db/
-          target/
-        key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
-    - name: Update local toolchain
+    - name: install Rust stable
+      uses: dtolnay/rust-toolchain@stable
+    - name: install dependencies (ubuntu only)
+      if: matrix.platform == "ubuntu-20.04"
       run: |
-        curl https://sh.rustup.rs -sSf | sh -s -- -y --default-toolchain nightly
-        source "$HOME/.cargo/env"
-        rustup update nightly
-        rustup target add wasm32-unknown-unknown --toolchain nightly
-        rustup target add ${{ matrix.target }} --toolchain nightly
+        sudo apt-get update
+        sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.0-dev libappindicator3-dev librsvg2-dev patchelf
     - name: Build
       run: |
         source "$HOME/.cargo/env"
-        cargo build --release --target ${{ matrix.target }}
+        cargo build --release --target ${{ matrix.platform }}
     - name: Package
       shell: bash
       run: |
-        cd target/${{ matrix.target }}/release
-        tar czvf ../../../poscan-consensus-${{ matrix.target }}.tar.gz poscan-consensus
+        cd target/${{ matrix.platform }}/release
+        tar czvf ../../../poscan-consensus-${{ matrix.platform }}.tar.gz poscan-consensus
         cd -
     - name: Publish
       uses: softprops/action-gh-release@v1
       with:
-        files: 'poscan-consensus-*'
+        files: "poscan-consensus-*"
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
