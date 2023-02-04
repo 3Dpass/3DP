@@ -12,23 +12,29 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        platform: [macos-latest, ubuntu-20.04, windows-latest]
+        target: [x86_64-unknown-linux-gnu, x86_64-apple-darwin, x86_64-pc-windows-gnu]
 
-    runs-on: ${{ matrix.platform }}
+    runs-on: ubuntu-latest
 
     steps:
     - uses: actions/checkout@v3
-    - name: Install Rust stable
-      uses: dtolnay/rust-toolchain@stable
-    - name: Build
-      run: |
-        source "$HOME/.cargo/env"
-        cargo build --release --target ${{ matrix.platform }}
+    - name: Install Rust Nightly
+      uses: actions-rs/toolchain@v1
+      with:
+        toolchain: nightly
+        target: ${{ matrix.target }}
+        override: true
+    - name: Cargo Build
+      uses: actions-rs/cargo@v1
+      with:
+        use-cross: true
+        command: build
+        args: --target ${{ matrix.target }}
     - name: Package
       shell: bash
       run: |
-        cd target/${{ matrix.platform }}/release
-        tar czvf ../../../poscan-consensus-${{ matrix.platform }}.tar.gz poscan-consensus
+        cd target/${{ matrix.target }}/release
+        tar czvf ../../../poscan-consensus-${{ matrix.target }}.tar.gz poscan-consensus
         cd -
     - name: Publish
       uses: softprops/action-gh-release@v1
