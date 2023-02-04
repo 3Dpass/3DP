@@ -33,6 +33,10 @@ jobs:
         toolchain: nightly
         target: ${{ matrix.target }}
         override: true
+
+    - name: Rust Cache
+      uses: Swatinem/rust-cache@v2.2.0
+
     - name: Cargo Build
       uses: actions-rs/cargo@v1
       with:
