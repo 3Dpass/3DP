@@ -15,10 +15,13 @@ jobs:
         include:
           - target: 'x86_64-unknown-linux-gnu'
             os: 'ubuntu-latest'
+            name: 'linux'
           - target: 'x86_64-apple-darwin'
             os: 'macos-latest'
+            name: 'macos'
           - target: 'x86_64-pc-windows-gnu'
             os: 'windows-latest'
+            name: 'windows'
 
     runs-on: ${{ matrix.os }}
 
@@ -39,7 +42,7 @@ jobs:
       shell: bash
       run: |
         cd target/${{ matrix.target }}/release
-        tar czvf ../../../poscan-consensus-${{ matrix.target }}.tar.gz poscan-consensus
+        tar czvf ../../../poscan-consensus-${{ matrix.name }}.tar.gz poscan-consensus
         cd -
     - name: Publish
       uses: softprops/action-gh-release@v1
