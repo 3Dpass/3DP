@@ -31,9 +31,14 @@ jobs:
     - name: Install Rust Nightly
       uses: actions-rs/toolchain@v1.0.6
       with:
+        profile: minimal
         toolchain: nightly
         target: ${{ matrix.target }}
         override: true
+
+    - name: Add WASM target
+      run: |
+        rustup target add wasm32-unknown-unknown
 
     - uses: actions/cache@v3.2.4
       with:
