@@ -19,7 +19,7 @@ jobs:
           - target: 'x86_64-apple-darwin'
             os: 'macos-latest'
             name: 'macos'
-          - target: 'x86_64-w64-mingw'
+          - target: 'x86_64-pc-windows-msvc'
             os: 'windows-latest'
             name: 'windows'
 
