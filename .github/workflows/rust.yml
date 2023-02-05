@@ -33,19 +33,16 @@ jobs:
     steps:
     - uses: actions/checkout@v3.3.0
 
-    - id: get_repository_name
-      run: echo ::set-output name=REPOSITORY_NAME::$(echo "$GITHUB_REPOSITORY" | awk -F / '{print $2}' | sed -e "s/:refs//")
-      shell: bash
-
     - uses: actions-rs/toolchain@v1.0.6
       with:
         profile: minimal
         toolchain: nightly
         override: true
 
-    - name: Add WASM target
+    - name: Add targets
       run: |
-        rustup target add wasm32-unknown-unknown
+        rustup target add wasm32-unknown-unknown && \
+        rustup target add ${{ matrix.target }}
 
     - uses: actions/cache@v3.2.4
       with:
@@ -62,17 +59,12 @@ jobs:
         command: build
         args: '--release'
 
-    - uses: actions/upload-artifact@master
-      with:
-        name: poscan-consensus-${{ matrix.target }}
-        path: ./target/release/poscan-consensus${{ matrix.suffix }}
-
-#     - name: Package
-#       shell: bash
-#       run: |
-#         cd target/${{ matrix.target }}/release
-#         tar czvf ../../../poscan-consensus-${{ matrix.name }}.tar.gz poscan-consensus
-#         cd -
+    - name: Package
+      shell: bash
+      run: |
+        cd target/${{ matrix.target }}/release
+        tar czvf ../../../poscan-consensus-${{ matrix.name }}.tar.gz poscan-consensus${{ matrix.suffix }}
+        cd -
 
 #     - name: Publish
 #       uses: softprops/action-gh-release@v0.1.15
