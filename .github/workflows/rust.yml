@@ -8,32 +8,39 @@ on:
 #       - "v*.*.*"
 
 jobs:
+
   build:
+
     strategy:
       fail-fast: false
       matrix:
         include:
-          - target: 'x86_64-unknown-linux-gnu'
-            os: 'ubuntu-latest'
-            name: 'linux'
-          - target: 'x86_64-apple-darwin'
-            os: 'macos-latest'
-            name: 'macos'
-          - target: 'x86_64-pc-windows-gnu'
-            os: 'windows-latest'
-            name: 'windows'
+          - target: x86_64-unknown-linux-gnu
+            os: ubuntu-latest
+            name: linux
+            suffix: ''
+          - target: x86_64-apple-darwin
+            os: macos-latest
+            name: macos
+            suffix: ''
+          - target: x86_64-pc-windows-msvc
+            os: windows-latest
+            name: windows
+            suffix: .exe
 
     runs-on: ${{ matrix.os }}
 
     steps:
     - uses: actions/checkout@v3.3.0
 
-    - name: Install Rust Nightly
-      uses: actions-rs/toolchain@v1.0.6
+    - id: get_repository_name
+      run: echo ::set-output name=REPOSITORY_NAME::$(echo "$GITHUB_REPOSITORY" | awk -F / '{print $2}' | sed -e "s/:refs//")
+      shell: bash
+
+    - uses: actions-rs/toolchain@v1.0.6
       with:
         profile: minimal
         toolchain: nightly
-        target: ${{ matrix.target }}
         override: true
 
     - name: Add WASM target
@@ -50,22 +57,26 @@ jobs:
           target/
         key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
 
-    - name: Cargo Build
-      uses: actions-rs/cargo@v1.0.1
+    - uses: actions-rs/cargo@v1.0.1
       with:
         command: build
-        args: --release --target ${{ matrix.target }}
+        args: '--release'
 
-    - name: Package
-      shell: bash
-      run: |
-        cd target/${{ matrix.target }}/release
-        tar czvf ../../../poscan-consensus-${{ matrix.name }}.tar.gz poscan-consensus
-        cd -
-
-    - name: Publish
-      uses: softprops/action-gh-release@v0.1.15
+    - uses: actions/upload-artifact@master
       with:
-        files: "poscan-consensus-*"
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        name: poscan-consensus-${{ matrix.target }}
+        path: ./target/release/poscan-consensus${{ matrix.suffix }}
+
+#     - name: Package
+#       shell: bash
+#       run: |
+#         cd target/${{ matrix.target }}/release
+#         tar czvf ../../../poscan-consensus-${{ matrix.name }}.tar.gz poscan-consensus
+#         cd -
+
+#     - name: Publish
+#       uses: softprops/action-gh-release@v0.1.15
+#       with:
+#         files: "poscan-consensus-*"
+#       env:
+#         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
