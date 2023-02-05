@@ -61,7 +61,7 @@ jobs:
     - name: Package
       shell: bash
       run: |
-        cd target/${{ matrix.target }}/release
+        cd target/release
         tar czvf ../../../poscan-consensus-${{ matrix.name }}.tar.gz poscan-consensus${{ matrix.suffix }}
         cd -
 
