@@ -39,13 +39,14 @@ jobs:
         toolchain: nightly
         override: true
 
-    - name: Add targets
+    - name: Add WASM target
       run: |
         rustup target add wasm32-unknown-unknown
 
     - name: Install make
       run: |
-        sudo apt-get install make
+        apt-get install make
+      if: matrix.os == 'windows-latest'
 
     - uses: actions/cache@v3.2.4
       with:
