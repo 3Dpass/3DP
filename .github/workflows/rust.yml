@@ -36,15 +36,14 @@ jobs:
     - uses: Vampire/setup-wsl@v2
       with:
         additional-packages:
-          cmake
-          pkg-config
-          libssl-dev
-          git
-          gcc
-          build-essential
           git
           clang
-          libclang-dev
+          curl
+          libssl-dev
+          llvm
+          libudev-dev
+          make
+          protobuf-compile
       if: matrix.os == 'windows-latest'
 
     - uses: actions-rs/toolchain@v1
