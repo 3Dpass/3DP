@@ -31,7 +31,7 @@ jobs:
     runs-on: ${{ matrix.os }}
 
     steps:
-    - uses: actions/checkout@v3.3.0
+    - uses: actions/checkout@v3
 
     - uses: Vampire/setup-wsl@v2
       with:
@@ -47,7 +47,7 @@ jobs:
           libclang-dev
       if: matrix.os == 'windows-latest'
 
-    - uses: actions-rs/toolchain@v1.0.6
+    - uses: actions-rs/toolchain@v1
       with:
         profile: minimal
         toolchain: nightly
@@ -57,22 +57,22 @@ jobs:
       run: |
         rustup target add wasm32-unknown-unknown
 
-    - uses: actions/cache@v3.2.4
+    - uses: actions/cache@v3
       with:
         path: ~/.cargo/registry
         key: ${{ runner.os }}-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
 
-    - uses: actions/cache@v3.2.4
+    - uses: actions/cache@v3
       with:
         path: ~/.cargo/git
         key: ${{ runner.os }}-cargo-git-${{ hashFiles('**/Cargo.lock') }}
 
-    - uses: actions/cache@v3.2.4
+    - uses: actions/cache@v3
       with:
         path: target
         key: ${{ runner.os }}-cargo-build-target-${{ hashFiles('**/Cargo.lock') }}
 
-    - uses: actions-rs/cargo@v1.0.1
+    - uses: actions-rs/cargo@v1
       with:
         command: build
         args: '--release'
