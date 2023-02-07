@@ -443,7 +443,7 @@ pub fn new_full(
 						}
 					}
 				} else {
-					thread::sleep(Duration::new(1, 0));
+					thread::sleep(Duration::from_millis(10));
 				}
 			});
 		}
