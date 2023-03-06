@@ -9,7 +9,7 @@ RockObj contains all the parameters that are used when generating a rock.
 class RockObj {
   constructor() {
     this.seed = 100;
-    this.meshNoiseScale = { val: 2.0 };
+    this.meshNoiseScale = { val: 1.0 };
     this.meshNoiseStrength = { val: 0.2 };
     this.scrapeCount = { val: 7 };
     this.scrapeMinDist = { val: 0.8 };

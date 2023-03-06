@@ -47,7 +47,6 @@ function create_rock() {
   const rock_obj = new RockObj();
   rock_obj.seed = Math.round(randomArray(0, Number.MAX_SAFE_INTEGER).oned(1)[0]);
   rock_obj.varyMesh();
-  rock_obj.scale = [1.0, 1.0, 2.0];
   return new Rock(rock_obj);
 }
 
