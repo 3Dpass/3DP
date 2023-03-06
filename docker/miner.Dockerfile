@@ -2,11 +2,13 @@ FROM node:latest
 
 WORKDIR /app
 
-COPY ./miner-libs/ /app/miner-libs/
-COPY ./package.json /app/package.json
-COPY ./yarn.lock /app/yarn.lock
-COPY ./miner.js /app/miner.js
+COPY ./miner-libs/ .
+COPY ./package.json .
+COPY ./pnpm-lock.yaml .
+COPY ./miner.js .
 
-RUN yarn install
+RUN corepack enable && \
+    corepack prepare pnpm@latest --activate && \
+    pnpm install
 
-CMD ["yarn", "miner", "--host", "node"]
+CMD ["pnpm", "miner", "--host", "node"]
