@@ -19,53 +19,53 @@ const filename = "rock.obj";
 mining(do_save);
 
 function mining(do_save) {
-    const rock = create_rock();
-    const obj_file = create_obj_file(rock);
-    if (do_save) {
-        save(obj_file, filename);
-        return;
-    }
-    axios
-        .post(apiUrl, {
-            jsonrpc: "2.0",
-            id: 1,
-            method: "poscan_pushMiningObject",
-            params: [1, obj_file],
-        })
-        .catch((e) => {
-            console.log(e.toString());
-        })
-        .then((response) => {
-            if (response && response.hasOwnProperty("data")) {
-                console.log(response.data);
-            }
-            setTimeout(mining, interval);
-        });
+  const rock = create_rock();
+  const obj_file = create_obj_file(rock);
+  if (do_save) {
+    save(obj_file, filename);
+    return;
+  }
+  axios
+    .post(apiUrl, {
+      jsonrpc: "2.0",
+      id: 1,
+      method: "poscan_pushMiningObject",
+      params: [1, obj_file],
+    })
+    .catch((e) => {
+      console.log(e.toString());
+    })
+    .then((response) => {
+      if (response && response.hasOwnProperty("data")) {
+        console.log(response.data);
+      }
+      setTimeout(mining, interval);
+    });
 }
 
 function create_rock() {
-    const rock_obj = new RockObj();
-    rock_obj.seed = Math.round(randomArray(0, Number.MAX_SAFE_INTEGER).oned(1)[0]);
-    rock_obj.varyMesh();
-    rock_obj.scale = [1.0, 1.0, 2.0];
-    return new Rock(rock_obj);
+  const rock_obj = new RockObj();
+  rock_obj.seed = Math.round(randomArray(0, Number.MAX_SAFE_INTEGER).oned(1)[0]);
+  rock_obj.varyMesh();
+  rock_obj.scale = [1.0, 1.0, 2.0];
+  return new Rock(rock_obj);
 }
 
 function create_obj_file(rock) {
-    const scene = new THREE.Scene();
+  const scene = new THREE.Scene();
 
-    const mesh = new THREE.Mesh(rock.geometry);
-    scene.add(mesh);
+  const mesh = new THREE.Mesh(rock.geometry);
+  scene.add(mesh);
 
-    const exporter = new OBJExporter();
-    return exporter.parse(scene);
+  const exporter = new OBJExporter();
+  return exporter.parse(scene);
 }
 
 function save(text, filename) {
-    fs.writeFile(filename, text, function (err) {
-        if (err) {
-            return console.log(err);
-        }
-        console.log("The file was saved!");
-    });
+  fs.writeFile(filename, text, function (err) {
+    if (err) {
+      return console.log(err);
+    }
+    console.log("The file was saved!");
+  });
 }
