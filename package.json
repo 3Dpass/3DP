@@ -5,6 +5,7 @@
   "license": "MIT",
   "type": "module",
   "scripts": {
+    "preinstall": "npx only-allow pnpm",
     "miner": "node miner.js"
   },
   "devDependencies": {

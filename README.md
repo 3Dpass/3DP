@@ -98,7 +98,7 @@ Generate your GRANDPA keys for finalization. Use the same secret phrase as it's 
 ## Development
 ```
 
-Insert Grandpa key into the keystore: 
+Insert Grandpa key into the keystore:
 ```bash
 ./target/release/poscan-consensus key insert --base-path ~/3dp-chain/ --chain mainnetSpecRaw.json --scheme Ed25519 --suri <secret seed from Grandpa> --key-type gran
 ```
@@ -110,21 +110,21 @@ Start the Node with the following command:
 ./target/release/poscan-consensus --base-path ~/3dp-chain/ --chain mainnetSpecRaw.json --name MyNodeName --validator --telemetry-url "wss://submit.telemetry.3dpass.org/submit 0" --author <your mining address or pub key> --threads 2 --no-mdns
 ```
 
-Install miner (You have to install [NodeJS v16](https://nodejs.org/en/) and [Yarn](https://classic.yarnpkg.com/lang/en/docs/install/) before):
+Install miner (You have to install [NodeJS v16](https://nodejs.org/en/) and pnpm `corepack enable` before):
 ```bash
-yarn
+pnpm i
 ```
 
 Run miner:
 ```bash
-yarn miner --interval 100
+pnpm miner --interval 100
 ```
-- `--interval 100` is the amount of time in miliseconds between the last and the next one objects being sent towards the Node. Dependidng on how much threads are you mining with, reduce the interval until you reach desired proc load. 
+- `--interval 100` is the amount of time in miliseconds between the last and the next one objects being sent towards the Node. Dependidng on how much threads are you mining with, reduce the interval until you reach desired proc load.
 
 Make sure you can see your node in the [list](https://telemetry.3dpass.org/). Use this [tutorial](https://3dpass.org/mainnet.html#mining_docker) for more details.
 
 ## Mining with Docker
-This procedure will build and run the Node and Miner automatically with Docker. 
+This procedure will build and run the Node and Miner automatically with Docker.
 
 First, install [Docker](https://docs.docker.com/get-docker/) and
 [Docker Compose](https://docs.docker.com/compose/install/).
@@ -154,7 +154,7 @@ version: "3.9"
           - INTERVAL=100
 ```
 - `THREADS=2` is the amount of threads you are about to use for mining
-- `INTERVAL=100` is the amount of time in miliseconds between the last and the next one objects being sent towards the Node. Dependidng on how much threads are you mining with, reduce the interval until you reach desired proc load. 
+- `INTERVAL=100` is the amount of time in miliseconds between the last and the next one objects being sent towards the Node. Dependidng on how much threads are you mining with, reduce the interval until you reach desired proc load.
 
 You can generate your ADDRESS and MEMO_SEED phrase in the [wallet](https://wallet.3dpass.org/) (add new address). Make sure you can see your node in the [list](https://telemetry.3dpass.org/). Use this [tutorial](https://3dpass.org/mainnet.html#mining_docker) for more details.
 
