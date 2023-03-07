@@ -69,6 +69,7 @@ pallet-membership = { default-features = false, git = "https://github.com/parity
 pallet-conviction-voting = { default-features = false, git = "https://github.com/paritytech/substrate", rev = "b0777b4c7f7" }
 pallet-elections-phragmen = { default-features = false, git = "https://github.com/paritytech/substrate", rev = "b0777b4c7f7" }
 pallet-ranked-collective = { default-features = false, git = "https://github.com/paritytech/substrate", rev = "b0777b4c7f7" }
+pallet-atomic-swap = { default-features = false, git = "https://github.com/paritytech/substrate", rev = "b0777b4c7f7" }
 
 pallet-validator-set = { path = "../pallets/validator-set", default-features = false }
 pallet-mining-pool = { path = "../pallets/mining-pool", default-features = false }

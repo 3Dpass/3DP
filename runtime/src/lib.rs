@@ -1287,6 +1287,12 @@ impl<LocalCall> frame_system::offchain::CreateSignedTransaction<LocalCall> for R
 	}
 }
 
+impl pallet_atomic_swap::Config for Runtime {
+	type Event = Event;
+	type SwapAction = pallet_atomic_swap::BalanceSwapAction<AccountId, Balances>;
+	type ProofLimit = ConstU32<1024>;
+}
+
 impl pallet_poscan::Config for Runtime {
 	type Event = Event;
 	// type MaxBytesInHash = frame_support::traits::ConstU32<64>;
@@ -1366,6 +1372,7 @@ construct_runtime!(
 		Contracts: pallet_contracts,
 		RankedPolls: pallet_referenda::<Instance2>,
 		RankedCollective: pallet_ranked_collective,
+		AtomicSwap: pallet_atomic_swap,
 		PoScan: pallet_poscan::{Pallet, Call, Storage, Event<T>},
 		MiningPool: pallet_mining_pool,
 		Sudo: pallet_sudo,
