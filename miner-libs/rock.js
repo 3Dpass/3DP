@@ -29,7 +29,7 @@ const Rock = function (rockObj) {
 
   const rand = seedRandom(rock.seed);
 
-  const sphere = createSphere({ stacks: 25, slices: 25 });
+  const sphere = createSphere({ stacks: 20, slices: 20 });
 
   const positions = sphere.vertices;
   const indexes = sphere.cells;
