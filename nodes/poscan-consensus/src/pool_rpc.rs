@@ -12,7 +12,11 @@ use jsonrpsee::{
 
 use codec::Encode;
 
-use sp_runtime::{generic::BlockId, traits::Block as BlockT};
+use sp_runtime::{
+	generic::BlockId,
+	traits::Block as BlockT,
+	offchain::storage_lock::{StorageLock, Time},
+};
 use runtime::AccountId;
 use sp_core::{H256, U256};
 use sp_core::offchain::OffchainStorage;
@@ -134,16 +138,21 @@ impl<C, Block, B> PoscanPoolRpcApiServer<<Block as BlockT>::Hash> for MiningPool
 
 				let key = format!("stat::{}::{}", hex::encode(&pool_id.encode()), hex::encode(&member_id.encode()));
 
-				log::debug!(target: LOG_TARGET, "RPC write stat to local storage: key={}", &key);
-				log::debug!(target: LOG_TARGET, "RPC write stat to local storage: key={}", hex::encode(&key.as_bytes()));
+				let mut lock = StorageLock::<Time>::new(b"access::lock");
+				{
+					let _guard = lock.lock();
 
-				let maybe_stat = store.get(prefix, key.as_bytes());
-				let val = if let Some(val) = maybe_stat { val } else { vec![0,0,0,0] };
-				let val = u32::from_le_bytes(val[..4].try_into().unwrap());
-				let val = val + 1;
-				store.set(prefix, key.as_bytes(), &val.to_le_bytes());
+					log::debug!(target: LOG_TARGET, "RPC write stat to local storage: key={}", &key);
+					log::debug!(target: LOG_TARGET, "RPC write stat to local storage: key={}", hex::encode(&key.as_bytes()));
 
-				log::debug!(target: LOG_TARGET, "push_to_pool. stat submitted");
+					let maybe_stat = store.get(prefix, key.as_bytes());
+					let val = if let Some(val) = maybe_stat { val } else { vec![0, 0, 0, 0] };
+					let val = u32::from_le_bytes(val[..4].try_into().unwrap());
+					let val = val + 1;
+					store.set(prefix, key.as_bytes(), &val.to_le_bytes());
+
+					log::debug!(target: LOG_TARGET, "push_to_pool. stat submitted");
+				}
 				Ok(RES_OK)
 			},
 			_ => Ok(RES_NOT_ACCEPTED)

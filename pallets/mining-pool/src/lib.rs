@@ -39,8 +39,13 @@ use frame_system::offchain::{
 pub use pallet::*;
 use sp_runtime::traits::{Convert, Zero};
 // use sp_runtime::offchain::storage_lock::{BlockAndTime, StorageLock};
-use sp_runtime::offchain::storage::{
-	MutateStorageError, StorageRetrievalError, StorageValueRef,
+use sp_runtime::{
+	offchain::{
+		storage::{
+			MutateStorageError, StorageRetrievalError, StorageValueRef,
+		},
+		storage_lock::{StorageLock, Time},
+	},
 };
 pub use sp_runtime::Percent;
 use sp_application_crypto::RuntimeAppPublic;
@@ -67,7 +72,7 @@ pub type PoolId<T> = <T as frame_system::Config>::AccountId;
 pub type BalanceOf<T> =
 <<T as Config>::Currency as Currency<<T as frame_system::Config>::AccountId>>::Balance;
 
-const VALIDATOR_LOCKS_DEADLINE: u32 = 500_000;
+const STAT_LOCK: &'static [u8] = b"mining-pool::lock";
 
 use sp_application_crypto::KeyTypeId;
 pub const KEY_TYPE: KeyTypeId = KeyTypeId(*b"pool");
@@ -510,40 +515,54 @@ impl<T: Config> Pallet<T> {
 		}
 
 		let mut pow_stat = Vec::new();
+		let mut lock = StorageLock::<Time>::new(STAT_LOCK);
+		{
+			let _guard = lock.lock();
 
-		for member_id in member_ids {
-			let member_key = format!("{}::{}", &base_key, hex::encode(&member_id.encode()));
-			log::debug!(target: LOG_TARGET, "Collect stat: key={}", &member_key);
-			let val = StorageValueRef::persistent(member_key.as_bytes());
-			let stat = val.get();
-			match stat {
-				Ok(Some(stat)) => {
-					log::debug!(target: LOG_TARGET, "Extract stat from local storage: stat={:?}", &u32::from_le_bytes(stat));
-					pow_stat.push((member_id, u32::from_le_bytes(stat)));
-				},
-				Ok(None) => {
-					log::debug!(target: LOG_TARGET, "No stat in local storage");
-					return Ok(())
-				},
-				Err(e) => {
-					log::debug!(target: LOG_TARGET, "Error extracting sts from local storage");
-					return Err("Err")
-				},
-			};
+			for member_id in member_ids.clone() {
+				let member_key = format!("{}::{}", &base_key, hex::encode(&member_id.encode()));
+				log::debug!(target: LOG_TARGET, "Collect stat: key={}", &member_key);
+
+				let val = StorageValueRef::persistent(member_key.as_bytes());
+				let stat = val.get();
+				match stat {
+					Ok(Some(stat)) => {
+						log::debug!(target: LOG_TARGET, "Extract stat from local storage: stat={:?}", &u32::from_le_bytes(stat));
+						// MiningStat { authority_index: 0, network_state, pool_id, pow_stat: v }
+						pow_stat.push((member_id, u32::from_le_bytes(stat)));
+					},
+					Ok(None) => {
+						log::debug!(target: LOG_TARGET, "No stat in local storage");
+						return Ok(())
+					},
+					Err(e) => {
+						log::debug!(target: LOG_TARGET, "Error extracting sts from local storage");
+						return Err("Err")
+					},
+				};
+			}
+
+			let mut mining_stat = MiningStat { authority_index: 0, network_state, pool_id, pow_stat };
+
+			log::debug!(target: LOG_TARGET, "Sign mining_stat call");
+			let signature = pool_key.sign(&mining_stat.encode()).ok_or("OffchainErr::FailedSigning")?;
+
+			log::debug!(target: LOG_TARGET, "Call::submit_mining_stat");
+			let call = Call::submit_mining_stat { mining_stat, signature };
+
+			SubmitTransaction::<T, Call<T>>::submit_unsigned_transaction(call.into())
+				.map_err(|_| "OffchainErr::SubmitTransaction")?;
+
+			for member_id in member_ids {
+				let member_key = format!("{}::{}", &base_key, hex::encode(&member_id.encode()));
+				log::debug!(target: LOG_TARGET, "clear stat: key={}", &member_key);
+
+				let mut val = StorageValueRef::persistent(member_key.as_bytes());
+				val.clear();
+			}
+
+			log::debug!(target: LOG_TARGET, "Call::submit_mining_stat - ok");
 		}
-
-		let mut mining_stat = MiningStat { authority_index: 0, network_state, pool_id, pow_stat };
-
-		log::debug!(target: LOG_TARGET, "Sign mining_stat call");
-		let signature = pool_key.sign(&mining_stat.encode()).ok_or("OffchainErr::FailedSigning")?;
-
-		log::debug!(target: LOG_TARGET, "Call::submit_mining_stat");
-		let call = Call::submit_mining_stat { mining_stat, signature };
-
-		SubmitTransaction::<T, Call<T>>::submit_unsigned_transaction(call.into())
-			.map_err(|_| "OffchainErr::SubmitTransaction")?;
-
-		log::debug!(target: LOG_TARGET, "Call::submit_mining_stat - ok");
 
 		Ok(())
 	}
@@ -554,21 +573,26 @@ impl<T: Config> Pallet<T> {
 	}
 
 	fn set_sent(block_number: T::BlockNumber) -> bool {
-		let val = StorageValueRef::persistent(b"stat::last_sent");
+		let res;
+		let mut lock = StorageLock::<Time>::new(STAT_LOCK);
+		{
+			let _guard = lock.lock();
+			let val = StorageValueRef::persistent(b"stat::last_sent");
 
-		let res = val.mutate(|last_send: Result<Option<T::BlockNumber>, StorageRetrievalError>| {
-			match last_send {
-				// If we already have a value in storage and the block number is recent enough
-				// we avoid sending another transaction at this time.
+			res = val.mutate(|last_send: Result<Option<T::BlockNumber>, StorageRetrievalError>| {
+				match last_send {
+					// If we already have a value in storage and the block number is recent enough
+					// we avoid sending another transaction at this time.
 
-				Ok(Some(block)) if block_number < block + T::StatPeriod::get() =>
-					Err("RECENTLY_SENT"),
-				// In every other case we attempt to acquire the lock and send a transaction.
-				_ => Ok(block_number),
-			}
-		});
-		log::debug!(target: LOG_TARGET, "Last sent block written to local storage: {}", res.is_ok());
-
+					// Ok(Some(block)) if block_number < block + T::GracePeriod::get() =>
+					Ok(Some(block)) if block_number < block + T::StatPeriod::get() =>
+						Err("RECENTLY_SENT"),
+					// In every other case we attempt to acquire the lock and send a transaction.
+					_ => Ok(block_number),
+				}
+			});
+			log::debug!(target: LOG_TARGET, "Last sent block written to local storage: {}", res.is_ok());
+		}
 		// TODO: check res correctly
 		res.is_ok()
 	}
