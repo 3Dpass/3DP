@@ -494,6 +494,7 @@ parameter_types! {
 	pub const LockBounds: rewards::LockBounds = rewards::LockBounds {period_max: 500, period_min: 20,
 																	divide_max: 50, divide_min: 2};
 	pub const MinerRewardsPercent: u32 = 70;
+	pub const MiningPoolMaxRate: u8 = 10;
 }
 
 impl rewards::Config for Runtime {
@@ -506,6 +507,7 @@ impl rewards::Config for Runtime {
 	type ValidatorSet = ValidatorSet;
 	type MinerRewardsPercent = MinerRewardsPercent;
 	type MiningPool = MiningPool;
+	type MiningPoolMaxRate = MiningPoolMaxRate;
 }
 
 pub struct Author;
@@ -1590,7 +1592,7 @@ impl_runtime_apis! {
 			// MiningPool::difficulty(pool_id)
 			<MiningPool as MiningPoolStatApi<sp_consensus_poscan::Difficulty, AccountId>>::difficulty(pool_id)
 		}
-		fn get_stat(pool_id: &AccountId) -> Option<(Percent, Vec<(AccountId,u32)>)> {
+		fn get_stat(pool_id: &AccountId) -> Option<(Percent, Percent, Vec<(AccountId,u32)>)> {
 			<MiningPool as MiningPoolStatApi<sp_consensus_poscan::Difficulty, AccountId>>::get_stat(pool_id)
 		}
 	}

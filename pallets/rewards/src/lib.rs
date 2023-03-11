@@ -109,7 +109,7 @@ pub trait WeightInfo {
 }
 
 /// Config for rewards.
-pub trait Config: frame_system::Config {
+pub trait Config: frame_system::Config + pallet_treasury::Config {
 	/// The overarching event type.
 	type Event: From<Event<Self>> + Into<<Self as frame_system::Config>::Event>;
 	/// An implementation of on-chain currency.
@@ -124,10 +124,12 @@ pub trait Config: frame_system::Config {
 	type LockParametersBounds: Get<LockBounds>;
 	/// Pallet validator
 	type ValidatorSet: ValidatorSetApi<Self::AccountId>;
-	// Percent of rewars for miner
+	/// Percent of rewars for miner
 	type MinerRewardsPercent: Get<u32>;
-	// Percent of rewars for miner
+	/// Percent of rewars for miner
 	type MiningPool: MiningPoolStatApi<Difficulty, Self::AccountId>;
+	/// Max pool rate
+	type MiningPoolMaxRate: Get<u8>;
 }
 
 /// Type alias for currency balance.
@@ -213,7 +215,7 @@ decl_module! {
 				}
 			});
 
-			T::WeightInfo::on_initialize().saturating_add(T::WeightInfo::on_finalize())
+			<T as Config>::WeightInfo::on_initialize().saturating_add(<T as Config>::WeightInfo::on_finalize())
 		}
 
 		fn on_finalize(now: T::BlockNumber) {
@@ -236,7 +238,7 @@ decl_module! {
 			0
 		}
 
-		#[weight = T::WeightInfo::set_schedule()]
+		#[weight = <T as Config>::WeightInfo::set_schedule()]
 		fn set_schedule(
 			origin,
 			reward: BalanceOf<T>,
@@ -252,16 +254,16 @@ decl_module! {
 				mint_changes.into_iter().map(|(k, v)| (k, BTreeMap::from_iter(v.into_iter())))
 			);
 
-			ensure!(reward >= T::Currency::minimum_balance(), Error::<T>::RewardTooLow);
+			ensure!(reward >= <T as Config>::Currency::minimum_balance(), Error::<T>::RewardTooLow);
 			for (_, mint) in &mints {
-				ensure!(*mint >= T::Currency::minimum_balance(), Error::<T>::MintTooLow);
+				ensure!(*mint >= <T as Config>::Currency::minimum_balance(), Error::<T>::MintTooLow);
 			}
 			for (_, reward_change) in &reward_changes {
-				ensure!(*reward_change >= T::Currency::minimum_balance(), Error::<T>::RewardTooLow);
+				ensure!(*reward_change >= <T as Config>::Currency::minimum_balance(), Error::<T>::RewardTooLow);
 			}
 			for (_, mint_change) in &mint_changes {
 				for (_, mint) in mint_change {
-					ensure!(*mint >= T::Currency::minimum_balance(), Error::<T>::MintTooLow);
+					ensure!(*mint >= <T as Config>::Currency::minimum_balance(), Error::<T>::MintTooLow);
 				}
 			}
 
@@ -276,7 +278,7 @@ decl_module! {
 			Self::deposit_event(RawEvent::ScheduleSet);
 		}
 
-		#[weight = T::WeightInfo::set_lock_params()]
+		#[weight = <T as Config>::WeightInfo::set_lock_params()]
 		fn set_lock_params(origin, lock_params: LockParameters) {
 			ensure_root(origin)?;
 
@@ -290,7 +292,7 @@ decl_module! {
 		}
 
 		/// Unlock any vested rewards for `target` account.
-		#[weight = T::WeightInfo::unlock()]
+		#[weight = <T as Config>::WeightInfo::unlock()]
 		fn unlock(origin) {
 			let target = ensure_signed(origin)?;
 
@@ -312,12 +314,12 @@ decl_module! {
 		}
 
 		/// Unlock any vested rewards for `target` account.
-		#[weight = T::WeightInfo::lock()]
+		#[weight = <T as Config>::WeightInfo::lock()]
 		fn lock(origin, amount: BalanceOf<T>, when: T::BlockNumber)  {
 			let target = ensure_signed(origin)?;
 
 			let current_number = frame_system::Pallet::<T>::block_number();
-			let free = T::Currency::free_balance(&target);
+			let free = <T as Config>::Currency::free_balance(&target);
 
 			let total_locked = Self::total_locked(&target);
 			if amount > 0u32.into() && when > current_number {
@@ -401,10 +403,22 @@ impl<T: Config> Module<T> {
 		let pool_stat = T::MiningPool::get_stat(author);
 		if let Some(pool_stat) = pool_stat {
 			let pool_total = pool_stat.0 * miner_total;
+			let pool_rate = pool_stat.1;
+			let limit = Percent::from_percent(T::MiningPoolMaxRate::get());
+			let overmined = ((pool_rate - limit) / limit)
+				.clamp(Percent::zero(), Percent::one());
+
+			let slash_amount = overmined * miner_total;
+			if overmined > Percent::zero() {
+				let pot_id = pallet_treasury::Pallet::<T>::account_id();
+				drop(<T as Config>::Currency::deposit_creating(&pot_id, slash_amount));
+			}
+			miner_total -= slash_amount;
+
 			let members_total = miner_total - pool_total;
-			let tot_weight: u32 = pool_stat.1.iter().map(|a| a.1).sum();
+			let tot_weight: u32 = pool_stat.2.iter().map(|a| a.1).sum();
 			let mut sum_rewards: BalanceOf<T> = Zero::zero();
-			for (member_id, w) in pool_stat.1.iter() {
+			for (member_id, w) in pool_stat.2.iter() {
 				let rewards = Percent::from_rational(*w, tot_weight) * members_total;
 				let d = u128::from_le_bytes(rewards.encode().try_into().unwrap());
 				log::debug!(target: LOG_TARGET, "miner_member_reword: {}", d);
@@ -436,7 +450,7 @@ impl<T: Config> Module<T> {
 		let account_reward_locks =
 			T::GenerateRewardLocks::generate_reward_locks(when, reward, LockParams::get());
 
-		drop(T::Currency::deposit_creating(&account, reward));
+		drop(<T as Config>::Currency::deposit_creating(&account, reward));
 
 		if account_reward_locks.len() > 0 {
 			let mut locks = Self::reward_locks(&account);
@@ -470,7 +484,7 @@ impl<T: Config> Module<T> {
 				locks.remove(&block_number);
 			}
 
-			T::Currency::remove_lock(
+			<T as Config>::Currency::remove_lock(
 				REWARDS_ID,
 				&author,
 			);
@@ -490,7 +504,7 @@ impl<T: Config> Module<T> {
 				locks.remove(&block_number);
 			}
 
-			T::Currency::set_lock(
+			<T as Config>::Currency::set_lock(
 				REWARDS_ID,
 				&author,
 				total_locked,
@@ -538,13 +552,13 @@ impl<T: Config> Module<T> {
 		log::debug!(target: LOG_TARGET, "total_locked: {}", d);
 
 		if total_locked <= Zero::zero()  {
-			T::Currency::remove_lock(
+			<T as Config>::Currency::remove_lock(
 				REWARDS_ID,
 				&author,
 			);
 		}
 		else {
-			T::Currency::set_lock(
+			<T as Config>::Currency::set_lock(
 				REWARDS_ID,
 				&author,
 				total_locked,
@@ -556,7 +570,7 @@ impl<T: Config> Module<T> {
 
 	fn do_mints(mints: &BTreeMap<T::AccountId, BalanceOf<T>>) {
 		for (destination, mint) in mints {
-			drop(T::Currency::deposit_creating(&destination, *mint));
+			drop(<T as Config>::Currency::deposit_creating(&destination, *mint));
 		}
 	}
 }

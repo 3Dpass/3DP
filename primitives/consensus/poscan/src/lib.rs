@@ -127,7 +127,7 @@ sp_api::decl_runtime_apis! {
 		AccountId: codec::Decode + codec::Encode,
 	{
 		fn difficulty(pool_id: &AccountId) -> Difficulty;
-		fn get_stat(pool_id: &AccountId) -> Option<(Percent, Vec<(AccountId, u32)>)>;
+		fn get_stat(pool_id: &AccountId) -> Option<(Percent, Percent, Vec<(AccountId, u32)>)>;
 	}
 
 	pub trait AlgorithmApi {

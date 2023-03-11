@@ -185,7 +185,7 @@ pub mod pallet {
 	/// Configure the pallet by specifying the parameters and types on which it
 	/// depends.
 	#[pallet::config]
-	pub trait Config: frame_system::Config + pallet_session::Config + pallet_identity::Config + CreateSignedTransaction<Call<Self>>{
+	pub trait Config: frame_system::Config + pallet_validator_set::Config + pallet_session::Config + pallet_identity::Config + CreateSignedTransaction<Call<Self>>{
 		/// The Event type.
 		type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
 		type Call: From<Call<Self>>;
@@ -610,9 +610,28 @@ impl<
 		}
 	}
 
-	fn get_stat(pool_id: &T::AccountId) -> Option<(Percent, Vec<(T::AccountId, u32)>)> {
+	fn get_stat(pool_id: &T::AccountId) -> Option<(Percent, Percent, Vec<(T::AccountId, u32)>)> {
 		let pool_part = <PoolRewards<T>>::get(pool_id.clone());
 		let members_stat = <PowStat<T>>::get(pool_id);
-		Some((pool_part, members_stat))
+		let cur_block_number = <frame_system::Pallet<T>>::block_number();
+
+		let mut counter = 0u32;
+		let mut n = 0u32;
+		loop {
+			n += 1;
+			let block_num = cur_block_number - n.into();
+			if block_num < 1u32.into() || n > 100u32 {
+				break;
+			}
+			if let Some(ref author_id) = pallet_validator_set::Authors::<T>::get(block_num) {
+				if pool_id == author_id {
+					counter += 1;
+				}
+			}
+		}
+		let win_rate = Percent::from_rational(counter, n);
+
+		// let a = pallet_validator_set::Authors::<T>::get(cur_block_number);
+		Some((pool_part, win_rate, members_stat))
 	}
 }
