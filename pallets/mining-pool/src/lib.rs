@@ -169,6 +169,7 @@ enum OffchainErr {
 	FailedToAcquireLock,
 	NetworkState,
 	SubmitTransaction,
+	NotIdentitied,
 }
 
 impl sp_std::fmt::Debug for OffchainErr {
@@ -178,6 +179,7 @@ impl sp_std::fmt::Debug for OffchainErr {
 			OffchainErr::FailedToAcquireLock => write!(fmt, "Failed to acquire lock"),
 			OffchainErr::NetworkState => write!(fmt, "Failed to fetch network state"),
 			OffchainErr::SubmitTransaction => write!(fmt, "Failed to submit transaction"),
+			OffchainErr::NotIdentitied => write!(fmt, "Account is not identified"),
 		}
 	}
 }
@@ -294,10 +296,12 @@ pub mod pallet {
 		TooHighPoolRewards,
 		/// Member count is higher the maximum.
 		TooHighPoolCount,
-		/// Member nas no registrar's label.
+		/// Pool/Member nas no registrar's label.
 		NotRegistered,
 		/// No pool
 		PoolNotExists,
+		/// No member in pool
+		MemberNotExists,
 		/// Pool already exists.
 		PoolAlreadyExists,
 		/// Member is not approved
@@ -322,79 +326,63 @@ pub mod pallet {
 		#[pallet::weight(0)]
 		pub fn set_pool_interest(origin: OriginFor<T>, percent: Percent) -> DispatchResult {
 			let pool_id = ensure_signed(origin)?;
+			ensure!(<Pools<T>>::contains_key(&pool_id), Error::<T>::PoolNotExists);
+			ensure!(percent <= T::MaxPoolPercent::get(), Error::<T>::TooHighPoolRewards);
 
-			if !<Pools<T>>::contains_key(&pool_id) {
-				return Err(Error::<T>::PoolNotExists.into());
-			}
-
-			if percent > T::MaxPoolPercent::get() {
-				return Err(Error::<T>::TooHighPoolRewards.into());
-			}
 			<PoolRewards<T>>::insert(pool_id, percent);
+			log::debug!(target: LOG_TARGET, "set pool interest - ok");
+
 			Ok(())
 		}
 
 		#[pallet::weight(0)]
 		pub fn create_pool(origin: OriginFor<T>) -> DispatchResult {
 			let pool_id = ensure_signed(origin)?;
+			ensure!(!<Pools<T>>::contains_key(&pool_id), Error::<T>::PoolAlreadyExists);
+			ensure!(Self::check_identity(&pool_id), Error::<T>::NotRegistered);
 
-			if <Pools<T>>::contains_key(&pool_id) {
-				return Err(Error::<T>::PoolAlreadyExists.into());
-			}
+			<Pools<T>>::insert(&pool_id, Vec::<T::AccountId>::new());
+			log::debug!(target: LOG_TARGET, "pool created");
 
-			let reg = pallet_identity::Pallet::<T>::identity(&pool_id);
-			if let Some(reg) = reg {
-				for (rgstr_idx, judge) in reg.judgements {
-					match judge {
-						Judgement::Reasonable => {
-							<Pools<T>>::insert(&pool_id, Vec::<T::AccountId>::new());
-							Self::deposit_event(Event::PoolCreated(pool_id.clone()));
-							return Ok(());
-						},
-						_ => {},
-					}
-				}
-			}
+			Self::deposit_event(Event::PoolCreated(pool_id.clone()));
 
-			return Err(Error::<T>::NotRegistered.into());
+			return Ok(());
 		}
 
 		#[pallet::weight(0)]
 		pub fn set_pool_difficulty(origin: OriginFor<T>, difficulty: U256) -> DispatchResult {
 			let pool_id = ensure_signed(origin)?;
-
-			if !<Pools<T>>::contains_key(&pool_id) {
-				return Err(Error::<T>::PoolNotExists.into());
-			}
+			ensure!(<Pools<T>>::contains_key(&pool_id), Error::<T>::PoolNotExists);
 
 			<PowDifficulty<T>>::insert(pool_id, difficulty);
+			log::debug!(target: LOG_TARGET, "set_pool_difficulty - ok");
+
 			Ok(())
 		}
 
 		#[pallet::weight(0)]
 		pub fn add_member(origin: OriginFor<T>, member_id: T::AccountId) -> DispatchResult {
 			let pool_id = ensure_signed(origin)?;
+			ensure!(<Pools<T>>::contains_key(&pool_id), Error::<T>::PoolNotExists);
+			ensure!(!<Pools<T>>::get(&pool_id).contains(&member_id), Error::<T>::Duplicate);
+			ensure!(Self::check_identity(&member_id), Error::<T>::NotRegistered);
 
-			if !<Pools<T>>::contains_key(&pool_id) {
-				return Err(Error::<T>::PoolNotExists.into());
-			}
+			<Pools<T>>::mutate(pool_id, |v| v.push(member_id.clone()));
+			log::debug!(target: LOG_TARGET, "member added by pool");
 
-			let reg = pallet_identity::Pallet::<T>::identity(&member_id);
-			if let Some(reg) = reg {
-				for (rgstr_idx, judge) in reg.judgements {
-					match judge {
-						Judgement::Reasonable => {
-							<Pools<T>>::mutate(&pool_id, |v| v.push(member_id.clone()));
-							log::debug!(target: LOG_TARGET, "member added");
-							Self::deposit_event(Event::PoolCreated(pool_id.clone()));
-							return Ok(());
-						},
-						_ => {},
-					}
-				}
-			}
+			return Ok(());
+		}
 
-			return Err(Error::<T>::NotRegistered.into());
+		#[pallet::weight(0)]
+		pub fn add_member_self(origin: OriginFor<T>, pool_id: T::AccountId) -> DispatchResult {
+			let member_id = ensure_signed(origin)?;
+			ensure!(<Pools<T>>::contains_key(&pool_id), Error::<T>::PoolNotExists);
+			ensure!(!<Pools<T>>::get(&pool_id).contains(&member_id), Error::<T>::Duplicate);
+			ensure!(Self::check_identity(&member_id), Error::<T>::NotRegistered);
+
+			<Pools<T>>::mutate(pool_id, |v| v.push(member_id.clone()));
+			log::debug!(target: LOG_TARGET, "member added by self");
+			Ok(())
 		}
 
 		#[pallet::weight(0)]
@@ -402,10 +390,11 @@ pub mod pallet {
 			origin: OriginFor<T>,
 		) -> DispatchResult {
 			let pool_id = ensure_signed(origin)?;
-			if !<Pools<T>>::contains_key(&pool_id) {
-				return Err(Error::<T>::PoolNotExists.into());
-			}
+			ensure!(<Pools<T>>::contains_key(&pool_id), Error::<T>::PoolNotExists);
+
 			<Pools<T>>::remove(pool_id);
+			log::debug!(target: LOG_TARGET, "pool removed");
+
 			Ok(())
 		}
 
@@ -415,10 +404,22 @@ pub mod pallet {
 			member_id: T::AccountId,
 		) -> DispatchResult {
 			let pool_id = ensure_signed(origin)?;
+			ensure!(<Pools<T>>::contains_key(&pool_id), Error::<T>::PoolNotExists);
+			ensure!(!<Pools<T>>::get(&pool_id).contains(&member_id), Error::<T>::MemberNotExists);
 
-			if !<Pools<T>>::contains_key(&pool_id) {
-				return Err(Error::<T>::PoolNotExists.into());
-			}
+			<Pools<T>>::mutate(pool_id, |v| v.retain(|m| *m != member_id.clone()));
+			Ok(())
+		}
+
+		#[pallet::weight(0)]
+		pub fn remove_member_self(
+			origin: OriginFor<T>,
+			pool_id: T::AccountId,
+		) -> DispatchResult {
+			let member_id = ensure_signed(origin)?;
+			ensure!(<Pools<T>>::contains_key(&pool_id), Error::<T>::PoolNotExists);
+			ensure!(<Pools<T>>::get(&pool_id).contains(&member_id), Error::<T>::MemberNotExists);
+
 			<Pools<T>>::mutate(pool_id, |v| v.retain(|m| *m != member_id.clone()));
 			Ok(())
 		}
@@ -438,8 +439,8 @@ pub mod pallet {
 
 			let pool = <Pools<T>>::get(&pool_id);
 			let mut members: Vec<(T::AccountId, u32)> = mining_stat.pow_stat.into_iter().filter(|ms| pool.contains(&ms.0)).collect();
-			log::debug!(target: LOG_TARGET, "submit_mining_stat stat: pool_id");
 			PowStat::<T>::insert(&pool_id, &members);
+			log::debug!(target: LOG_TARGET, "submit_mining_stat stat - ok");
 			Ok(().into())
 		}
 	}
@@ -490,6 +491,23 @@ impl<T: Config> Pallet<T> {
 				.expect("More than the maximum number of keys provided");
 			Keys::<T>::put(bounded_keys);
 		}
+	}
+
+	fn check_identity(account_id: &T::AccountId) -> bool {
+		let reg = pallet_identity::Pallet::<T>::identity(&account_id);
+
+		if let Some(reg) = reg {
+			for (_rgstr_idx, judge) in reg.judgements {
+				match judge {
+					Judgement::Reasonable => {
+						log::debug!(target: LOG_TARGET, "member is reasonable");
+						return true
+					},
+					_ => {},
+				}
+			}
+		}
+		false
 	}
 
 	fn send_mining_stat() -> Result<(), &'static str> {
