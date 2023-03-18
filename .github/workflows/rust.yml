@@ -2,10 +2,10 @@ name: Release CI
 
 on:
   push:
-    branches:
-      - "test-ci"
-#     tags:
-#       - "v*.*.*"
+    tags:
+      - "v*.*.*"
+#    branches:
+#      - "test-ci"
 
 jobs:
   build:
