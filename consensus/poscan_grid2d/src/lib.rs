@@ -233,7 +233,7 @@ use log::*;
 use std::str::FromStr;
 use std::convert::TryInto;
 
-use sp_consensus_poscan::POSCAN_ALGO_GRID2D_V2;
+use sp_consensus_poscan::{POSCAN_ALGO_GRID2D_V2, POSCAN_ALGO_GRID2D_V3};
 
 pub fn get_obj_hashes(ver: &[u8; 16], data: &Vec<u8>, pre: &H256) -> Vec<H256> {
 	let mut buf: Vec<H256> = Vec::new();
@@ -241,6 +241,9 @@ pub fn get_obj_hashes(ver: &[u8; 16], data: &Vec<u8>, pre: &H256) -> Vec<H256> {
 	let (alg_type, n_sect) =
 		if *ver == POSCAN_ALGO_GRID2D_V2 {
 			(p3d::AlgoType::Grid2dV2, 12)
+		}
+		else if *ver == POSCAN_ALGO_GRID2D_V3 {
+			(p3d::AlgoType::Grid2dV3, 12)
 		}
 		else {
 			(p3d::AlgoType::Grid2d, 66)

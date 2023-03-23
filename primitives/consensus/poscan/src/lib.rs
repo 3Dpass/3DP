@@ -33,6 +33,7 @@ pub const POSCAN_COIN_ID: u8 = 71;
 
 pub const POSCAN_ALGO_GRID2D: [u8; 16] = *b"grid2d-1.1      ";
 pub const POSCAN_ALGO_GRID2D_V2: [u8; 16] = *b"grid2d-1.2      ";
+pub const POSCAN_ALGO_GRID2D_V3: [u8; 16] = *b"grid2d-1.3      ";
 pub const MAX_MINING_OBJ_LEN: usize = 100 * 1024;
 
 /// Type of seal.
