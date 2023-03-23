@@ -26,7 +26,10 @@ lazy_static = { version = "1.4.0" }
 async-trait = "0.1.50"
 jsonrpsee = { version = "0.14.0", features = ["server"] }
 hex = { version = "0.4", default-features = false, features = ["alloc"] }
-
+serde = {version = "1.0", default-features = false }
+serde_json = { version = "1", default-features = false }
+rand = "0.7.3"
+ecies-ed25519 = { version = "0.5" }
 
 # Substrate packages
 # serde = { version = "1.0.101", optional = true }

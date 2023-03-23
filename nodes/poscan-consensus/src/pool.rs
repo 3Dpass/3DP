@@ -3,6 +3,7 @@ use sp_std::collections::{
     btree_map::BTreeMap,
     btree_set::BTreeSet,
 };
+use ecies_ed25519;
 use sp_std::sync::Arc;
 use sp_core::{H256, U256};
 use parking_lot::{Mutex, Condvar};
@@ -20,7 +21,6 @@ pub struct ShareProposal {
     pub(crate) pre_hash: H256,
     pub(crate) share_dfclty: U256,
     pub(crate) parent_hash: H256,
-    pub(crate) proof: Vec<u8>,
 }
 
 #[derive(Clone, PartialEq)]
@@ -36,23 +36,44 @@ pub enum Error {
 
 pub type PoolResult<T> = std::result::Result<T, Error>;
 
-#[derive(Clone)]
+// #[derive(Clone)]
 pub struct MiningPool {
     pub curr_meta:   Option<MiningMeta>,
     pub prev_meta:   Option<MiningMeta>,
     pub queue:       Arc<Mutex<VecDeque<ShareProposal>>>,
     pub cvar:        Arc<Condvar>,
     pub hist_hashes: BTreeMap<AccountId, BTreeSet<H256>>,
+    pub (crate) secret:          ecies_ed25519::SecretKey,
+    public:          ecies_ed25519::PublicKey,
+}
+
+impl Clone for MiningPool {
+    fn clone(&self) -> Self {
+        let secret = ecies_ed25519::SecretKey::from_bytes(&self.secret.to_bytes()).unwrap();
+        Self {
+            curr_meta: self.curr_meta.clone(),
+            prev_meta: self.prev_meta.clone(),
+            queue: self.queue.clone(),
+            cvar: self.cvar.clone(),
+            hist_hashes: self.hist_hashes.clone(),
+            secret,
+            public: self.public.clone(),
+        }
+    }
 }
 
 impl MiningPool {
     pub(crate) fn new() -> Self {
+        let mut csprng = rand::thread_rng();
+        let (secret, public) = ecies_ed25519::generate_keypair(&mut csprng);
         Self {
             curr_meta: None,
             prev_meta: None,
             queue: Arc::new(Mutex::new(VecDeque::with_capacity(MAX_QUEUE_LEN))),
             cvar: Arc::new(Condvar::new()),
             hist_hashes: BTreeMap::new(),
+            secret,
+            public,
         }
     }
 
@@ -93,7 +114,6 @@ impl MiningPool {
             sp.pre_hash,
             sp.parent_hash,
             sp.share_dfclty,
-            &sp.proof,
         )?;
 
         if should_submit {
@@ -116,7 +136,6 @@ impl MiningPool {
         parent_hash:
         H256,
         dfclty: U256,
-        _proof: &Vec<u8>,
     ) -> PoolResult<bool> {
         // type Signature = sp_core::sr25519::Signature;
         // type PublicKey = sp_core::sr25519::Public;
@@ -176,6 +195,12 @@ impl MiningPool {
             }
         }
     }
+
+    pub(crate) fn public(&self) -> U256 {
+        let bytes = self.public.as_bytes();
+        U256::from(bytes)
+    }
+
 }
 
 // pub(crate) run_pool(mp: MiningPool) -> impl Future<Output = ()>{

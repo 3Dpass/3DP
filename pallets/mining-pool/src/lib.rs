@@ -78,7 +78,7 @@ use sp_application_crypto::KeyTypeId;
 pub const KEY_TYPE: KeyTypeId = KeyTypeId(*b"pool");
 
 pub mod sr25519 {
-	mod app_sr25519 {
+	pub mod app_sr25519 {
 		use super::super::KEY_TYPE;
 		use sp_application_crypto::{app_crypto, sr25519};
 		app_crypto!(sr25519, KEY_TYPE);
