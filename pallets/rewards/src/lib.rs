@@ -37,6 +37,7 @@ use frame_support::{
 	weights::Weight,
 };
 use frame_system::{ensure_root, ensure_signed};
+use sp_arithmetic::per_things::Rounding;
 use sp_consensus_poscan::POSCAN_ENGINE_ID;
 use sp_runtime::traits::{Saturating, Zero};
 use sp_runtime::{Perbill, Percent};
@@ -125,11 +126,11 @@ pub trait Config: frame_system::Config + pallet_treasury::Config {
 	/// Pallet validator
 	type ValidatorSet: ValidatorSetApi<Self::AccountId>;
 	/// Percent of rewars for miner
-	type MinerRewardsPercent: Get<u32>;
+	type MinerRewardsPercent: Get<Percent>;
 	/// Percent of rewars for miner
 	type MiningPool: MiningPoolStatApi<Difficulty, Self::AccountId>;
 	/// Max pool rate
-	type MiningPoolMaxRate: Get<u8>;
+	type MiningPoolMaxRate: Get<Percent>;
 }
 
 /// Type alias for currency balance.
@@ -398,34 +399,45 @@ impl<T: Config> Module<T> {
 	}
 
 	fn do_reward(author: &T::AccountId, reward: BalanceOf<T>, when: T::BlockNumber) {
-		let mut miner_total = Perbill::from_percent(T::MinerRewardsPercent::get()) * reward;
+		let mut miner_total = T::MinerRewardsPercent::get() * reward;
+		log::debug!(target: LOG_TARGET, "miner_total: {:?}", miner_total);
 
 		let pool_stat = T::MiningPool::get_stat(author);
 		if let Some(pool_stat) = pool_stat {
-			let pool_total = pool_stat.0 * miner_total;
-			let pool_rate = pool_stat.1;
-			let limit = Percent::from_percent(T::MiningPoolMaxRate::get());
-			let overmined = ((pool_rate - limit) / limit)
-				.clamp(Percent::zero(), Percent::one());
+			let pool_rate = Perbill::from_percent(pool_stat.1.deconstruct().into());
+			let limit = Perbill::from_percent(T::MiningPoolMaxRate::get().deconstruct().into());
+			let overmined = if pool_rate <= limit {
+				Perbill::zero()
+			}
+			else if pool_rate >= limit {
+				Perbill::one()
+			}
+			else {
+				Perbill::saturating_div(pool_rate - limit ,limit , Rounding::NearestPrefDown)
+			};
 
 			let slash_amount = overmined * miner_total;
-			if overmined > Percent::zero() {
+			if overmined > Perbill::zero() {
 				let pot_id = pallet_treasury::Pallet::<T>::account_id();
 				drop(<T as Config>::Currency::deposit_creating(&pot_id, slash_amount));
 			}
-			miner_total -= slash_amount;
+			miner_total = miner_total.saturating_sub(slash_amount);
+			log::debug!(target: LOG_TARGET, "miner_total: {:?}", miner_total);
+
+			let pool_total = pool_stat.0 * miner_total;
+			log::debug!(target: LOG_TARGET, "pool_total: {:?}", pool_total);
 
 			let members_total = miner_total - pool_total;
 			let tot_weight: u32 = pool_stat.2.iter().map(|a| a.1).sum();
 			let mut sum_rewards: BalanceOf<T> = Zero::zero();
 			for (member_id, w) in pool_stat.2.iter() {
-				let rewards = Percent::from_rational(*w, tot_weight) * members_total;
+				let rewards = Perbill::from_rational(*w, tot_weight) * members_total;
 				let d = u128::from_le_bytes(rewards.encode().try_into().unwrap());
 				log::debug!(target: LOG_TARGET, "miner_member_reword: {}", d);
 				Self::do_reward_per_account(member_id, rewards, when);
 				sum_rewards = sum_rewards.saturating_add(rewards);
 			}
-			miner_total = pool_total + (members_total - sum_rewards);
+			miner_total = pool_total.saturating_add(members_total - sum_rewards);
 		}
 		Self::do_reward_per_account(author, miner_total, when);
 

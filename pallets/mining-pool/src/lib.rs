@@ -653,6 +653,10 @@ impl<
 	}
 
 	fn get_stat(pool_id: &T::AccountId) -> Option<(Percent, Percent, Vec<(T::AccountId, u32)>)> {
+		if !<Pools<T>>::contains_key(&pool_id) {
+			return None;
+		}
+
 		let pool_part = <PoolRewards<T>>::get(pool_id.clone());
 		let members_stat = <PowStat<T>>::get(pool_id);
 		let cur_block_number = <frame_system::Pallet<T>>::block_number();

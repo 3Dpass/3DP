@@ -4308,6 +4308,7 @@ dependencies = [
  "rewards-api",
  "scale-info",
  "serde",
+ "sp-arithmetic",
  "sp-consensus-poscan",
  "sp-consensus-pow",
  "sp-core",
