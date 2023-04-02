@@ -28,9 +28,7 @@ use frame_support::{
 	sp_runtime::SaturatedConversion,
 	BoundedSlice, WeakBoundedVec,
 };
-// use frame_system::offchain::{
-// 	Signer, SigningTypes, SignedPayload, AppCrypto, CreateSignedTransaction,
-// };
+
 use frame_system::offchain::{
 	AppCrypto, CreateSignedTransaction,
 	SendTransactionTypes, SubmitTransaction, Signer,
@@ -52,18 +50,23 @@ use sp_application_crypto::RuntimeAppPublic;
 
 use sp_runtime::traits::BlockNumberProvider;
 use core::time::Duration;
+use sp_std::cmp::Ordering;
 use sp_staking::offence::{Offence, OffenceError, ReportOffence};
-use sp_std::{collections::btree_set::BTreeSet, prelude::*};
+use sp_std::{
+	collections::{
+		btree_set::BTreeSet,
+		btree_map::{BTreeMap, Entry},
+	},
+	prelude::*};
 use sp_core::U256;
-// use sp_core::offchain::{storage::InMemOffchainStorage, OffchainStorage, OpaqueNetworkState};
 
 use sp_core::offchain::OpaqueNetworkState;
 use codec::{Decode, Encode, MaxEncodedLen, FullCodec};
 use frame_system::Account;
 
 use rewards_api::RewardLocksApi;
-use mining_pool_stat_api::MiningPoolStatApi;
-use pallet_identity::Judgement;
+use mining_pool_stat_api::{MiningPoolStatApi, CheckMemberError};
+use pallet_identity::{Registration, Judgement, IdentityInfo, Data};
 
 pub const LOG_TARGET: &'static str = "mining-pool";
 
@@ -97,34 +100,6 @@ pub mod sr25519 {
 
 }
 
-// pub mod crypto {
-// 	use super::KEY_TYPE;
-// 	use sp_core::sr25519::Signature as Sr25519Signature;
-// 	use sp_runtime::{
-// 		app_crypto::{app_crypto, sr25519},
-// 		traits::Verify,
-// 		MultiSignature, MultiSigner,
-// 	};
-// 	app_crypto!(sr25519, KEY_TYPE);
-//
-// 	pub struct PoolAuthorityId;
-//
-// 	// impl frame_system::offchain::AppCrypto<MultiSigner, MultiSignature> for PoolAuthorityId {
-// 	// 	type RuntimeAppPublic = Public;
-// 	// 	type GenericSignature = sp_core::sr25519::Signature;
-// 	// 	type GenericPublic = sp_core::sr25519::Public;
-// 	// }
-//
-// 	// implemented for mock runtime in test
-// 	impl frame_system::offchain::AppCrypto<<Sr25519Signature as Verify>::Signer, Sr25519Signature>
-// 	for PoolAuthorityId
-// 	{
-// 		type RuntimeAppPublic = Public;
-// 		type GenericSignature = sp_core::sr25519::Signature;
-// 		type GenericPublic = sp_core::sr25519::Public;
-// 	}
-// }
-
 pub type AuthIndex = u32;
 // use crate::sr25519::PoolAuthorityId;
 
@@ -149,18 +124,31 @@ pub struct MiningStat<AccountId>
 	// public: Public,
 }
 
-// #[derive(Encode, Decode, Clone, PartialEq, Eq, RuntimeDebug, scale_info::TypeInfo)]
-// pub struct PricePayload<Public, BlockNumber> {
-// 	block_number: BlockNumber,
-// 	price: u32,
-// 	public: Public,
-// }
+// #[derive(Encode, Decode, Clone, PartialEq, Eq, RuntimeDebug, TypeInfo)]
+#[derive(Clone, Ord, PartialOrd, RuntimeDebug)] //Ord, PartialOrd,
+pub(crate) struct IdentInfo {
+	pub(crate) good_judjements: u32,
+	pub(crate) total_judjements: u32,
+	
+	pub(crate) email: Option<String>,
+	pub(crate) twitter: Option<String>,
+	pub(crate) discord: Option<String>,
+	pub(crate) telegram: Option<String>,
+}
 
-// impl<T: SigningTypes> SignedPayload<T> for MiningStat<T::Public, T::AccountId> {
-// 	fn public(&self) -> T::Public {
-// 		self.public.clone()
-// 	}
-// }
+impl PartialEq for IdentInfo {
+	fn eq(&self, other: &Self) -> bool {
+		if let (Some(a), Some(b)) = (self.email.as_ref(), other.email.as_ref()) { a == b }
+		else if let (Some(a), Some(b)) = (self.twitter.as_ref(), other.twitter.as_ref()) { a == b }
+		else if let (Some(a), Some(b)) = (self.discord.as_ref(), other.discord.as_ref()) { a == b }
+		else if let (Some(a), Some(b)) = (self.telegram.as_ref(), other.telegram.as_ref()) { a == b }
+		else {
+			false
+		}
+	}
+}
+
+impl Eq for IdentInfo {}
 
 /// Error which may occur while executing the off-chain code.
 #[derive(PartialEq)]
@@ -184,6 +172,17 @@ impl sp_std::fmt::Debug for OffchainErr {
 	}
 }
 
+enum IdentityErr<AccountId> {
+	/// Account is not identified
+	NoIdentity,
+	/// Not enough good judjement
+	NotEnoughJudjement,
+	/// Identity duplicates found
+	PoolDuplicates(Vec<AccountId>),
+	/// Identity duplicates found
+	Duplicates(Vec<(AccountId, AccountId)>),
+}
+
 #[frame_support::pallet]
 pub mod pallet {
 	use super::*;
@@ -192,7 +191,7 @@ pub mod pallet {
 	/// Configure the pallet by specifying the parameters and types on which it
 	/// depends.
 	#[pallet::config]
-	pub trait Config: frame_system::Config + pallet_validator_set::Config + pallet_session::Config + pallet_identity::Config + CreateSignedTransaction<Call<Self>>{
+	pub trait Config: frame_system::Config + pallet_session::Config + pallet_validator_set::Config + pallet_session::Config + pallet_identity::Config + CreateSignedTransaction<Call<Self>>{
 		/// The Event type.
 		type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
 		type Call: From<Call<Self>>;
@@ -246,6 +245,10 @@ pub mod pallet {
 	pub type Pools<T: Config> = StorageMap<_, Twox64Concat, PoolId<T>, Vec<T::AccountId>, ValueQuery>;
 
 	#[pallet::storage]
+	#[pallet::getter(fn suspended_pools)]
+	pub type SuspendedPools<T: Config> = StorageValue<_, Vec<T::AccountId>, ValueQuery>;
+
+	#[pallet::storage]
 	#[pallet::getter(fn pool_rewards)]
 	pub type PoolRewards<T: Config> = StorageMap<_, Twox64Concat, PoolId<T>, Percent, ValueQuery>;
 
@@ -256,6 +259,10 @@ pub mod pallet {
 	#[pallet::storage]
 	#[pallet::getter(fn pow_difficulty)]
 	pub type PowDifficulty<T: Config> = StorageMap<_, Twox64Concat, PoolId<T>, U256, OptionQuery>;
+
+	#[pallet::storage]
+	#[pallet::getter(fn with_kyc)]
+	pub type PoolMode<T: Config> = StorageMap<_, Twox64Concat, PoolId<T>, bool, ValueQuery>;
 
 	#[pallet::genesis_config]
 	pub struct GenesisConfig<T: Config> {
@@ -283,6 +290,8 @@ pub mod pallet {
 		PoolCreated(T::AccountId),
 		/// Pool removed.
 		PoolRemoved(T::AccountId),
+		/// Pool removed.
+		PoolSuspended(T::AccountId),
 	}
 
 	// Errors inform users that something went wrong.
@@ -304,8 +313,18 @@ pub mod pallet {
 		MemberNotExists,
 		/// Pool already exists.
 		PoolAlreadyExists,
-		/// Member is not approved
-		MemberNotApproved,
+		/// Account is not identified
+		NoIdentity,
+		/// Not enough good judjement
+		NotEnoughJudjement,
+		/// Account with the same identity exists
+		IdentityDuplicate,
+		/// Pool is suspended
+		PoolSuspended,
+		/// Duplicated pools with the same identities suspended
+		PoolDuplicatesSuspended,
+		/// Duplicated embers with the same identities removed
+		MemberDuplicatesRemoved,
 
 		BadOrigin,
 	}
@@ -318,6 +337,13 @@ pub mod pallet {
 			if Self::set_sent(block_number) {
                 Self::send_mining_stat();
             }
+		}
+
+		fn on_finalize(n: T::BlockNumber) {
+			if n % 20u32.into() == T::BlockNumber::zero() {
+				// Escape members by identity reasons
+				Self::sync_identity();
+			}
 		}
 	}
 
@@ -339,9 +365,16 @@ pub mod pallet {
 		pub fn create_pool(origin: OriginFor<T>) -> DispatchResult {
 			let pool_id = ensure_signed(origin)?;
 			ensure!(!<Pools<T>>::contains_key(&pool_id), Error::<T>::PoolAlreadyExists);
-			ensure!(Self::check_identity(&pool_id), Error::<T>::NotRegistered);
+			match Self::check_pool_identity(&pool_id) {
+				Err(IdentityErr::NoIdentity) => return Err(Error::<T>::NoIdentity.into()),
+				Err(IdentityErr::NotEnoughJudjement) => return Err(Error::<T>::NotEnoughJudjement.into()),
+				Err(IdentityErr::PoolDuplicates(_)) |
+				Err(IdentityErr::Duplicates(_)) => return Err(Error::<T>::IdentityDuplicate.into()),
+				Ok(()) => {},
+			}
 
 			<Pools<T>>::insert(&pool_id, Vec::<T::AccountId>::new());
+			<PoolMode<T>>::insert(&pool_id, true);
 			log::debug!(target: LOG_TARGET, "pool created");
 
 			Self::deposit_event(Event::PoolCreated(pool_id.clone()));
@@ -361,11 +394,29 @@ pub mod pallet {
 		}
 
 		#[pallet::weight(0)]
+		pub fn set_pool_mode(origin: OriginFor<T>, with_kyc: bool) -> DispatchResult {
+			let pool_id = ensure_signed(origin)?;
+			ensure!(<Pools<T>>::contains_key(&pool_id), Error::<T>::PoolNotExists);
+
+			<PoolMode<T>>::insert(pool_id, with_kyc);
+			log::debug!(target: LOG_TARGET, "set_pool_mode - ok");
+
+			Ok(())
+		}
+
+		#[pallet::weight(0)]
 		pub fn add_member(origin: OriginFor<T>, member_id: T::AccountId) -> DispatchResult {
 			let pool_id = ensure_signed(origin)?;
 			ensure!(<Pools<T>>::contains_key(&pool_id), Error::<T>::PoolNotExists);
 			ensure!(!<Pools<T>>::get(&pool_id).contains(&member_id), Error::<T>::Duplicate);
-			ensure!(Self::check_identity(&member_id), Error::<T>::NotRegistered);
+			let with_kyc = <PoolMode<T>>::get(&pool_id);
+			match Self::check_identity(&member_id, with_kyc) {
+				Err(IdentityErr::NoIdentity) => return Err(Error::<T>::NoIdentity.into()),
+				Err(IdentityErr::NotEnoughJudjement) => return Err(Error::<T>::NotEnoughJudjement.into()),
+				Err(IdentityErr::PoolDuplicates(_)) |
+				Err(IdentityErr::Duplicates(_)) => return Err(Error::<T>::IdentityDuplicate.into()),
+				Ok(()) => {},
+			}
 
 			<Pools<T>>::mutate(pool_id, |v| v.push(member_id.clone()));
 			log::debug!(target: LOG_TARGET, "member added by pool");
@@ -378,7 +429,14 @@ pub mod pallet {
 			let member_id = ensure_signed(origin)?;
 			ensure!(<Pools<T>>::contains_key(&pool_id), Error::<T>::PoolNotExists);
 			ensure!(!<Pools<T>>::get(&pool_id).contains(&member_id), Error::<T>::Duplicate);
-			ensure!(Self::check_identity(&member_id), Error::<T>::NotRegistered);
+			let with_kyc = <PoolMode<T>>::get(&pool_id);
+			match Self::check_identity(&member_id, with_kyc) {
+				Err(IdentityErr::NoIdentity) => return Err(Error::<T>::NoIdentity.into()),
+				Err(IdentityErr::NotEnoughJudjement) => return Err(Error::<T>::NotEnoughJudjement.into()),
+				Err(IdentityErr::PoolDuplicates(_)) |
+				Err(IdentityErr::Duplicates(_)) => return Err(Error::<T>::IdentityDuplicate.into()),
+				Ok(()) => {},
+			}
 
 			<Pools<T>>::mutate(pool_id, |v| v.push(member_id.clone()));
 			log::debug!(target: LOG_TARGET, "member added by self");
@@ -392,7 +450,8 @@ pub mod pallet {
 			let pool_id = ensure_signed(origin)?;
 			ensure!(<Pools<T>>::contains_key(&pool_id), Error::<T>::PoolNotExists);
 
-			<Pools<T>>::remove(pool_id);
+			<Pools<T>>::remove(pool_id.clone());
+			<PoolMode<T>>::remove(pool_id);
 			log::debug!(target: LOG_TARGET, "pool removed");
 
 			Ok(())
@@ -493,21 +552,185 @@ impl<T: Config> Pallet<T> {
 		}
 	}
 
-	fn check_identity(account_id: &T::AccountId) -> bool {
+	fn check_identity(account_id: &T::AccountId, with_kyc: bool) -> Result<(), IdentityErr<T::AccountId>> {
+		let ident = Self::get_ident(&account_id);
+		match ident {
+			Some(ref id_info) => (3 * id_info.total_judjements >= 2 * id_info.total_judjements)
+							.then_some(()).ok_or(IdentityErr::NotEnoughJudjement),
+			None => Err(IdentityErr::NoIdentity)
+		}?;
+		let dups = Self::check_duplicates(&account_id, &ident.unwrap(), with_kyc);
+		dups.is_empty().then_some(()).ok_or(IdentityErr::Duplicates(dups))
+	}
+
+	fn check_pool_identity(pool_id: &T::AccountId) -> Result<(), IdentityErr<T::AccountId>> {
+		let mut dups = Vec::new();
+		Self::check_identity(pool_id, true)?;
+		let pool_ident = Self::get_ident(pool_id);
+
+		for p_id in Pools::<T>::iter_keys() {
+			let ident = Self::get_ident(&p_id);
+			if ident == pool_ident {
+				log::debug!(target: LOG_TARGET, "Found pool duplicate pooi_id={:?}", pool_id);
+				dups.push(p_id);
+			}
+		}
+		dups.is_empty().then_some(()).ok_or(IdentityErr::PoolDuplicates(dups))
+	}
+
+	fn check_duplicates(
+		account_id: &T::AccountId,
+		acc_ident: &IdentInfo,
+		with_kyc: bool,
+	) -> Vec<(T::AccountId, T::AccountId)> {
+		use sp_std::collections::btree_map::BTreeMap;
+		let mut duplicates = Vec::new();
+
+		let mut pools = BTreeMap::new();
+		for (pool_id, member_ids) in <Pools<T>>::iter() {
+			for member_id in member_ids {
+				let ident = Self::get_ident(&member_id);
+				pools.insert((pool_id.clone(), member_id), ident.clone());
+			}
+		}
+
+		for ((pool_id, member_id), ident) in pools {
+			if with_kyc {
+				let ident = Self::get_ident(&member_id);
+				match ident {
+					Some(ident) =>
+						if ident == *acc_ident {
+							log::debug!(target: LOG_TARGET, "Found duplicate in pooi_id={:?} member_id={:?}", pool_id, member_id);
+							duplicates.push((pool_id, member_id));
+						},
+					None => {
+						if member_id == *account_id {
+							log::debug!(target: LOG_TARGET, "Found duplicate by account_id in pooi_id={:?} member_id={:?}", pool_id, member_id);
+							duplicates.push((pool_id, member_id));
+						}
+					}
+				}
+			}
+			else {
+				if member_id == *account_id {
+					log::debug!(target: LOG_TARGET, "Found duplicate by account_id in pooi_id={:?} member_id={:?}", pool_id, member_id);
+					duplicates.push((pool_id, member_id));
+				}
+			}
+		}
+		duplicates
+	}
+
+	fn get_ident(account_id: &T::AccountId) -> Option<IdentInfo> {
 		let reg = pallet_identity::Pallet::<T>::identity(&account_id);
 
 		if let Some(reg) = reg {
-			for (_rgstr_idx, judge) in reg.judgements {
+			let mut good_judjements = 0;
+			let mut total_judjements = 0;
+			for (rgstr_idx, judge) in reg.judgements.clone() {
+				total_judjements += 1;
 				match judge {
-					Judgement::Reasonable => {
-						log::debug!(target: LOG_TARGET, "member is reasonable");
-						return true
+					Judgement::Reasonable | Judgement::KnownGood => {
+						log::debug!(target: LOG_TARGET, "member is identified by registrar {}", rgstr_idx);
+						good_judjements += 1;
 					},
 					_ => {},
 				}
 			}
+
+			let email = match reg.info.email {
+				Data::Raw(ref email) => String::from_utf8(email.to_vec()).ok(),
+				_ => None,
+			};
+			let twitter = match reg.info.twitter {
+				Data::Raw(ref twitter) => String::from_utf8(twitter.to_vec()).ok(),
+				_ => None,
+			};
+			let accs = Self::get_additional_info(&reg.info.clone(), &["Discord", "Telegram"]);
+			let (discord, telegram) = (accs[0].clone(), accs[1].clone());
+			Some(IdentInfo {good_judjements, total_judjements, email, twitter, discord, telegram})
 		}
-		false
+		else {
+			None
+		}
+	}
+
+	fn get_additional_info<const N: usize>(
+		info: &IdentityInfo<T::MaxAdditionalFields>,
+		field_names: &[&str; N],
+	) -> [Option<String>; N]
+	{
+		const DFLT: Option<String> = None;
+		let mut res: [Option<String>; N] = [DFLT; N];
+
+		for item in info.additional.iter() {
+			match item {
+				(Data::Raw(k), Data::Raw(v)) => {
+					log::debug!(target: LOG_TARGET, "Found additional info: {:?} -> {:?}", k, v);
+					match String::from_utf8(k.to_vec()) {
+						Ok(key)	=> {
+							let index = field_names.iter().position(|&r| r == key);
+							if let Some(i) = index {
+								if let Ok(acc) = String::from_utf8(v.to_vec()) {
+									res[i] = Some(acc);
+								} else {
+									log::error!(target: LOG_TARGET, "Cant decode additional info: {} -> {:?}", key, v);
+								}
+							}
+						}
+						Err(_) => {
+							log::error!(target: LOG_TARGET, "Cant decode additional info key: {:?}", k);
+						}
+					}
+				},
+				_ => continue,
+			}
+		}
+		res
+	}
+
+	fn sync_identity() {
+		for pool_id in <Pools<T>>::iter_keys() {
+			let with_kyc = PoolMode::<T>::get(&pool_id);
+			match Self::check_identity(&pool_id, with_kyc) {
+				Err(_) => {
+					if !SuspendedPools::<T>::get().contains(&pool_id) {
+						SuspendedPools::<T>::mutate(|v| v.push(pool_id.clone()));
+						Self::deposit_event(Event::PoolSuspended(pool_id));
+					}
+				},
+				Ok(()) => {
+					SuspendedPools::<T>::mutate(|v| v.retain(|p| *p != pool_id));
+				},
+			}
+		}
+
+		let mut duplicates: BTreeMap<T::AccountId, Vec<T::AccountId>> = BTreeMap::new();
+		let mut heap = BTreeMap::new();
+		for pool_id in <Pools<T>>::iter_keys() {
+			let with_kyc = <PoolMode<T>>::get(&pool_id);
+			if with_kyc {
+				for (pool_id, member_ids) in <Pools<T>>::iter() {
+					for member_id in member_ids {
+						let ident = Self::get_ident(&member_id);
+						match heap.entry(ident) {
+							Entry::Vacant(entry) => {
+								entry.insert((pool_id.clone(), member_id.clone()));
+							},
+							Entry::Occupied(val) => {
+								log::error!(target: LOG_TARGET, "Duplicated accounts: {:?} {:?}", &pool_id, &member_id);
+								duplicates.entry(pool_id.clone()).or_default().push(member_id.clone());
+								duplicates.entry(val.get().0.clone()).or_default().push(val.get().1.clone());
+							},
+						}
+					}
+				}
+			}
+
+			for (pool_id, dups) in duplicates.iter() {
+				<Pools<T>>::mutate(pool_id, |v| v.retain(|m| !dups.contains(m)));
+			}
+		}
 	}
 
 	fn send_mining_stat() -> Result<(), &'static str> {
@@ -650,6 +873,11 @@ impl<
 		else {
 			Difficulty::from(U256::from(20))
 		}
+	}
+
+	/// Return the target difficulty of the next block.
+	fn member_status(pool_id: &AccountId, member_id: &AccountId) -> Result<(), CheckMemberError> {
+		Ok(())
 	}
 
 	fn get_stat(pool_id: &T::AccountId) -> Option<(Percent, Percent, Vec<(T::AccountId, u32)>)> {

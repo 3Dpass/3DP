@@ -10,6 +10,8 @@ use parking_lot::{Mutex, Condvar};
 use poscan_grid2d::{hash_meets_difficulty, get_obj_hashes, DoubleHash, Compute};
 use runtime::AccountId;
 
+use sp_consensus_poscan::CheckMemberError;
+
 const MAX_QUEUE_LEN: usize = 10;
 pub(crate) const LOG_TARGET: &'static str = "mining-pool";
 
@@ -30,11 +32,12 @@ pub struct MiningMeta {
     pub(crate) difficulty:  U256,
 }
 
-pub enum Error {
+pub enum PoolError {
     NotAccepted,
+    CheckMemberError(CheckMemberError),
 }
 
-pub type PoolResult<T> = std::result::Result<T, Error>;
+pub type PoolResult<T> = std::result::Result<T, PoolError>;
 
 // #[derive(Clone)]
 pub struct MiningPool {
@@ -98,7 +101,7 @@ impl MiningPool {
         if let Some(member_set) = member_set {
             if member_set.contains(&sp.hash) {
                 log::info!(">>> pool verify: duplicated");
-                return Err(Error::NotAccepted);
+                return Err(PoolError::NotAccepted);
             }
             member_set.insert(sp.hash);
         }
@@ -169,14 +172,14 @@ impl MiningPool {
         if !check {
             // TODO: different logs for errors
             log::info!(">>> pool verify: failed");
-            return Err(Error::NotAccepted);
+            return Err(PoolError::NotAccepted);
         }
 
         let hashes = get_obj_hashes(&alg_id, &Vec::from(obj), &parent_hash);
 
         if hashes[0] != hash {
             log::info!(">>> pool verify: provided hashes are invalid");
-            return Err(Error::NotAccepted);
+            return Err(PoolError::NotAccepted);
         }
 
         let comp = Compute {difficulty: self.curr_meta.as_ref().unwrap().difficulty, pre_hash,  poscan_hash: dh};
@@ -191,7 +194,7 @@ impl MiningPool {
                 Ok(false)
             }
             else {
-                Err(Error::NotAccepted)
+                Err(PoolError::NotAccepted)
             }
         }
     }

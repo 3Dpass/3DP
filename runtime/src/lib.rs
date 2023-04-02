@@ -72,7 +72,7 @@ use sp_consensus_poscan::{
 	POSCAN_COIN_ID, POSCAN_ENGINE_ID,
 };
 
-use mining_pool_stat_api::MiningPoolStatApi;
+use mining_pool_stat_api::{MiningPoolStatApi, CheckMemberError};
 
 /// An index to a block.
 pub type BlockNumber = u32;
@@ -1591,6 +1591,9 @@ impl_runtime_apis! {
 		fn difficulty(pool_id: &AccountId) -> sp_consensus_poscan::Difficulty {
 			// MiningPool::difficulty(pool_id)
 			<MiningPool as MiningPoolStatApi<sp_consensus_poscan::Difficulty, AccountId>>::difficulty(pool_id)
+		}
+		fn member_status(pool_id: &AccountId, member_id: &AccountId) -> Result<(), CheckMemberError> {
+			<MiningPool as MiningPoolStatApi<sp_consensus_poscan::Difficulty, AccountId>>::member_status(pool_id, member_id)
 		}
 		fn get_stat(pool_id: &AccountId) -> Option<(Percent, Percent, Vec<(AccountId,u32)>)> {
 			<MiningPool as MiningPoolStatApi<sp_consensus_poscan::Difficulty, AccountId>>::get_stat(pool_id)

@@ -88,6 +88,20 @@ pub const HOURS: u32 = 60;
 pub const DAYS: u32 = 24 * HOURS;
 
 
+#[derive(Eq, PartialEq, codec::Encode, codec::Decode)]
+pub enum CheckMemberError {
+	NoPool,
+	NoMember,
+	PoolSuspended,
+}
+
+// impl Into<CallError> for CheckMemberError {
+// 	fn into(self) -> CallError {
+// 		todo!()
+// 	}
+// }
+
+
 /// Define methods that total difficulty should implement.
 pub trait TotalDifficulty {
 	fn increment(&mut self, other: Self);
@@ -127,6 +141,7 @@ sp_api::decl_runtime_apis! {
 		AccountId: codec::Decode + codec::Encode,
 	{
 		fn difficulty(pool_id: &AccountId) -> Difficulty;
+		fn member_status(pool_id: &AccountId, member_id: &AccountId) -> Result<(), CheckMemberError>;
 		fn get_stat(pool_id: &AccountId) -> Option<(Percent, Percent, Vec<(AccountId, u32)>)>;
 	}
 

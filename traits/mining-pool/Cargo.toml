@@ -13,11 +13,14 @@ sp-std = { default-features = false, git = "https://github.com/paritytech/substr
 sp-runtime = { default-features = false, git = "https://github.com/paritytech/substrate", rev = "b0777b4c7f7" }
 frame-system = { default-features = false, git = "https://github.com/paritytech/substrate", rev = "b0777b4c7f7" }
 
+sp-consensus-poscan = { default-features = false, path = "../../primitives/consensus/poscan" }
+
 [features]
 default = ['std']
 std = [
     "sp-std/std",
     "sp-runtime/std",
     "frame-system/std",
+    "sp-consensus-poscan/std",
 ]
 

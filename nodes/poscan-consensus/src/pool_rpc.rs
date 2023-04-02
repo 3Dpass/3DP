@@ -8,7 +8,7 @@ use sp_runtime::serde::Deserialize;
 use jsonrpsee::{
 	core::{Error as JsonRpseeError, RpcResult},
 	proc_macros::rpc,
-	// types::error::{CallError, ErrorCode, ErrorObject},
+	types::error::{CallError, ErrorObject},
 };
 
 use codec::Encode;
@@ -23,16 +23,38 @@ use sp_core::offchain::OffchainStorage;
 use sp_api::ProvideRuntimeApi;
 use sp_blockchain::HeaderBackend;
 use sc_client_api::backend::Backend;
-use sp_consensus_poscan::{MiningPoolApi, POSCAN_ALGO_GRID2D_V2};
+use sp_consensus_poscan::{MiningPoolApi, CheckMemberError, POSCAN_ALGO_GRID2D_V2};
 
 use alloc::string::String;
 use crate::pool::{MiningPool, ShareProposal, LOG_TARGET};
+use crate::pool::PoolError;
 
 // const MAX_QUEUE_LEN: usize = 20;
 
-const RES_OK: u64 = 0;
-const RES_NOT_ACCEPTED: u64 = 1;
-const RES_DECRYPT_FAILED: u64 = 2;
+#[allow(non_camel_case_types)]
+enum RpcRes {
+	RES_OK = 0,
+	RES_NOT_ACCEPTED = 1,
+	RES_DECRYPT_FAILED = 2,
+	RES_POOL_NOT_FOUND = 3,
+	RES_POOL_SUSPENDED = 4,
+	RES_MEMBER_NOT_FOUND = 5,
+}
+impl RpcRes {
+	pub fn to_u64(&self) -> u64 {
+		*self as u64
+	}
+}
+
+impl From<CheckMemberError> for RpcRes {
+	fn from(ms: CheckMemberError) -> Self {
+		match ms {
+			CheckMemberError::NoPool => RpcRes::RES_POOL_NOT_FOUND,
+			CheckMemberError::PoolSuspended => RpcRes::RES_POOL_SUSPENDED,
+			CheckMemberError::NoMember => RpcRes::RES_MEMBER_NOT_FOUND,
+		}
+	}
+}
 
 type ParamsResp = (H256, H256, U256, U256, U256);
 
@@ -128,9 +150,31 @@ where
 				store.set(prefix, key.as_bytes(), &val.to_le_bytes());
 
 				log::debug!(target: LOG_TARGET, "push_to_pool. stat submitted");
-				Ok(RES_OK)
+				Ok(RpcRes::RES_OK.to_u64())
 			},
-			_ => Ok(RES_NOT_ACCEPTED)
+			_ => Ok(RpcRes::RES_NOT_ACCEPTED.to_u64())
+		}
+	}
+
+	fn error(e: PoolError) -> JsonRpseeError {
+		const BASE_ERROR: i32 = 4000;
+
+		match e {
+			PoolError::NotAccepted =>
+				CallError::Custom(ErrorObject::owned(BASE_ERROR + 0, "No pool", None::<()>))
+					.into(),
+			PoolError::CheckMemberError(e) =>
+				match e {
+					CheckMemberError::NoPool =>
+						CallError::Custom(ErrorObject::owned(BASE_ERROR + 1, "No pool", None::<()>))
+							.into(),
+					CheckMemberError::NoMember =>
+						CallError::Custom(ErrorObject::owned(BASE_ERROR + 2, "No member in pool", None::<()>))
+							.into(),
+					CheckMemberError::PoolSuspended =>
+						CallError::Custom(ErrorObject::owned(BASE_ERROR + 3, "Pool suspended", None::<()>))
+							.into(),
+				},
 		}
 	}
 }
@@ -185,21 +229,32 @@ impl<C, Block, B> PoscanPoolRpcApiServer<<Block as BlockT>::Hash> for MiningPool
 		let payload = self.decrypt(&payload);
 
 		if let Ok(payload) = payload {
-			self.push_pow_data(
-				payload.pool_id,
-				payload.member_id,
-				payload.pre_hash,
-				payload.parent_hash,
-				payload.algo,
-				payload.dfclty,
-				payload.hash,
-				payload.obj_id,
-				payload.obj,
-			)
+			let block = BlockId::Hash(self.client.info().best_hash);
+			let member_status = self.client
+				.runtime_api()
+				.member_status(&block, &payload.pool_id, &payload.member_id)
+				.unwrap();
+				// .into();
+
+			match member_status {
+				Ok(_) =>
+					self.push_pow_data(
+						payload.pool_id,
+						payload.member_id,
+						payload.pre_hash,
+						payload.parent_hash,
+						payload.algo,
+						payload.dfclty,
+						payload.hash,
+						payload.obj_id,
+						payload.obj,
+					),
+				Err(e) => Err(Self::error(PoolError::CheckMemberError(e)))
+			}
 		}
 		else {
 			println!("decrypt failed");
-			Ok(RES_DECRYPT_FAILED)
+			Ok(RpcRes::RES_DECRYPT_FAILED.to_u64())
 		}
 	}
 
