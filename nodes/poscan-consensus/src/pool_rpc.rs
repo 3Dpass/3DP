@@ -32,6 +32,7 @@ use crate::pool::PoolError;
 // const MAX_QUEUE_LEN: usize = 20;
 
 #[allow(non_camel_case_types)]
+#[derive(Clone, Copy)]
 enum RpcRes {
 	RES_OK = 0,
 	RES_NOT_ACCEPTED = 1,
