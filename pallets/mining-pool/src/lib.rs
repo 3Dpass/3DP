@@ -544,6 +544,7 @@ pub mod pallet {
 				ValidTransaction::with_tag_prefix("MiningPool")
 					.priority(T::UnsignedPriority::get())
 					// .and_provides((current_session, authority_id))
+					.and_provides(call.encode())
 					.and_provides(authority_id)
 					.longevity(
 						5u64,
