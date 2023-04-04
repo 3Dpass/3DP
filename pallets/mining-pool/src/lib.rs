@@ -135,6 +135,11 @@ pub(crate) struct IdentInfo {
 	pub(crate) discord: Option<String>,
 	pub(crate) telegram: Option<String>,
 }
+impl IdentInfo {
+	pub(crate) fn is_judjements_ok(&self) -> bool {
+		3 * self.total_judjements >= 2 * self.total_judjements
+	}
+}
 
 impl PartialEq for IdentInfo {
 	fn eq(&self, other: &Self) -> bool {
@@ -296,6 +301,8 @@ pub mod pallet {
 		PoolRemoved(T::AccountId),
 		/// Pool removed.
 		PoolSuspended(T::AccountId),
+		/// Member removed from the pool.
+		RemovedFromThePoll(T::AccountId, T::AccountId),
 	}
 
 	// Errors inform users that something went wrong.
@@ -564,8 +571,8 @@ impl<T: Config> Pallet<T> {
 	fn check_identity(account_id: &T::AccountId, with_kyc: bool) -> Result<(), IdentityErr<T::AccountId>> {
 		let ident = Self::get_ident(&account_id);
 		let ident = match ident {
-			Some(ref id_info) => (3 * id_info.total_judjements >= 2 * id_info.total_judjements)
-							.then_some(ident).ok_or(IdentityErr::NotEnoughJudjement),
+			Some(ref id_info) => id_info.is_judjements_ok()
+				.then_some(ident).ok_or(IdentityErr::NotEnoughJudjement),
 			None if with_kyc => Err(IdentityErr::NoIdentity),
 			None => Ok(None),
 		}?;
@@ -714,31 +721,44 @@ impl<T: Config> Pallet<T> {
 			}
 		}
 
-		let mut duplicates: BTreeMap<T::AccountId, Vec<T::AccountId>> = BTreeMap::new();
+		let mut to_remove: BTreeMap<T::AccountId, Vec<T::AccountId>> = BTreeMap::new();
 		let mut heap = BTreeMap::new();
-		for pool_id in <Pools<T>>::iter_keys() {
+
+		for (pool_id, member_ids) in <Pools<T>>::iter() {
 			let with_kyc = <PoolMode<T>>::get(&pool_id);
 			if with_kyc {
-				for (pool_id, member_ids) in <Pools<T>>::iter() {
-					for member_id in member_ids {
-						let ident = Self::get_ident(&member_id);
-						match heap.entry(ident) {
-							Entry::Vacant(entry) => {
-								entry.insert((pool_id.clone(), member_id.clone()));
-							},
-							Entry::Occupied(val) => {
-								log::error!(target: LOG_TARGET, "Duplicated accounts: {:?} {:?}", &pool_id, &member_id);
-								duplicates.entry(pool_id.clone()).or_default().push(member_id.clone());
-								duplicates.entry(val.get().0.clone()).or_default().push(val.get().1.clone());
-							},
-						}
+				for member_id in member_ids {
+					let ident = Self::get_ident(&member_id);
+					match ident {
+						Some(ident) => {
+							if !ident.is_judjements_ok() {
+								to_remove.entry(pool_id.clone()).or_default().push(member_id.clone());
+							} else {
+								match heap.entry(ident) {
+									Entry::Vacant(entry) => {
+										entry.insert((pool_id.clone(), member_id.clone()));
+									},
+									Entry::Occupied(val) => {
+										log::error!(target: LOG_TARGET, "Duplicated accounts: {:?} {:?}", &pool_id, &member_id);
+										to_remove.entry(pool_id.clone()).or_default().push(member_id.clone());
+										to_remove.entry(val.get().0.clone()).or_default().push(val.get().1.clone());
+									},
+								}
+							}
+						},
+						None => to_remove.entry(pool_id.clone()).or_default().push(member_id.clone()),
 					}
 				}
 			}
+		}
 
-			for (pool_id, dups) in duplicates.iter() {
-				<Pools<T>>::mutate(pool_id, |v| v.retain(|m| !dups.contains(m)));
+		for (pool_id, mut member_ids) in to_remove.iter_mut() {
+			member_ids.sort();
+			member_ids.dedup();
+			for member_id in member_ids.iter() {
+				Self::deposit_event(Event::<T>::RemovedFromThePoll(pool_id.clone(), member_id.clone()));
 			}
+			<Pools<T>>::mutate(pool_id, |v| v.retain(|m| !member_ids.contains(m)));
 		}
 	}
 
