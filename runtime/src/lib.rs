@@ -1003,7 +1003,7 @@ impl pallet_mining_pool::Config for Runtime {
 	type Difficulty = U256;
 	type PoolAuthorityId = PoolAuthorityId;
 	type UnsignedPriority = ConstU64<{TransactionPriority::max_value() / 2}>;
-	type StatPeriod = ConstU32<2>;
+	type StatPeriod = ConstU32<10>;
 	type MaxPoolPercent = MaxPoolPercent;
 	// type PoolAuthorityId = AccountId; // pallet_mining_pool::crypto::PoolAuthorityId;
 }
