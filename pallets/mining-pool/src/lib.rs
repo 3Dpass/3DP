@@ -554,12 +554,13 @@ impl<T: Config> Pallet<T> {
 
 	fn check_identity(account_id: &T::AccountId, with_kyc: bool) -> Result<(), IdentityErr<T::AccountId>> {
 		let ident = Self::get_ident(&account_id);
-		match ident {
+		let ident = match ident {
 			Some(ref id_info) => (3 * id_info.total_judjements >= 2 * id_info.total_judjements)
-							.then_some(()).ok_or(IdentityErr::NotEnoughJudjement),
-			None => Err(IdentityErr::NoIdentity)
+							.then_some(ident).ok_or(IdentityErr::NotEnoughJudjement),
+			None if with_kyc => Err(IdentityErr::NoIdentity),
+			None => Ok(None),
 		}?;
-		let dups = Self::check_duplicates(&account_id, &ident.unwrap(), with_kyc);
+		let dups = Self::check_duplicates(&account_id, &ident);
 		dups.is_empty().then_some(()).ok_or(IdentityErr::Duplicates(dups))
 	}
 
@@ -580,8 +581,7 @@ impl<T: Config> Pallet<T> {
 
 	fn check_duplicates(
 		account_id: &T::AccountId,
-		acc_ident: &IdentInfo,
-		with_kyc: bool,
+		acc_ident: &Option<IdentInfo>,
 	) -> Vec<(T::AccountId, T::AccountId)> {
 		use sp_std::collections::btree_map::BTreeMap;
 		let mut duplicates = Vec::new();
@@ -595,7 +595,7 @@ impl<T: Config> Pallet<T> {
 		}
 
 		for ((pool_id, member_id), ident) in pools {
-			if with_kyc {
+			if let Some(acc_ident) = acc_ident {
 				let ident = Self::get_ident(&member_id);
 				match ident {
 					Some(ident) =>
