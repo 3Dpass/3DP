@@ -208,6 +208,10 @@ pub mod pallet {
 
 		type MaxKeys: Get<u32>;
 
+		#[pallet::constant]
+		type MaxPools: Get<u32>;
+
+		#[pallet::constant]
 		type MaxMembers: Get<u32>;
 
 		type Currency: LockableCurrency<Self::AccountId>;
@@ -303,8 +307,10 @@ pub mod pallet {
 		Duplicate,
 		/// Pool rewards is higher the maximum.
 		TooHighPoolRewards,
-		/// Member count is higher the maximum.
-		TooHighPoolCount,
+		/// Pool size exсeeds max.
+		PoolSizeMax,
+		/// Member size exсeeds max.
+		MemberSizeMax,
 		/// Pool/Member nas no registrar's label.
 		NotRegistered,
 		/// No pool
@@ -365,6 +371,7 @@ pub mod pallet {
 		pub fn create_pool(origin: OriginFor<T>) -> DispatchResult {
 			let pool_id = ensure_signed(origin)?;
 			ensure!(!<Pools<T>>::contains_key(&pool_id), Error::<T>::PoolAlreadyExists);
+			ensure!((<Pools<T>>::iter_keys().count() as u32) < T::MaxPools::get(), Error::<T>::PoolSizeMax);
 			match Self::check_pool_identity(&pool_id) {
 				Err(IdentityErr::NoIdentity) => return Err(Error::<T>::NoIdentity.into()),
 				Err(IdentityErr::NotEnoughJudjement) => return Err(Error::<T>::NotEnoughJudjement.into()),
@@ -409,6 +416,7 @@ pub mod pallet {
 			let pool_id = ensure_signed(origin)?;
 			ensure!(<Pools<T>>::contains_key(&pool_id), Error::<T>::PoolNotExists);
 			ensure!(!<Pools<T>>::get(&pool_id).contains(&member_id), Error::<T>::Duplicate);
+			ensure!((<Pools<T>>::get(&pool_id).len() as u32) < T::MaxMembers::get(), Error::<T>::MemberSizeMax);
 			let with_kyc = <PoolMode<T>>::get(&pool_id);
 			match Self::check_identity(&member_id, with_kyc) {
 				Err(IdentityErr::NoIdentity) => return Err(Error::<T>::NoIdentity.into()),
@@ -429,6 +437,7 @@ pub mod pallet {
 			let member_id = ensure_signed(origin)?;
 			ensure!(<Pools<T>>::contains_key(&pool_id), Error::<T>::PoolNotExists);
 			ensure!(!<Pools<T>>::get(&pool_id).contains(&member_id), Error::<T>::Duplicate);
+			ensure!((<Pools<T>>::get(&pool_id).len() as u32) < T::MaxMembers::get(), Error::<T>::MemberSizeMax);
 			let with_kyc = <PoolMode<T>>::get(&pool_id);
 			match Self::check_identity(&member_id, with_kyc) {
 				Err(IdentityErr::NoIdentity) => return Err(Error::<T>::NoIdentity.into()),

@@ -995,6 +995,7 @@ impl pallet_mining_pool::Config for Runtime {
 	type AddRemoveOrigin = EnsureRootOrHalfCouncil;
 	// type AddRemoveOrigin = EnsureRoot<AccountId>;
 	type MaxKeys = ConstU32<1000>;
+	type MaxPools = ConstU32<100>;
 	type MaxMembers = ConstU32<1000>;
 	type Currency = Balances;
 	type PoscanEngineId = PoscanEngineId;
