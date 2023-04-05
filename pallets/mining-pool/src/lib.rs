@@ -143,7 +143,7 @@ pub(crate) struct IdentInfo {
 }
 impl IdentInfo {
 	pub(crate) fn is_judjements_ok(&self) -> bool {
-		3 * self.total_judjements >= 2 * self.total_judjements
+		self.total_judjements > 0 && 3 * self.good_judjements >= 2 * self.total_judjements
 	}
 }
 
@@ -348,6 +348,17 @@ pub mod pallet {
 		BadOrigin,
 	}
 
+	impl<T, AccountId> From<IdentityErr<AccountId>> for Error<T> {
+		fn from(err: IdentityErr<AccountId>) -> Self {
+			match err {
+				IdentityErr::NoIdentity => Error::<T>::NoIdentity,
+				IdentityErr::NotEnoughJudjement => Error::<T>::NotEnoughJudjement,
+				IdentityErr::PoolDuplicates(_) |
+				IdentityErr::Duplicates(_) => Error::<T>::IdentityDuplicate,
+			}
+		}
+	}
+
 	#[pallet::hooks]
 	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
 		fn offchain_worker(block_number: T::BlockNumber) {
@@ -385,13 +396,7 @@ pub mod pallet {
 			let pool_id = ensure_signed(origin)?;
 			ensure!(!<Pools<T>>::contains_key(&pool_id), Error::<T>::PoolAlreadyExists);
 			ensure!((<Pools<T>>::iter_keys().count() as u32) < T::MaxPools::get(), Error::<T>::PoolSizeMax);
-			match Self::check_pool_identity(&pool_id) {
-				Err(IdentityErr::NoIdentity) => return Err(Error::<T>::NoIdentity.into()),
-				Err(IdentityErr::NotEnoughJudjement) => return Err(Error::<T>::NotEnoughJudjement.into()),
-				Err(IdentityErr::PoolDuplicates(_)) |
-				Err(IdentityErr::Duplicates(_)) => return Err(Error::<T>::IdentityDuplicate.into()),
-				Ok(()) => {},
-			}
+			Self::allow_create_pool(&pool_id)?;
 
 			<Pools<T>>::insert(&pool_id, Vec::<T::AccountId>::new());
 			<PoolMode<T>>::insert(&pool_id, true);
@@ -430,14 +435,7 @@ pub mod pallet {
 			ensure!(<Pools<T>>::contains_key(&pool_id), Error::<T>::PoolNotExists);
 			ensure!(!<Pools<T>>::get(&pool_id).contains(&member_id), Error::<T>::Duplicate);
 			ensure!((<Pools<T>>::get(&pool_id).len() as u32) < T::MaxMembers::get(), Error::<T>::MemberSizeMax);
-			let with_kyc = <PoolMode<T>>::get(&pool_id);
-			match Self::check_identity(&member_id, with_kyc) {
-				Err(IdentityErr::NoIdentity) => return Err(Error::<T>::NoIdentity.into()),
-				Err(IdentityErr::NotEnoughJudjement) => return Err(Error::<T>::NotEnoughJudjement.into()),
-				Err(IdentityErr::PoolDuplicates(_)) |
-				Err(IdentityErr::Duplicates(_)) => return Err(Error::<T>::IdentityDuplicate.into()),
-				Ok(()) => {},
-			}
+			Self::allow_join(&pool_id, &member_id)?;
 
 			<Pools<T>>::mutate(pool_id, |v| v.push(member_id.clone()));
 			log::debug!(target: LOG_TARGET, "member added by pool");
@@ -451,14 +449,7 @@ pub mod pallet {
 			ensure!(<Pools<T>>::contains_key(&pool_id), Error::<T>::PoolNotExists);
 			ensure!(!<Pools<T>>::get(&pool_id).contains(&member_id), Error::<T>::Duplicate);
 			ensure!((<Pools<T>>::get(&pool_id).len() as u32) < T::MaxMembers::get(), Error::<T>::MemberSizeMax);
-			let with_kyc = <PoolMode<T>>::get(&pool_id);
-			match Self::check_identity(&member_id, with_kyc) {
-				Err(IdentityErr::NoIdentity) => return Err(Error::<T>::NoIdentity.into()),
-				Err(IdentityErr::NotEnoughJudjement) => return Err(Error::<T>::NotEnoughJudjement.into()),
-				Err(IdentityErr::PoolDuplicates(_)) |
-				Err(IdentityErr::Duplicates(_)) => return Err(Error::<T>::IdentityDuplicate.into()),
-				Ok(()) => {},
-			}
+			Self::allow_join(&pool_id, &member_id)?;
 
 			<Pools<T>>::mutate(pool_id, |v| v.push(member_id.clone()));
 			log::debug!(target: LOG_TARGET, "member added by self");
@@ -575,69 +566,81 @@ impl<T: Config> Pallet<T> {
 		}
 	}
 
-	fn check_identity(account_id: &T::AccountId, with_kyc: bool) -> Result<(), IdentityErr<T::AccountId>> {
+	fn allow_create_pool(pool_id: &T::AccountId) -> DispatchResult {
+		let res = Self::check_identity(pool_id, true)
+			.and_then(|_| Self::check_pool_duplicates(pool_id))
+			.map_err(|e| Error::<T>::from(e).into());
+		res
+	}
+
+	fn check_identity(account_id: &T::AccountId, with_kyc: bool) -> Result<Option<IdentInfo>, IdentityErr<T::AccountId>> {
 		let ident = Self::get_ident(&account_id);
-		let ident = match ident {
+		match ident {
 			Some(ref id_info) => id_info.is_judjements_ok()
 				.then_some(ident).ok_or(IdentityErr::NotEnoughJudjement),
 			None if with_kyc => Err(IdentityErr::NoIdentity),
 			None => Ok(None),
-		}?;
-		let dups = Self::check_duplicates(&account_id, &ident);
-		dups.is_empty().then_some(()).ok_or(IdentityErr::Duplicates(dups))
+		}
 	}
 
-	fn check_pool_identity(pool_id: &T::AccountId) -> Result<(), IdentityErr<T::AccountId>> {
+	fn check_pool_duplicates(pool_id: &T::AccountId) -> Result<(), IdentityErr<T::AccountId>> {
 		let mut dups = Vec::new();
-		Self::check_identity(pool_id, true)?;
-		let pool_ident = Self::get_ident(pool_id);
-
+		let pool_ident = Self::get_ident(&pool_id);
 		for p_id in Pools::<T>::iter_keys() {
 			let ident = Self::get_ident(&p_id);
 			if ident == pool_ident {
-				log::debug!(target: LOG_TARGET, "Found pool duplicate pooi_id={:?}", pool_id);
+				log::debug!(target: LOG_TARGET, "Found pool duplicate pooi_id={:#?}", pool_id);
 				dups.push(p_id);
 			}
 		}
-		dups.is_empty().then_some(()).ok_or(IdentityErr::PoolDuplicates(dups))
+		dups.is_empty().then_some(()).ok_or(IdentityErr::PoolDuplicates(dups))?;
+		Ok(())
 	}
 
-	fn check_duplicates(
-		account_id: &T::AccountId,
-		acc_ident: &Option<IdentInfo>,
-	) -> Vec<(T::AccountId, T::AccountId)> {
-		use sp_std::collections::btree_map::BTreeMap;
+	fn allow_join(pool_id: &T::AccountId, account_id: &T::AccountId) -> DispatchResult {
+		let with_kyc = PoolMode::<T>::get(&pool_id);
+		let res = Self::check_identity(pool_id, with_kyc)
+			.and_then(|ident| Self::check_duplicates(account_id, ident))
+			.map_err(|e| Error::<T>::from(e).into());
+		res
+	}
+
+	fn check_duplicates(account_id: &T::AccountId, acc_ident: Option<IdentInfo>) -> Result<(), IdentityErr<T::AccountId>> {
+		let dups = Self::find_duplicates(account_id, acc_ident);
+		dups.is_empty().then_some(()).ok_or(IdentityErr::Duplicates(dups))
+	}
+
+	fn find_duplicates(account_id: &T::AccountId, acc_ident: Option<IdentInfo>) -> Vec<(T::AccountId, T::AccountId)> {
 		let mut duplicates = Vec::new();
 
-		let mut pools = BTreeMap::new();
 		for (pool_id, member_ids) in <Pools<T>>::iter() {
-			for member_id in member_ids {
-				let ident = Self::get_ident(&member_id);
-				pools.insert((pool_id.clone(), member_id), ident.clone());
+			if pool_id == *account_id {
+				return vec![(pool_id.clone(), pool_id.clone())];
 			}
 		}
 
-		for ((pool_id, member_id), ident) in pools {
-			if let Some(acc_ident) = acc_ident {
-				let ident = Self::get_ident(&member_id);
-				match ident {
-					Some(ident) =>
-						if ident == *acc_ident {
-							log::debug!(target: LOG_TARGET, "Found duplicate in pooi_id={:?} member_id={:?}", pool_id, member_id);
-							duplicates.push((pool_id, member_id));
-						},
-					None => {
-						if member_id == *account_id {
-							log::debug!(target: LOG_TARGET, "Found duplicate by account_id in pooi_id={:?} member_id={:?}", pool_id, member_id);
-							duplicates.push((pool_id, member_id));
+		for (pool_id, member_ids) in <Pools<T>>::iter() {
+			for member_id in member_ids {
+				if let Some(acc_ident) = acc_ident.as_ref() {
+					let ident = Self::get_ident(&member_id);
+					match ident {
+						Some(ident) =>
+							if ident == *acc_ident {
+								log::debug!(target: LOG_TARGET, "Found duplicate in pooi_id={:#?} member_id={:#?}", &pool_id, &member_id);
+								duplicates.push((pool_id.clone(), member_id.clone()));
+							},
+						None => {
+							if member_id == *account_id {
+								log::debug!(target: LOG_TARGET, "Found duplicate by account_id in pooi_id={:#?} member_id={:#?}", &pool_id, &member_id);
+								duplicates.push((pool_id.clone(), member_id.clone()));
+							}
 						}
 					}
-				}
-			}
-			else {
-				if member_id == *account_id {
-					log::debug!(target: LOG_TARGET, "Found duplicate by account_id in pooi_id={:?} member_id={:?}", pool_id, member_id);
-					duplicates.push((pool_id, member_id));
+				} else {
+					if member_id == *account_id {
+						log::debug!(target: LOG_TARGET, "Found duplicate by account_id in pooi_id={:#?} member_id={:#?}", &pool_id, &member_id);
+						duplicates.push((pool_id.clone(), member_id.clone()));
+					}
 				}
 			}
 		}
@@ -689,7 +692,7 @@ impl<T: Config> Pallet<T> {
 		for item in info.additional.iter() {
 			match item {
 				(Data::Raw(k), Data::Raw(v)) => {
-					log::debug!(target: LOG_TARGET, "Found additional info: {:?} -> {:?}", k, v);
+					// log::debug!(target: LOG_TARGET, "Found additional info: {:?} -> {:?}", k, v);
 					match String::from_utf8(k.to_vec()) {
 						Ok(key)	=> {
 							let index = field_names.iter().position(|&r| r == key);
@@ -697,7 +700,7 @@ impl<T: Config> Pallet<T> {
 								if let Ok(acc) = String::from_utf8(v.to_vec()) {
 									res[i] = Some(acc);
 								} else {
-									log::error!(target: LOG_TARGET, "Cant decode additional info: {} -> {:?}", key, v);
+									log::error!(target: LOG_TARGET, "Cant decode additional info: {:?} -> {:?}", key, v);
 								}
 							}
 						}
@@ -713,17 +716,20 @@ impl<T: Config> Pallet<T> {
 	}
 
 	fn sync_identity() {
+		let mut pool_idents = BTreeMap::new();
+
 		for pool_id in <Pools<T>>::iter_keys() {
-			let with_kyc = PoolMode::<T>::get(&pool_id);
-			match Self::check_identity(&pool_id, with_kyc) {
-				Err(_) => {
+			match Self::check_identity(&pool_id, true) {
+				Err(_) | Ok(None) => {
+					// Suspend
 					if !SuspendedPools::<T>::get().contains(&pool_id) {
 						SuspendedPools::<T>::mutate(|v| v.push(pool_id.clone()));
 						Self::deposit_event(Event::PoolSuspended(pool_id));
 					}
 				},
-				Ok(()) => {
+				Ok(Some(ident)) => {
 					SuspendedPools::<T>::mutate(|v| v.retain(|p| *p != pool_id));
+					pool_idents.insert(ident, pool_id.clone());
 				},
 			}
 		}
@@ -733,28 +739,37 @@ impl<T: Config> Pallet<T> {
 
 		for (pool_id, member_ids) in <Pools<T>>::iter() {
 			let with_kyc = <PoolMode<T>>::get(&pool_id);
-			if with_kyc {
-				for member_id in member_ids {
-					let ident = Self::get_ident(&member_id);
-					match ident {
-						Some(ident) => {
-							if !ident.is_judjements_ok() {
-								to_remove.entry(pool_id.clone()).or_default().push(member_id.clone());
-							} else {
-								match heap.entry(ident) {
-									Entry::Vacant(entry) => {
-										entry.insert((pool_id.clone(), member_id.clone()));
-									},
-									Entry::Occupied(val) => {
-										log::error!(target: LOG_TARGET, "Duplicated accounts: {:?} {:?}", &pool_id, &member_id);
-										to_remove.entry(pool_id.clone()).or_default().push(member_id.clone());
-										to_remove.entry(val.get().0.clone()).or_default().push(val.get().1.clone());
-									},
-								}
-							}
-						},
-						None => to_remove.entry(pool_id.clone()).or_default().push(member_id.clone()),
-					}
+			// if with_kyc {
+			for member_id in member_ids {
+				let res = Self::check_identity(&member_id, true);
+				let ident = match res {
+					Ok(Some(ident)) => ident,
+					Ok(None) | Err(_) => {
+						if with_kyc {
+							to_remove.entry(pool_id.clone()).or_default().push(member_id.clone());
+						}
+						continue;
+					},
+				};
+
+				match heap.entry(ident.clone()) {
+					Entry::Vacant(entry) => {
+						entry.insert((pool_id.clone(), member_id.clone()));
+					},
+					Entry::Occupied(val) => {
+						log::error!(target: LOG_TARGET, "Duplicated accounts: {:#?} {:#?}", &pool_id, &member_id);
+						to_remove.entry(pool_id.clone()).or_default().push(member_id.clone());
+						to_remove.entry(val.get().0.clone()).or_default().push(val.get().1.clone());
+					},
+				};
+
+				// lookup pool identities
+				if pool_idents.contains_key(&ident) {
+					log::error!(target: LOG_TARGET,
+						"Pool {:#?} has the same ident as member: pool {:#?} memeber {:#?}",
+						pool_idents.get(&ident), &pool_id, &member_id,
+					);
+					to_remove.entry(pool_id.clone()).or_default().push(member_id.clone());
 				}
 			}
 		}
