@@ -253,7 +253,7 @@ pub fn get_obj_hashes(ver: &[u8; 16], data: &Vec<u8>, pre: &H256) -> Vec<H256> {
 			(p3d::AlgoType::Grid2d, 66)
 		};
 
-	log::debug!("Calc hashes for algorithm {}", String::from_utf8(ver.to_vec()).unwrap());
+	// log::debug!("Calc hashes for algorithm {}", String::from_utf8(ver.to_vec()).unwrap());
 
 	let pre = pre.encode()[0..4].try_into().ok();
 	let res = p3d::p3d_process(data, alg_type, grid_size, n_sect, pre);

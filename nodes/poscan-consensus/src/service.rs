@@ -462,7 +462,7 @@ pub fn new_full(
 							let _ = futures::executor::block_on(worker.submit(seal.encode(), &psdata));
 						}
 						else {
-							info!(">>> does not meet difficulty");
+							// info!(">>> does not meet difficulty");
 						}
 						poscan_data = None;
 					}
