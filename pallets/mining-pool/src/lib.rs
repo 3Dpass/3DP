@@ -362,8 +362,6 @@ pub mod pallet {
 	#[pallet::hooks]
 	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
 		fn offchain_worker(block_number: T::BlockNumber) {
-			log::debug!(target: LOG_TARGET, "Hello World from offchain workers!");
-
 			if Self::set_sent(block_number) {
                 Self::send_mining_stat();
             }
@@ -540,7 +538,6 @@ pub mod pallet {
 
 				ValidTransaction::with_tag_prefix("MiningPool")
 					.priority(T::UnsignedPriority::get())
-					// .and_provides((current_session, authority_id))
 					.and_provides(call.encode())
 					.and_provides(authority_id)
 					.longevity(
