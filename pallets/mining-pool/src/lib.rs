@@ -1,8 +1,14 @@
 //! # Mining Pool Pallet
 //!
-//! The Mining Pool Pallet allows addition and removal of
+//! This file is part of 3DPass.
+//! Copyright (c) 2023 3DPass.
+//!
+//! The Mining Pool Pallet allows for addition and removal of
 //! pool's admins and members via extrinsics (transaction calls)
-//! Substrate-based PoA networks. It also integrates with the Identity pallet
+//! Substrate-based hybrid PoW + PoA networks. 
+//!
+//! This trait is also integrated with the Identity pallet to control a certain level of confidence 
+//! required for either pool's admins and members.
 //!
 #![allow(warnings)]
 #![cfg_attr(not(feature = "std"), no_std)]
