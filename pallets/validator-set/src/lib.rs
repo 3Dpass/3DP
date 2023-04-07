@@ -1,12 +1,15 @@
 //! # Validator Set Pallet
 //!
-//! The Validator Set Pallet allows addition and removal of
+//! This file is part of 3DPass.
+//! Copyright (c) 2022 3DPass.
+//!
+//! The Validator Set Pallet allows for addition and removal of
 //! authorities/validators via extrinsics (transaction calls), in
 //! Substrate-based PoA networks. It also integrates with the im-online pallet
 //! to automatically remove offline validators.
 //!
 //! The pallet uses the Session pallet and implements related traits for session
-//! management. Currently it uses periodic session rotation provided by the
+//! management. Currently, it uses periodic session rotation provided by the
 //! session pallet to automatically rotate sessions. For this reason, the
 //! validator addition and removal becomes effective only after 2 sessions
 //! (queuing + applying).
