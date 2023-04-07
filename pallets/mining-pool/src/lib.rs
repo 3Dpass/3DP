@@ -202,7 +202,13 @@ pub mod pallet {
 	/// Configure the pallet by specifying the parameters and types on which it
 	/// depends.
 	#[pallet::config]
-	pub trait Config: frame_system::Config + pallet_session::Config + pallet_validator_set::Config + pallet_session::Config + pallet_identity::Config + CreateSignedTransaction<Call<Self>>{
+	pub trait Config: frame_system::Config
+			+ pallet_session::Config
+			+ pallet_validator_set::Config
+			+ pallet_session::Config
+			+ pallet_identity::Config
+			+ CreateSignedTransaction<Call<Self>>
+	{
 		/// The Event type.
 		type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
 		type Call: From<Call<Self>>;
@@ -249,12 +255,6 @@ pub mod pallet {
 	#[pallet::without_storage_info]
 	pub struct Pallet<T>(_);
 
-	/// The current set of keys that may issue a heartbeat.
-	#[pallet::storage]
-	#[pallet::getter(fn keys)]
-	pub(crate) type Keys<T: Config> =
-		StorageValue<_, WeakBoundedVec<T::PoolAuthorityId, T::MaxKeys>, ValueQuery>;
-
 	#[pallet::storage]
 	#[pallet::getter(fn pools)]
 	pub type Pools<T: Config> = StorageMap<_, Twox64Concat, PoolId<T>, Vec<T::AccountId>, ValueQuery>;
@@ -279,34 +279,25 @@ pub mod pallet {
 	#[pallet::getter(fn with_kyc)]
 	pub type PoolMode<T: Config> = StorageMap<_, Twox64Concat, PoolId<T>, bool, ValueQuery>;
 
-	#[pallet::genesis_config]
-	pub struct GenesisConfig<T: Config> {
-		pub keys: Vec<T::PoolAuthorityId>,
-	}
-
-	#[cfg(feature = "std")]
-	impl<T: Config> Default for GenesisConfig<T> {
-		fn default() -> Self {
-			GenesisConfig { keys: Default::default() }
-		}
-	}
-
-	#[pallet::genesis_build]
-	impl<T: Config> GenesisBuild<T> for GenesisConfig<T> {
-		fn build(&self) {
-			Pallet::<T>::initialize_keys(&self.keys);
-		}
-	}
-
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(super) fn deposit_event)]
 	pub enum Event<T: Config> {
 		/// New pool created.
 		PoolCreated(T::AccountId),
-		/// Pool removed.
-		PoolRemoved(T::AccountId),
+		/// Pool closed.
+		PoolClosed(T::AccountId),
 		/// Pool removed.
 		PoolSuspended(T::AccountId),
+		/// Pool interest changed.
+		JoinedThePool(T::AccountId, T::AccountId),
+		/// Member left the pool manualy.
+		LeftThePoll(T::AccountId, T::AccountId),
+		/// Pool mode changed.
+	    PoolModeChanged(T::AccountId, bool),
+		/// Pool difficulty changed.
+		PoolInterestChanged(T::AccountId, Percent),
+		/// Member join th pool.
+		PoolDifficultyChanged(T::AccountId, U256),
 		/// Member removed from the pool.
 		RemovedFromThePoll(T::AccountId, T::AccountId),
 	}
@@ -363,7 +354,9 @@ pub mod pallet {
 	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
 		fn offchain_worker(block_number: T::BlockNumber) {
 			if Self::set_sent(block_number) {
-                Self::send_mining_stat();
+                if let Err(e_str) = Self::send_mining_stat() {
+					log::error!(target: LOG_TARGET, "{}", e_str);
+				}
             }
 		}
 
@@ -380,11 +373,12 @@ pub mod pallet {
 		#[pallet::weight(0)]
 		pub fn set_pool_interest(origin: OriginFor<T>, percent: Percent) -> DispatchResult {
 			let pool_id = ensure_signed(origin)?;
-			ensure!(<Pools<T>>::contains_key(&pool_id), Error::<T>::PoolNotExists);
-			ensure!(percent <= T::MaxPoolPercent::get(), Error::<T>::TooHighPoolRewards);
+			ensure!(<Pools<T>>::contains_key(&pool_id.clone()), Error::<T>::PoolNotExists);
+			ensure!(Percent::zero() <= percent && percent <= T::MaxPoolPercent::get(), Error::<T>::TooHighPoolRewards);
 
-			<PoolRewards<T>>::insert(pool_id, percent);
-			log::debug!(target: LOG_TARGET, "set pool interest - ok");
+			<PoolRewards<T>>::insert(pool_id.clone(), percent);
+			log::debug!(target: LOG_TARGET, "Set pool interest for {:#?}", pool_id.clone());
+			Self::deposit_event(Event::PoolInterestChanged(pool_id, percent));
 
 			Ok(())
 		}
@@ -398,11 +392,10 @@ pub mod pallet {
 
 			<Pools<T>>::insert(&pool_id, Vec::<T::AccountId>::new());
 			<PoolMode<T>>::insert(&pool_id, true);
-			log::debug!(target: LOG_TARGET, "pool created");
-
+			log::debug!(target: LOG_TARGET, "Pool created: {:#?}", &pool_id);
 			Self::deposit_event(Event::PoolCreated(pool_id.clone()));
 
-			return Ok(());
+			Ok(())
 		}
 
 		#[pallet::weight(0)]
@@ -410,8 +403,9 @@ pub mod pallet {
 			let pool_id = ensure_signed(origin)?;
 			ensure!(<Pools<T>>::contains_key(&pool_id), Error::<T>::PoolNotExists);
 
-			<PowDifficulty<T>>::insert(pool_id, difficulty);
-			log::debug!(target: LOG_TARGET, "set_pool_difficulty - ok");
+			<PowDifficulty<T>>::insert(pool_id.clone(), difficulty);
+			log::debug!(target: LOG_TARGET, "Set pool difficulty {} for {:#?}", &difficulty, &pool_id);
+			Self::deposit_event(Event::PoolDifficultyChanged(pool_id, difficulty));
 
 			Ok(())
 		}
@@ -421,8 +415,9 @@ pub mod pallet {
 			let pool_id = ensure_signed(origin)?;
 			ensure!(<Pools<T>>::contains_key(&pool_id), Error::<T>::PoolNotExists);
 
-			<PoolMode<T>>::insert(pool_id, with_kyc);
-			log::debug!(target: LOG_TARGET, "set_pool_mode - ok");
+			<PoolMode<T>>::insert(pool_id.clone(), with_kyc);
+			log::debug!(target: LOG_TARGET, "Set pool modbe with_kyc={} for {:#?}", &with_kyc, &pool_id);
+			Self::deposit_event(Event::PoolModeChanged(pool_id, with_kyc));
 
 			Ok(())
 		}
@@ -435,10 +430,11 @@ pub mod pallet {
 			ensure!((<Pools<T>>::get(&pool_id).len() as u32) < T::MaxMembers::get(), Error::<T>::MemberSizeMax);
 			Self::allow_join(&pool_id, &member_id)?;
 
-			<Pools<T>>::mutate(pool_id, |v| v.push(member_id.clone()));
-			log::debug!(target: LOG_TARGET, "member added by pool");
+			<Pools<T>>::mutate(pool_id.clone(), |v| v.push(member_id.clone()));
+			log::debug!(target: LOG_TARGET, "Member added. Pool {:#?}, member {:#?}", &pool_id, &member_id);
+			Self::deposit_event(Event::JoinedThePool(pool_id, member_id));
 
-			return Ok(());
+			Ok(())
 		}
 
 		#[pallet::weight(0)]
@@ -449,8 +445,10 @@ pub mod pallet {
 			ensure!((<Pools<T>>::get(&pool_id).len() as u32) < T::MaxMembers::get(), Error::<T>::MemberSizeMax);
 			Self::allow_join(&pool_id, &member_id)?;
 
-			<Pools<T>>::mutate(pool_id, |v| v.push(member_id.clone()));
-			log::debug!(target: LOG_TARGET, "member added by self");
+			<Pools<T>>::mutate(pool_id.clone(), |v| v.push(member_id.clone()));
+			log::debug!(target: LOG_TARGET, "Member added by self. Pool {:#?}, member {:#?}", &pool_id, &member_id);
+			Self::deposit_event(Event::JoinedThePool(pool_id, member_id));
+
 			Ok(())
 		}
 
@@ -462,8 +460,9 @@ pub mod pallet {
 			ensure!(<Pools<T>>::contains_key(&pool_id), Error::<T>::PoolNotExists);
 
 			<Pools<T>>::remove(pool_id.clone());
-			<PoolMode<T>>::remove(pool_id);
+			<PoolMode<T>>::remove(pool_id.clone());
 			log::debug!(target: LOG_TARGET, "pool removed");
+			Self::deposit_event(Event::PoolClosed(pool_id));
 
 			Ok(())
 		}
@@ -477,7 +476,9 @@ pub mod pallet {
 			ensure!(<Pools<T>>::contains_key(&pool_id), Error::<T>::PoolNotExists);
 			ensure!(!<Pools<T>>::get(&pool_id).contains(&member_id), Error::<T>::MemberNotExists);
 
-			<Pools<T>>::mutate(pool_id, |v| v.retain(|m| *m != member_id.clone()));
+			<Pools<T>>::mutate(pool_id.clone(), |v| v.retain(|m| *m != member_id.clone()));
+			Self::deposit_event(Event::LeftThePoll(pool_id, member_id));
+
 			Ok(())
 		}
 
@@ -490,7 +491,9 @@ pub mod pallet {
 			ensure!(<Pools<T>>::contains_key(&pool_id), Error::<T>::PoolNotExists);
 			ensure!(<Pools<T>>::get(&pool_id).contains(&member_id), Error::<T>::MemberNotExists);
 
-			<Pools<T>>::mutate(pool_id, |v| v.retain(|m| *m != member_id.clone()));
+			<Pools<T>>::mutate(pool_id.clone(), |v| v.retain(|m| *m != member_id.clone()));
+			Self::deposit_event(Event::LeftThePoll(pool_id, member_id));
+
 			Ok(())
 		}
 
@@ -526,7 +529,6 @@ pub mod pallet {
 
 				log::debug!(target: LOG_TARGET, "validate_unsigned for pool");
 
-				// check signature (this is expensive so we do it last).
 				let signature_valid = mining_stat.using_encoded(|encoded_stat| {
 					authority_id.verify(&encoded_stat, signature)
 				});
@@ -554,14 +556,6 @@ pub mod pallet {
 }
 
 impl<T: Config> Pallet<T> {
-	fn initialize_keys(keys: &[T::PoolAuthorityId]) {
-		if !keys.is_empty() {
-			assert!(Keys::<T>::get().is_empty(), "Keys are already initialized!");
-			let bounded_keys = <BoundedSlice<'_, _, T::MaxKeys>>::try_from(keys)
-				.expect("More than the maximum number of keys provided");
-			Keys::<T>::put(bounded_keys);
-		}
-	}
 
 	fn allow_create_pool(pool_id: &T::AccountId) -> DispatchResult {
 		let res = Self::check_identity(pool_id, true)
@@ -786,7 +780,8 @@ impl<T: Config> Pallet<T> {
 		let mut local_keys = T::PoolAuthorityId::all();
 		log::debug!(target: LOG_TARGET, "Number of PoolAuthorityId keys: {}", local_keys.len());
 
-		let pool_key = local_keys[0].clone();
+		let pool_key = local_keys.get(0).ok_or("No key for mining pool in local keystorage")?;
+
 		log::debug!(target: LOG_TARGET, "pool_key = {}", hex::encode(&pool_key.encode()));
 		let pool_id = T::AccountId::decode(&mut &pool_key.encode()[..]).unwrap();
 		log::debug!(target: LOG_TARGET, "pool_id = {}", hex::encode(&pool_id.encode()));
@@ -794,13 +789,10 @@ impl<T: Config> Pallet<T> {
 		let network_state = sp_io::offchain::network_state().map_err(|_| "OffchainErr::NetworkState")?;
 
 		let base_key = Self::storage_key(&pool_id);
-		log::debug!(target: LOG_TARGET, "base_storage_key={}", &base_key);
-
 		let member_ids = <Pools<T>>::get(&pool_id);
 
 		if member_ids.len() == 0 {
-			log::debug!(target: LOG_TARGET, "pool is empty");
-			return Ok(())
+			return Err("Pool is empty")
 		}
 
 		let mut pow_stat = Vec::new();
@@ -817,7 +809,6 @@ impl<T: Config> Pallet<T> {
 				match stat {
 					Ok(Some(stat)) => {
 						log::debug!(target: LOG_TARGET, "Extract stat from local storage: stat={:?}", &u32::from_le_bytes(stat));
-						// MiningStat { authority_index: 0, network_state, pool_id, pow_stat: v }
 						pow_stat.push((member_id, u32::from_le_bytes(stat)));
 					},
 					Ok(None) => {
@@ -825,8 +816,8 @@ impl<T: Config> Pallet<T> {
 						return Ok(())
 					},
 					Err(e) => {
-						log::debug!(target: LOG_TARGET, "Error extracting sts from local storage");
-						return Err("Err")
+						log::debug!(target: LOG_TARGET, "Error extracting stat from local storage");
+						return Ok(())
 					},
 				};
 			}
@@ -887,24 +878,6 @@ impl<T: Config> Pallet<T> {
 	}
 }
 
-impl<T: Config> EstimateNextSessionRotation<T::BlockNumber> for Pallet<T> {
-	fn average_session_length() -> T::BlockNumber {
-		Zero::zero()
-	}
-
-	fn estimate_current_session_progress(
-		_now: T::BlockNumber,
-	) -> (Option<sp_runtime::Permill>, frame_support::dispatch::Weight) {
-		(None, Zero::zero())
-	}
-
-	fn estimate_next_session_rotation(
-		_now: T::BlockNumber,
-	) -> (Option<T::BlockNumber>, frame_support::dispatch::Weight) {
-		(None, Zero::zero())
-	}
-}
-
 impl<
 	T: Config + frame_system::Config<AccountId = AccountId>,
 	Difficulty: FullCodec + Default + Clone + Ord + From<U256>,
@@ -953,7 +926,6 @@ impl<
 		}
 		let win_rate = Percent::from_rational(counter, n);
 
-		// let a = pallet_validator_set::Authors::<T>::get(cur_block_number);
 		Some((pool_part, win_rate, members_stat))
 	}
 }

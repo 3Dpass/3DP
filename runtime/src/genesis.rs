@@ -86,7 +86,6 @@ pub fn testnet_genesis(
 		},
 		grandpa: Default::default(),
 		im_online: Default::default(),
-		mining_pool: Default::default(),
 		difficulty: DifficultyConfig { initial_difficulty },
 		rewards: RewardsConfig {
 			reward: 500 * DOLLARS,
