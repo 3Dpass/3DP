@@ -143,7 +143,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	//   `spec_version`, and `authoring_version` are the same between Wasm and native.
 	// This value is set to 100 to notify Polkadot-JS App (https://polkadot.js.org/apps) to use
 	//   the compatible custom types.
-	spec_version: 102,
+	spec_version: 103,
 	impl_version: 1,
 	apis: RUNTIME_API_VERSIONS,
 	transaction_version: 1,
@@ -1320,13 +1320,15 @@ impl frame_support::traits::OnRuntimeUpgrade for SessionUpgrade {
 	fn on_runtime_upgrade() -> frame_support::weights::Weight {
 		use sp_core::sr25519;
 		log::debug!(target: LOG_TARGET, "SessionUpgrade::on_runtime_upgrade");
-		Session::upgrade_keys(|v, old_keys: opaque::OldSessionKeys| {
-			let keys = opaque::SessionKeys {
-				grandpa: old_keys.get(KeyTypeId([b'g', b'r', b'a', b'n'])).unwrap(),
-				imonline: sr25519::Public::from_raw(v.into()).into(),
-			};
-			keys
-		});
+		if VERSION.spec_version < 103 {
+			Session::upgrade_keys(|v, old_keys: opaque::OldSessionKeys| {
+				let keys = opaque::SessionKeys {
+					grandpa: old_keys.get(KeyTypeId([b'g', b'r', b'a', b'n'])).unwrap(),
+					imonline: sr25519::Public::from_raw(v.into()).into(),
+				};
+				keys
+			});
+		}
 		0
 	}
 }
