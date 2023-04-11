@@ -286,20 +286,20 @@ pub mod pallet {
 		PoolCreated(T::AccountId),
 		/// Pool closed.
 		PoolClosed(T::AccountId),
-		/// Pool removed.
+		/// Pool suspended.
 		PoolSuspended(T::AccountId),
-		/// Pool interest changed.
+		/// Member join the pool.
 		JoinedThePool(T::AccountId, T::AccountId),
-		/// Member left the pool manualy.
-		LeftThePoll(T::AccountId, T::AccountId),
+		/// Member left the pool.
+		LeftThePool(T::AccountId, T::AccountId),
 		/// Pool mode changed.
-	    PoolModeChanged(T::AccountId, bool),
-		/// Pool difficulty changed.
+		PoolModeChanged(T::AccountId, bool),
+		/// Pool interest changed.
 		PoolInterestChanged(T::AccountId, Percent),
-		/// Member join th pool.
+		/// Pool difficulty changed.
 		PoolDifficultyChanged(T::AccountId, U256),
 		/// Member removed from the pool.
-		RemovedFromThePoll(T::AccountId, T::AccountId),
+		RemovedFromThePool(T::AccountId, T::AccountId),
 	}
 
 	// Errors inform users that something went wrong.
@@ -311,9 +311,9 @@ pub mod pallet {
 		Duplicate,
 		/// Pool rewards is higher the maximum.
 		TooHighPoolRewards,
-		/// Pool size exсeeds max.
+		/// Number of pools exсeeds max.
 		PoolSizeMax,
-		/// Member size exсeeds max.
+		/// Number of pool members exсeeds max.
 		MemberSizeMax,
 		/// Pool/Member nas no registrar's label.
 		NotRegistered,
@@ -333,7 +333,7 @@ pub mod pallet {
 		PoolSuspended,
 		/// Duplicated pools with the same identities suspended
 		PoolDuplicatesSuspended,
-		/// Duplicated embers with the same identities removed
+		/// Duplicated members with the same identities have been removed
 		MemberDuplicatesRemoved,
 
 		BadOrigin,
@@ -477,7 +477,7 @@ pub mod pallet {
 			ensure!(<Pools<T>>::get(&pool_id).contains(&member_id), Error::<T>::MemberNotExists);
 
 			<Pools<T>>::mutate(pool_id.clone(), |v| v.retain(|m| *m != member_id.clone()));
-			Self::deposit_event(Event::LeftThePoll(pool_id, member_id));
+			Self::deposit_event(Event::LeftThePool(pool_id, member_id));
 
 			Ok(())
 		}
@@ -492,7 +492,7 @@ pub mod pallet {
 			ensure!(<Pools<T>>::get(&pool_id).contains(&member_id), Error::<T>::MemberNotExists);
 
 			<Pools<T>>::mutate(pool_id.clone(), |v| v.retain(|m| *m != member_id.clone()));
-			Self::deposit_event(Event::LeftThePoll(pool_id, member_id));
+			Self::deposit_event(Event::LeftThePool(pool_id, member_id));
 
 			Ok(())
 		}
@@ -769,7 +769,7 @@ impl<T: Config> Pallet<T> {
 			member_ids.sort();
 			member_ids.dedup();
 			for member_id in member_ids.iter() {
-				Self::deposit_event(Event::<T>::RemovedFromThePoll(pool_id.clone(), member_id.clone()));
+				Self::deposit_event(Event::<T>::RemovedFromThePool(pool_id.clone(), member_id.clone()));
 			}
 			<Pools<T>>::mutate(pool_id, |v| v.retain(|m| !member_ids.contains(m)));
 		}
