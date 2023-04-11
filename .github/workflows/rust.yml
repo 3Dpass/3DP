@@ -4,8 +4,6 @@ on:
   push:
     branches:
       - "test-ci"
-#     tags:
-#       - "v*.*.*"
 
 jobs:
 
@@ -15,77 +13,77 @@ jobs:
       fail-fast: false
       matrix:
         include:
-#           - target: x86_64-unknown-linux-gnu
-#             os: ubuntu-latest
-#             name: linux
-#             suffix: ''
-#           - target: x86_64-apple-darwin
-#             os: macos-latest
-#             name: macos
-#             suffix: ''
-          - target: x86_64-pc-windows-msvc
-            os: windows-latest
-            name: windows
-            suffix: .exe
+          - target: x86_64-unknown-linux-gnu
+            os: ubuntu-latest
+            name: linux
+            suffix: ''
+#          - target: x86_64-apple-darwin
+#            os: macos-latest
+#            name: macos
+#            suffix: ''
+#          - target: x86_64-pc-windows-msvc
+#            os: windows-latest
+#            name: windows
+#            suffix: .exe
 
     runs-on: ${{ matrix.os }}
 
     steps:
-    - uses: actions/checkout@v3
+      - uses: actions/checkout@v3
 
-    - uses: Vampire/setup-wsl@v2
-      with:
-        additional-packages:
-          git
-          clang
-          curl
-          libssl-dev
-          llvm
-          libudev-dev
-          make
-          protobuf-compile
-      if: matrix.os == 'windows-latest'
+      - uses: Vampire/setup-wsl@v2
+        with:
+          additional-packages:
+            git
+            clang
+            curl
+            libssl-dev
+            llvm
+            libudev-dev
+            make
+            protobuf-compile
+        if: matrix.os == 'windows-latest'
 
-    - uses: actions-rs/toolchain@v1
-      with:
-        profile: minimal
-        toolchain: nightly
-        override: true
+      - uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: nightly
+          override: true
 
-    - name: Add WASM target
-      run: |
-        rustup target add wasm32-unknown-unknown
+      - name: Add WASM target
+        run: |
+          rustup target add wasm32-unknown-unknown
 
-    - uses: actions/cache@v3
-      with:
-        path: ~/.cargo/registry
-        key: ${{ runner.os }}-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
+      - uses: actions/cache@v3
+        with:
+          path: ~/.cargo/registry
+          key: ${{ runner.os }}-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
 
-    - uses: actions/cache@v3
-      with:
-        path: ~/.cargo/git
-        key: ${{ runner.os }}-cargo-git-${{ hashFiles('**/Cargo.lock') }}
+      - uses: actions/cache@v3
+        with:
+          path: ~/.cargo/git
+          key: ${{ runner.os }}-cargo-git-${{ hashFiles('**/Cargo.lock') }}
 
-    - uses: actions/cache@v3
-      with:
-        path: target
-        key: ${{ runner.os }}-cargo-build-target-${{ hashFiles('**/Cargo.lock') }}
+      - uses: actions/cache@v3
+        with:
+          path: target
+          key: ${{ runner.os }}-cargo-build-target-${{ hashFiles('**/Cargo.lock') }}
 
-    - uses: actions-rs/cargo@v1
-      with:
-        command: build
-        args: '--release'
+      - uses: actions-rs/cargo@v1
+        with:
+          command: build
+          args: '--release'
 
-    - name: Package
-      shell: bash
-      run: |
-        cd target/release
-        tar czvf ../../../poscan-consensus-${{ matrix.name }}.tar.gz poscan-consensus${{ matrix.suffix }}
-        cd -
+      - name: Package
+        shell: bash
+        run: |
+          cd target/release
+          tar czvf ../../poscan-consensus-${{ matrix.name }}.tar.gz poscan-consensus${{ matrix.suffix }}
+          cd -
 
-#     - name: Publish
-#       uses: softprops/action-gh-release@v0.1.15
-#       with:
-#         files: "poscan-consensus-*"
-#       env:
-#         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Publish
+        uses: softprops/action-gh-release@v0.1.15
+        with:
+          files: "poscan-consensus-*"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
