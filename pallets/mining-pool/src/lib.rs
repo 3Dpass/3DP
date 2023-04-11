@@ -474,7 +474,7 @@ pub mod pallet {
 		) -> DispatchResult {
 			let pool_id = ensure_signed(origin)?;
 			ensure!(<Pools<T>>::contains_key(&pool_id), Error::<T>::PoolNotExists);
-			ensure!(!<Pools<T>>::get(&pool_id).contains(&member_id), Error::<T>::MemberNotExists);
+			ensure!(<Pools<T>>::get(&pool_id).contains(&member_id), Error::<T>::MemberNotExists);
 
 			<Pools<T>>::mutate(pool_id.clone(), |v| v.retain(|m| *m != member_id.clone()));
 			Self::deposit_event(Event::LeftThePoll(pool_id, member_id));
