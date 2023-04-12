@@ -3,7 +3,7 @@
 
 # 3Dpass Node - mainnet
 
-3DPass is an OpenSource decentralized WEB 3.0 P2P Layer 1 blockchain platform for tokenization of real physical and virtual objects and its transformation into digital assets. The main idea of 3DPass is to make it possible for people to use real world objects in digital within smart-contracts and dApps and have full control over its copies (learn more about 3DPass [features](https://3dpass.org/features.html) ). This allows to establish 1:1 corespondence between an object and its asset and define ownership as an additional property of the asset providing zero-knowledge proof. Follow the [White Paper](https://3dpass.org/3DPass_white_paper.pdf) for the details.
+3DPass is an OpenSource decentralized WEB 3.0 P2P Layer 1 blockchain platform for tokenization of real physical and virtual objects and its transformation into digital assets. The main idea of 3DPass is to make it possible for people to use real world objects in digital within smart-contracts and dApps and have full control over its copies (learn more about 3DPass [features](https://3dpass.org/features.html) ). This allows to establish 1:1 correspondence between an object and its asset and define ownership as an additional property of the asset providing zero-knowledge proof. Follow the [White Paper](https://3dpass.org/3DPass_white_paper.pdf) for the details.
 
 Every object, transformed by 3DPass, has its own unique and sustainable identity called [HASH ID](https://3dpass.org/features.html#3D_object_recognition) the object might be recognized by. The algorithm is flexible enough to adjust the definition of error to certain level of scanning precision.
 
@@ -21,7 +21,7 @@ Every object, transformed by 3DPass, has its own unique and sustainable identity
 
 - [3DPass light wallet](https://github.com/3Dpass/wallet) - desktop users and 3D printing labs integration
 - [Pass3d mobile](https://github.com/3Dpass/threedpass) - smartphone and tablets users integration
-- Smart contracts toolkit - Substrate based smart contract tools using [ink](https://paritytech.github.io/ink-docs/), a Rust-based embedded domain specific language (eDSL) for writing WebAssembly smart contracts. Learn more about [how it compares to Solidity](https://paritytech.github.io/ink-docs/ink-vs-solidity). As well, it allows unmodified EVM code to be executed in the 3DPass blockchain. Some special Substrate fetures are designed to closely emulate the functionality of executing contracts on the Ethereum mainnet within the 3DPass network.
+- Smart contracts toolkit - Substrate based smart contract tools using [ink](https://paritytech.github.io/ink-docs/), a Rust-based embedded domain specific language (eDSL) for writing WebAssembly smart contracts. Learn more about [how it compares to Solidity](https://paritytech.github.io/ink-docs/ink-vs-solidity). As well, it allows unmodified EVM code to be executed in the 3DPass blockchain. Some special Substrate features are designed to closely emulate the functionality of executing contracts on the Ethereum mainnet within the 3DPass network.
 - IPFS storage - embedded decentralized storage for assets
 - RPC (remote procedure call) - the capabilities that allow blockchain users to interact with the network. The NODE provides HTTP and [WebSocket](https://github.com/3Dpass/3DP/wiki/Set-up-WSS-for-Remote-Connections) RPC servers.
 - Networking: we use the [`libp2p`](https://libp2p.io/) networking stack to allow for the
@@ -120,7 +120,7 @@ Run miner:
 ```bash
 pnpm miner --interval 100
 ```
-- `--interval 100` is the amount of time in miliseconds between the last and the next one objects being sent towards the Node. Dependidng on how much threads are you mining with, reduce the interval until you reach desired proc load.
+- `--interval 100` is the amount of time in milliseconds between the last and the next one objects being sent towards the Node. Depending on how much threads are you mining with, reduce the interval until you reach desired proc load.
 
 Make sure you can see your node in the [list](https://telemetry.3dpass.org/). Use this [tutorial](https://3dpass.org/mainnet.html#mining_docker) for more details.
 
@@ -155,7 +155,7 @@ version: "3.9"
           - INTERVAL=100
 ```
 - `THREADS=2` is the amount of threads you are about to use for mining
-- `INTERVAL=100` is the amount of time in miliseconds between the last and the next one objects being sent towards the Node. Dependidng on how much threads are you mining with, reduce the interval until you reach desired proc load.
+- `INTERVAL=100` is the amount of time in milliseconds between the last and the next one objects being sent towards the Node. Depending on how much threads are you mining with, reduce the interval until you reach desired proc load.
 
 You can generate your ADDRESS and MEMO_SEED phrase in the [wallet](https://wallet.3dpass.org/) (add new address). Make sure you can see your node in the [list](https://telemetry.3dpass.org/). Use this [tutorial](https://3dpass.org/mainnet.html#mining_docker) for more details.
 
