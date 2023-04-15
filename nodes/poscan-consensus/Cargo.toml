@@ -30,6 +30,7 @@ serde = {version = "1.0", default-features = false }
 serde_json = { version = "1", default-features = false }
 rand = "0.7.3"
 ecies-ed25519 = { version = "0.5" }
+schnorrkel = { version = "0.9" }
 
 # Substrate packages
 # serde = { version = "1.0.101", optional = true }

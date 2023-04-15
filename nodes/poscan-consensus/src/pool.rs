@@ -35,6 +35,9 @@ pub struct MiningMeta {
 pub enum PoolError {
     NotAccepted,
     CheckMemberError(CheckMemberError),
+    InvalidMemberError,
+    SignatureError,
+    SignatureMemberError,
 }
 
 pub type PoolResult<T> = std::result::Result<T, PoolError>;

@@ -11,6 +11,10 @@ use jsonrpsee::{
 	types::error::{CallError, ErrorObject},
 };
 
+use schnorrkel::{PublicKey, Signature};
+use sp_std::str::FromStr;
+use sp_core::ByteArray;
+
 use codec::Encode;
 
 use sp_runtime::{
@@ -72,6 +76,8 @@ pub trait PoscanPoolRpcApi<BlockHash> {
 	fn push_to_pool(
 		&self,
 		payload: Vec<u8>,
+		member_id: String,
+		sign: String,
 	) -> RpcResult<u64>;
 }
 
@@ -162,8 +168,7 @@ where
 
 		match e {
 			PoolError::NotAccepted =>
-				CallError::Custom(ErrorObject::owned(BASE_ERROR + 0, "No pool", None::<()>))
-					.into(),
+				CallError::Custom(ErrorObject::owned(BASE_ERROR + 0, "No pool", None::<()>)).into(),
 			PoolError::CheckMemberError(e) =>
 				match e {
 					CheckMemberError::NoPool =>
@@ -176,6 +181,12 @@ where
 						CallError::Custom(ErrorObject::owned(BASE_ERROR + 3, "Pool suspended", None::<()>))
 							.into(),
 				},
+			PoolError::InvalidMemberError =>
+				CallError::Custom(ErrorObject::owned(BASE_ERROR + 4, "Invalid member", None::<()>)).into(),
+			PoolError::SignatureError =>
+				CallError::Custom(ErrorObject::owned(BASE_ERROR + 5, "Invalid signature", None::<()>)).into(),
+			PoolError::SignatureMemberError =>
+				CallError::Custom(ErrorObject::owned(BASE_ERROR + 6, "Strange signature", None::<()>)).into(),
 		}
 	}
 }
@@ -226,7 +237,17 @@ impl<C, Block, B> PoscanPoolRpcApiServer<<Block as BlockT>::Hash> for MiningPool
 	fn push_to_pool(
 		&self,
 		payload: Vec<u8>,
+		member_id: String,
+		sign: String,
 	) -> RpcResult<u64> {
+		const SIGN_CTX: &[u8] = b"Mining pool";
+
+		let member_acc = AccountId::from_str(&member_id).map_err(|_| Self::error(PoolError::InvalidMemberError))?;
+		let pk = PublicKey::from_bytes(member_acc.as_slice()).map_err(|_| Self::error(PoolError::InvalidMemberError))?;
+		let sign = hex::decode(sign).map_err(|_| Self::error(PoolError::SignatureError))?;
+		let sig = Signature::from_bytes(&sign[..]).map_err(|_| Self::error(PoolError::SignatureError))?;
+		pk.verify_simple(SIGN_CTX, &payload[..], &sig).map_err(|_| Self::error(PoolError::SignatureError))?;
+
 		let payload = self.decrypt(&payload);
 
 		if let Ok(payload) = payload {
@@ -238,6 +259,7 @@ impl<C, Block, B> PoscanPoolRpcApiServer<<Block as BlockT>::Hash> for MiningPool
 				// .into();
 
 			match member_status {
+				Ok(_) if payload.member_id != member_acc => Err(Self::error(PoolError::SignatureMemberError)),
 				Ok(_) =>
 					self.push_pow_data(
 						payload.pool_id,

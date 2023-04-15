@@ -4962,6 +4962,7 @@ dependencies = [
  "sc-transaction-pool",
  "sc-transaction-pool-api",
  "scale-info",
+ "schnorrkel",
  "serde",
  "serde_json",
  "sp-api",
