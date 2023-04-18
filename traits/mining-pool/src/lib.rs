@@ -12,12 +12,12 @@ pub type PoolId<T> = <T as Config>::AccountId;
 pub trait MiningPoolStatApi<Difficulty: Clone + Ord + Default, AccountId: Clone + Ord> {
 	/// Return the target pow difficulty of the next block.
 	fn difficulty(pool_id: &AccountId) -> Difficulty;
-	fn member_status(pool_id: &AccountId, memeber_id: &AccountId) -> Result<(), CheckMemberError>;
+	fn member_status(pool_id: &AccountId, member_id: &AccountId) -> Result<(), CheckMemberError>;
 	fn get_stat(pool_id: &AccountId) -> Option<(Percent, Percent, Vec<(AccountId, u32)>)>;
 }
 
 impl<Difficulty: Clone + Ord + Default, AccountId: Clone + Ord> MiningPoolStatApi<Difficulty, AccountId> for () {
 	fn difficulty(_pool_id: &AccountId) -> Difficulty { Difficulty::default() }
-	fn member_status(_pool_id: &AccountId, _memeber_id: &AccountId) -> Result<(), CheckMemberError> { Ok(()) }
+	fn member_status(_pool_id: &AccountId, _member_id: &AccountId) -> Result<(), CheckMemberError> { Ok(()) }
 	fn get_stat(_pool_id: &AccountId) -> Option<(Percent, Percent, Vec<(AccountId, u32)>)> { None }
 }

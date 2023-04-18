@@ -896,8 +896,11 @@ impl<
 		}
 	}
 
-	/// Return the target difficulty of the next block.
 	fn member_status(pool_id: &AccountId, member_id: &AccountId) -> Result<(), CheckMemberError> {
+		ensure!(<Pools<T>>::contains_key(&pool_id), CheckMemberError::NoPool);
+		ensure!(!<SuspendedPools<T>>::get().contains(&pool_id), CheckMemberError::PoolSuspended);
+		ensure!(<Pools<T>>::get(&pool_id).contains(&member_id), CheckMemberError::NoMember);
+
 		Ok(())
 	}
 
