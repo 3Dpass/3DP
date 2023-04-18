@@ -461,7 +461,8 @@ pub mod pallet {
 
 			<Pools<T>>::remove(pool_id.clone());
 			<PoolMode<T>>::remove(pool_id.clone());
-			log::debug!(target: LOG_TARGET, "pool removed");
+			<SuspendedPools<T>>::mutate(|v| v.retain(|p| *p != pool_id));
+			log::debug!(target: LOG_TARGET, "pool removed: pool_id: {:#?}", pool_id.clone());
 			Self::deposit_event(Event::PoolClosed(pool_id));
 
 			Ok(())
