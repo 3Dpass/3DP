@@ -567,11 +567,16 @@ impl<T: Config> Pallet<T> {
 
 	fn check_identity(account_id: &T::AccountId, with_kyc: bool) -> Result<Option<IdentInfo>, IdentityErr<T::AccountId>> {
 		let ident = Self::get_ident(&account_id);
-		match ident {
-			Some(ref id_info) => id_info.is_judjements_ok()
-				.then_some(ident).ok_or(IdentityErr::NotEnoughJudjement),
-			None if with_kyc => Err(IdentityErr::NoIdentity),
-			None => Ok(None),
+
+		if with_kyc {
+			match ident {
+				Some(ref id_info) => id_info.is_judjements_ok()
+					.then_some(ident).ok_or(IdentityErr::NotEnoughJudjement),
+				None => Err(IdentityErr::NoIdentity),
+			}
+		}
+		else {
+			Ok(ident)
 		}
 	}
 
