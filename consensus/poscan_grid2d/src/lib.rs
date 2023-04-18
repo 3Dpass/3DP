@@ -232,14 +232,13 @@ where
 }
 
 
-use p3d;
 use log::*;
 use std::str::FromStr;
 use std::convert::TryInto;
 
 use sp_consensus_poscan::{POSCAN_ALGO_GRID2D_V2, POSCAN_ALGO_GRID2D_V3};
 
-pub fn get_obj_hashes(ver: &[u8; 16], data: &Vec<u8>, pre: &H256) -> Vec<H256> {
+pub fn get_obj_hashes(ver: &[u8; 16], data: &[u8], pre: &H256) -> Vec<H256> {
 	let mut buf: Vec<H256> = Vec::new();
 	let grid_size = 8;
 	let (alg_type, n_sect) =
@@ -260,8 +259,8 @@ pub fn get_obj_hashes(ver: &[u8; 16], data: &Vec<u8>, pre: &H256) -> Vec<H256> {
 
 	match res {
 		Ok(v) => {
-			for i in 0..v.len() {
-				let h = H256::from_str(v[i].as_str()).unwrap();
+			for item in v {
+				let h = H256::from_str(item.as_str()).unwrap();
 				buf.push(h);
 			}
 		},

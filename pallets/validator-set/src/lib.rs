@@ -29,7 +29,6 @@ use frame_support::{
 	},
 	sp_runtime::SaturatedConversion,
 };
-use log;
 pub use pallet::*;
 use sp_runtime::traits::{Convert, Zero};
 use sp_staking::offence::{Offence, OffenceError, ReportOffence};
@@ -44,7 +43,7 @@ use validator_set_api::ValidatorSetApi;
 const CUR_SPEC_VERSION: u32 = 101;
 const UPGRADE_SLASH_DELAY: u32 = 5 * 24 * HOURS;
 const LOCK_ID: LockIdentifier = *b"validatr";
-pub const LOG_TARGET: &'static str = "runtime::validator-set";
+pub const LOG_TARGET: &str = "runtime::validator-set";
 
 pub type BalanceOf<T> =
 <<T as Config>::Currency as Currency<<T as frame_system::Config>::AccountId>>::Balance;
@@ -54,17 +53,12 @@ type NegativeImbalanceOf<T> = <<T as Config>::Currency as Currency<
 >>::NegativeImbalance;
 
 
-#[derive(Encode, Decode, Debug, Clone, PartialEq, TypeInfo)]
+#[derive(Encode, Decode, Debug, Clone, PartialEq, TypeInfo, Default)]
 pub enum RemoveReason {
+	#[default]
 	Normal,
 	DepositBelowLimit,
 	ImOnlineSlash,
-}
-
-impl Default for RemoveReason {
-	fn default() -> Self {
-		RemoveReason::Normal
-	}
 }
 
 #[frame_support::pallet]
@@ -504,10 +498,8 @@ impl<T: Config> Pallet<T> {
 				return Err(Error::<T>::ValidatorHasNotMined.into());
 			}
 		}
-		else {
-			if !Self::check_lock(&validator_id) {
-				return Err(Error::<T>::AmountLockedBelowLimit.into());
-			}
+		else if !Self::check_lock(&validator_id) {
+			return Err(Error::<T>::AmountLockedBelowLimit.into());
 		}
 
 		let validator_set: BTreeSet<_> = <Validators<T>>::get().into_iter().collect();
@@ -516,7 +508,7 @@ impl<T: Config> Pallet<T> {
 
 		EnterDeposit::<T>::insert(&validator_id, Some((cur_block_number, deposit)));
 
-		Self::deposit_event(Event::ValidatorAdditionInitiated(validator_id.clone()));
+		Self::deposit_event(Event::ValidatorAdditionInitiated(validator_id));
 		log::debug!(target: LOG_TARGET, "Validator addition initiated.");
 
 		Ok(())
@@ -569,7 +561,7 @@ impl<T: Config> Pallet<T> {
 		let min_bal = <T as pallet::Config>::Currency::minimum_balance();
 
 		let zero = BalanceOf::<T>::zero();
-		let maybe_lock = ValidatorLock::<T>::get(&validator_id);
+		let maybe_lock = ValidatorLock::<T>::get(validator_id);
 		let mut usable: u128 = pallet_balances::Pallet::<T>::usable_balance(validator_id).saturated_into();
 
 		let unlock_amount = amount - usable.saturated_into();
@@ -588,8 +580,8 @@ impl<T: Config> Pallet<T> {
 			let unlock_amount = amount - usable.saturated_into();
 			if unlock_amount > zero {
 				log::debug!(target: LOG_TARGET, "Try to unlock rewards locks for {:#?}, usable: {}", validator_id, usable);
-				let total_reward_locked = T::RewardLocksApi::locks(&validator_id);
-				T::RewardLocksApi::unlock_upto(&validator_id, total_reward_locked - unlock_amount);
+				let total_reward_locked = T::RewardLocksApi::locks(validator_id);
+				T::RewardLocksApi::unlock_upto(validator_id, total_reward_locked - unlock_amount);
 				usable = pallet_balances::Pallet::<T>::usable_balance(validator_id).saturated_into();
 				log::debug!(target: LOG_TARGET, "After unlock rewards locks for {:#?} usable: {}", validator_id, usable);
 			}
@@ -597,7 +589,7 @@ impl<T: Config> Pallet<T> {
 
 		let amount = core::cmp::min(amount, usable.saturated_into()) - min_bal;
 		let res = <T as pallet::Config>::Currency::transfer(
-			&validator_id, &pot_id, amount, ExistenceRequirement::KeepAlive,
+			validator_id, &pot_id, amount, ExistenceRequirement::KeepAlive,
 		);
 
 		if let Err(e) = res {
@@ -656,13 +648,14 @@ impl<T: Config> Pallet<T> {
 		let levels = T::FilterLevels::get();
 		let zero = BalanceOf::<T>::zero();
 
-		let maybe_enter_depo = EnterDeposit::<T>::get(&validator_id);
-		let maybe_lock = ValidatorLock::<T>::get(&validator_id);
+		let maybe_enter_depo = EnterDeposit::<T>::get(validator_id);
+		let maybe_lock = ValidatorLock::<T>::get(validator_id);
 		let mut true_locked: BalanceOf<T> = zero;
 
 		if let Some(lock) = maybe_lock {
 			let current_block = frame_system::Pallet::<T>::block_number();
-			true_locked = if lock.0 < current_block { zero } else { lock.1.into() };
+			true_locked = if lock.0 < current_block { zero } else { lock.1
+			};
 		}
 
 		true_locked >= maybe_enter_depo.map_or_else(|| levels[0].0.saturated_into(), |d| d.1)

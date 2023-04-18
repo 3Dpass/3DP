@@ -64,7 +64,6 @@ use sp_consensus::{
 };
 use codec::{Encode, Decode};
 use prometheus_endpoint::Registry;
-use sc_client_api;
 use log::*;
 use sp_core::{H256, U256};
 use core::ops::Bound::{Excluded, Included};
@@ -279,7 +278,7 @@ impl<B: BlockT, I: Clone, C, S: Clone, Algorithm: Clone, CAW: Clone, CIDP> Clone
 			select_chain: self.select_chain.clone(),
 			client: self.client.clone(),
 			create_inherent_data_providers: self.create_inherent_data_providers.clone(),
-			check_inherents_after: self.check_inherents_after.clone(),
+			check_inherents_after: self.check_inherents_after,
 			can_author_with: self.can_author_with.clone(),
 			last_cached: self.last_cached,
 		}
@@ -385,7 +384,7 @@ impl<B, I, C, S, Algorithm, CAW, CIDP> PowBlockImport<B, I, C, S, Algorithm, CAW
 			if n >= 3 {
 				let di = digest.logs()[n - 2].clone();
 				if let DigestItem::Other(v) = di {
-					let hashes: Vec<H256> = v[16..].chunks(32).map(|h| H256::from_slice(h)).collect();
+					let hashes: Vec<H256> = v[16..].chunks(32).map(H256::from_slice).collect();
 					let item = [&number.encode()[..], &hashes[0].encode()[0..4]].concat();
 					let item: u64 = u64::from_le_bytes(item.try_into().unwrap());
 					CACHE.lock().insert(item);
@@ -436,7 +435,7 @@ impl<B, I, C, S, Algorithm, CAW, CIDP> PowBlockImport<B, I, C, S, Algorithm, CAW
 		if n >= 3 {
 			let di = digest.logs()[n-2].clone();
 			if let DigestItem::Other(v) = di {
-				let hashes: Vec<H256> = v[16..].chunks(32).map(|h| H256::from_slice(h)).collect();
+				let hashes: Vec<H256> = v[16..].chunks(32).map(H256::from_slice).collect();
 				return Some(hashes[0])
 			}
 		}
@@ -521,7 +520,7 @@ impl<B, I, C, S, Algorithm, CAW, CIDP> BlockImport<B> for PowBlockImport<B, I, C
 		if *alg_id != POSCAN_ALGO_GRID2D && *alg_id != POSCAN_ALGO_GRID2D_V2 && *alg_id != POSCAN_ALGO_GRID2D_V3 {
 			return Err(Error::<B>::Other("Unknown algorithm".to_string()).into());
 		}
-		let hs: Vec<H256> = pscan_hashes[16..].chunks(32).map(|h| H256::from_slice(h)).collect();
+		let hs: Vec<H256> = pscan_hashes[16..].chunks(32).map(H256::from_slice).collect();
 
 		let psdata = PoscanData{ alg_id: *alg_id, hashes: hs.clone(), obj: pscan_obj };
 
@@ -579,7 +578,7 @@ impl<B, I, C, S, Algorithm, CAW, CIDP> BlockImport<B> for PowBlockImport<B, I, C
 							if n >= 3 {
 								let di = h.digest().logs()[n - 2].clone();
 								if let DigestItem::Other(v) = di {
-									let hashes: Vec<H256> = v[16..].chunks(32).map(|h| H256::from_slice(h)).collect();
+									let hashes: Vec<H256> = v[16..].chunks(32).map(H256::from_slice).collect();
 									for hh in hashes[..1].iter() {
 										if hs[..1].contains(hh) {
 											info!(">>>>>> duplicated hash found");
@@ -673,14 +672,11 @@ impl<B: BlockT, Algorithm> PowVerifier<B, Algorithm> {
 			};
 		}
 		for item in header.digest().logs().iter() {
-			match item {
-				DigestItem::Consensus(id, _) => {
-					if *id != GRANDPA_ENGINE_ID {
-						return Err(Error::WrongEngine(*id))
-					}
-				},
-				_ => {},
-			};
+			if let DigestItem::Consensus(id, _) = item {
+				if *id != GRANDPA_ENGINE_ID {
+					return Err(Error::WrongEngine(*id))
+				}
+			}
 		}
 
 		Ok((header, digests))
@@ -806,7 +802,7 @@ fn fetch_seal<B: BlockT>(
 			if id == &POSCAN_ENGINE_ID {
 				Ok(seal.clone())
 			} else {
-				return Err(Error::<B>::WrongEngine(*id).into())
+				Err(Error::<B>::WrongEngine(*id).into())
 			}
 		},
 		Some(DigestItem::Other(item)) => {
@@ -817,7 +813,7 @@ fn fetch_seal<B: BlockT>(
 				Ok(pre_runtime.clone())
 			}
 			else {
-				return Err(Error::<B>::WrongEngine(*id).into())
+				Err(Error::<B>::WrongEngine(*id).into())
 			}
 		},
 		Some(DigestItem::Consensus(id, v)) => {
@@ -825,12 +821,12 @@ fn fetch_seal<B: BlockT>(
 				Ok(v.clone())
 			}
 			else {
-				return Err(Error::<B>::WrongEngine(*id).into())
+				Err(Error::<B>::WrongEngine(*id).into())
 			}
 		},
 		_ => {
 			error!(">>> Header unsealed in fetch_seal");
-			return Err(Error::<B>::HeaderUnsealed(hash).into())
+			Err(Error::<B>::HeaderUnsealed(hash).into())
 		},
 	}
 }
@@ -987,7 +983,7 @@ pub fn start_mining_worker<Block, C, S, Algorithm, E, SO, L, CIDP, CAW>(
 			};
 
 			let proposal = match proposer
-				.propose(inherent_data, inherent_digest, build_time.clone(), None)
+				.propose(inherent_data, inherent_digest, build_time, None)
 				.await
 			{
 				Ok(x) => x,
@@ -1011,7 +1007,7 @@ pub fn start_mining_worker<Block, C, S, Algorithm, E, SO, L, CIDP, CAW>(
 			let build = MiningBuild::<Block, Algorithm, C, _> {
 				metadata: MiningMetadata {
 					best_hash,
-					pre_hash: pre_hash,
+					pre_hash,
 					pre_runtime: pre_runtime.clone(),
 					difficulty,
 				},
