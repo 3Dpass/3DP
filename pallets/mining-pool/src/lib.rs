@@ -813,12 +813,10 @@ impl<T: Config> Pallet<T> {
 						pow_stat.push((member_id, u32::from_le_bytes(stat)));
 					},
 					Ok(None) => {
-						log::debug!(target: LOG_TARGET, "No stat in local storage");
-						return Ok(())
+						log::debug!(target: LOG_TARGET, "No stat in local storage: member_id: {:#?}", &member_id);
 					},
 					Err(e) => {
-						log::debug!(target: LOG_TARGET, "Error extracting stat from local storage");
-						return Ok(())
+						log::debug!(target: LOG_TARGET, "Error extracting stat from local storage: member_id: {:#?}", &member_id);
 					},
 				};
 			}
