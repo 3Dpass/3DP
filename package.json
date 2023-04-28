@@ -7,7 +7,7 @@
   "scripts": {
     "preinstall": "npx only-allow pnpm",
     "start": "pm2 start",
-    "stop": "pm2 stop all && pm2 del all",
+    "stop": "pm2 stop all && pm2 del all"
   },
   "devDependencies": {
     "prettier": "2.8.8"
