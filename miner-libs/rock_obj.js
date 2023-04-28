@@ -1,7 +1,7 @@
 /**
  * @copyright https://github.com:Erkaman/gl-rock
  */
-import randomArray from "random-array";
+const randomArray = require("random-array");
 
 /*
 RockObj contains all the parameters that are used when generating a rock.
@@ -115,4 +115,4 @@ const SCALE_MIN = +1.0;
 const SCALE_MAX = +2.0;
 const SCALE_VARY = +0.1;
 
-export default RockObj;
+module.exports = RockObj;

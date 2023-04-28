@@ -116,11 +116,14 @@ corepack enable
 pnpm i
 ```
 
-Run miner:
+Config miner: check file `ecosystem.config.js` to set params and multiprocessing.
+
+Run/stop miner:
 ```bash
-pnpm miner --interval 100
+pnpm start
+pnpm stop
+pnpm restart
 ```
-- `--interval 100` is the amount of time in milliseconds between the last and the next one objects being sent towards the Node. Depending on how much threads are you mining with, reduce the interval until you reach desired proc load.
 
 Make sure you can see your node in the [list](https://telemetry.3dpass.org/). Use this [tutorial](https://3dpass.org/mainnet.html#mining_docker) for more details.
 

@@ -101,4 +101,4 @@ const createSphere = function (opt) {
   return { vertices: vertices, cells: indexes, normals: normals };
 };
 
-export default createSphere;
+module.exports = createSphere;

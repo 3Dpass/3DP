@@ -1,24 +1,30 @@
-import RockObj from "./miner-libs/rock_obj.js";
-import Rock from "./miner-libs/rock.js";
-import randomArray from "random-array";
-import * as THREE from "three";
-import { OBJExporter } from "three/examples/jsm/exporters/OBJExporter.js";
-import axios from "axios";
-import yargs from "yargs";
-import { hideBin } from "yargs/helpers";
-import fs from "fs";
+const RockObj = require("./miner-libs/rock_obj.js");
+const Rock = require("./miner-libs/rock.js");
+const randomArray = require("random-array");
+const THREE = require("three");
+const OBJExporter = import("three/examples/jsm/exporters/OBJExporter.js");
+const axios = require("axios");
+const yargs = require("yargs");
+const { hideBin } = require("yargs/helpers");
+const fs = require("fs");
 
 const argv = yargs(hideBin(process.argv)).argv;
 const interval = argv.interval || 1000;
-const host = argv.host || "localhost";
+const host = argv.host || "127.0.0.1";
 const port = argv.port || "9933";
 const do_save = argv.save || false;
 const apiUrl = `http://${host}:${port}`;
 const filename = "rock.obj";
 
-mining(do_save);
+let exporterModule;
+let exporter;
 
-function mining(do_save) {
+void mining(do_save);
+
+async function mining(do_save) {
+  exporterModule = await OBJExporter;
+  exporter = new exporterModule.OBJExporter();
+
   const rock = create_rock();
   const obj_file = create_obj_file(rock);
   if (do_save) {
@@ -56,7 +62,6 @@ function create_obj_file(rock) {
   const mesh = new THREE.Mesh(rock.geometry);
   scene.add(mesh);
 
-  const exporter = new OBJExporter();
   return exporter.parse(scene);
 }
 

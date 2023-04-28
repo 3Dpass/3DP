@@ -2,8 +2,8 @@
  * @copyright https://github.com:Erkaman/gl-rock
  */
 
-import Set from "es6-set";
-import vec3 from "gl-vec3";
+const Set = require("es6-set");
+const vec3 = require("gl-vec3");
 
 function getNeighbours(positions, cells) {
   /*
@@ -128,7 +128,7 @@ const scrape = function (
   }
 };
 
-export default {
+module.exports = {
   scrape,
   getNeighbours,
 };

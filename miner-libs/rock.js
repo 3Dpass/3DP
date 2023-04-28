@@ -2,13 +2,13 @@
  * @copyright https://github.com:Erkaman/gl-rock
  */
 
-import vec3 from "gl-vec3";
-import seedRandom from "seed-random";
-import * as THREE from "three";
+const vec3 = require("gl-vec3");
+const seedRandom = require("seed-random");
+const THREE = require("three");
 
-import Perlin from "./Perlin.js";
-import createSphere from "./sphere.js";
-import scrape from "./scrape.js";
+const Perlin = require("./Perlin.js");
+const createSphere = require("./sphere.js");
+const scrape = require("./scrape.js");
 
 let adjacentVertices = null;
 
@@ -126,4 +126,4 @@ const Rock = function (rockObj) {
   return rock;
 };
 
-export default Rock;
+module.exports = Rock;
