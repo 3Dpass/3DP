@@ -122,7 +122,6 @@ Run/stop miner:
 ```bash
 pnpm start
 pnpm stop
-pnpm restart
 ```
 
 Make sure you can see your node in the [list](https://telemetry.3dpass.org/). Use this [tutorial](https://3dpass.org/mainnet.html#mining_docker) for more details.

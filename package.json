@@ -8,7 +8,6 @@
     "preinstall": "npx only-allow pnpm",
     "start": "pm2 start",
     "stop": "pm2 stop all && pm2 del all",
-    "restart": "pm2 restart all"
   },
   "devDependencies": {
     "prettier": "2.8.8"
