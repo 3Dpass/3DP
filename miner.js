@@ -3,13 +3,11 @@ const Rock = require("./miner-libs/rock.js");
 const randomArray = require("random-array");
 const THREE = require("three");
 const OBJExporter = import("three/examples/jsm/exporters/OBJExporter.js");
-const axios = require("axios");
 const yargs = require("yargs");
 const { hideBin } = require("yargs/helpers");
 const fs = require("fs");
 
 const argv = yargs(hideBin(process.argv)).argv;
-const interval = argv.interval || 1000;
 const host = argv.host || "127.0.0.1";
 const port = argv.port || "9933";
 const do_save = argv.save || false;
@@ -31,21 +29,24 @@ async function mining(do_save) {
     save(obj_file, filename);
     return;
   }
-  axios
-    .post(apiUrl, {
+  fetch(apiUrl, {
+    method: "POST",
+    body: JSON.stringify({
       jsonrpc: "2.0",
       id: 1,
       method: "poscan_pushMiningObject",
       params: [1, obj_file],
-    })
+    }),
+    headers: {
+      "Content-Type": "application/json",
+    },
+  })
+    .then((response) => response.json())
     .catch((e) => {
       console.log(e.toString());
     })
-    .then((response) => {
-      if (response && response.hasOwnProperty("data")) {
-        console.log(response.data);
-      }
-      setTimeout(mining, interval);
+    .then(() => {
+      mining();
     });
 }
 

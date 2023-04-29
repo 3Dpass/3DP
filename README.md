@@ -110,10 +110,10 @@ Start the Node with the following command:
 ./target/release/poscan-consensus --base-path ~/3dp-chain/ --chain mainnetSpecRaw.json --name MyNodeName --validator --telemetry-url "wss://submit.telemetry.3dpass.org/submit 0" --author <your mining address or pub key> --threads 2 --no-mdns
 ```
 
-Install miner (You have to install [NodeJS v16](https://nodejs.org/en/) and [pnpm](https://pnpm.io/installation) before):
+Install miner (You have to install [Bun](https://bun.sh/) before):
 ```bash
-corepack enable
-pnpm i
+bun install
+bun miner.js --host 127.0.0.1 --port 9933
 ```
 
 Config miner: check file `ecosystem.config.js` to set params and multiprocessing.
