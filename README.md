@@ -110,18 +110,10 @@ Start the Node with the following command:
 ./target/release/poscan-consensus --base-path ~/3dp-chain/ --chain mainnetSpecRaw.json --name MyNodeName --validator --telemetry-url "wss://submit.telemetry.3dpass.org/submit 0" --author <your mining address or pub key> --threads 2 --no-mdns
 ```
 
-Install miner (You have to install [Bun](https://bun.sh/) before):
+Run miner (You have to install [Bun](https://bun.sh/) before):
 ```bash
 bun install
 bun miner.js --host 127.0.0.1 --port 9933
-```
-
-Config miner: check file `ecosystem.config.js` to set params and multiprocessing.
-
-Run/stop miner:
-```bash
-pnpm start
-pnpm stop
 ```
 
 Make sure you can see your node in the [list](https://telemetry.3dpass.org/). Use this [tutorial](https://3dpass.org/mainnet.html#mining_docker) for more details.
