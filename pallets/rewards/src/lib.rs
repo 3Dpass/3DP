@@ -125,9 +125,9 @@ pub trait Config: frame_system::Config + pallet_treasury::Config {
 	type LockParametersBounds: Get<LockBounds>;
 	/// Pallet validator
 	type ValidatorSet: ValidatorSetApi<Self::AccountId>;
-	/// Percent of rewars for miner
+	/// Percent of rewards for miner
 	type MinerRewardsPercent: Get<Percent>;
-	/// Percent of rewars for miner
+	/// Percent of rewards for miner
 	type MiningPool: MiningPoolStatApi<Difficulty, Self::AccountId>;
 	/// Max pool rate
 	type MiningPoolMaxRate: Get<Percent>;
@@ -147,9 +147,9 @@ decl_error! {
 		NotSorted,
 		/// Lock parameters are out of bounds.
 		LockParamsOutOfBounds,
-		/// Lock period is not a mutiple of the divide.
+		/// Lock period is not a multiple of the divide.
 		LockPeriodNotDivisible,
-		/// Unsufficient balance
+		/// Insufficient balance
 		UnsufficientBalance,
 		/// decrease lock amount not allowed .
 		DecreaseLockAmountNotAllowed,
