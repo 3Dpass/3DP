@@ -40,6 +40,7 @@ use frame_support::{
 	weights::Weight,
 };
 use frame_system::{ensure_root, ensure_signed};
+use frame_support::pallet_prelude::EnsureOrigin;
 use sp_arithmetic::per_things::Rounding;
 use sp_consensus_poscan::POSCAN_ENGINE_ID;
 use sp_runtime::traits::{Saturating, Zero};
@@ -92,6 +93,7 @@ pub trait WeightInfo {
 	fn lock() -> Weight;
 	fn set_schedule() -> Weight;
 	fn set_lock_params() -> Weight;
+	fn set_miner_share() -> Weight;
 }
 
 /// Config for rewards.
@@ -116,6 +118,8 @@ pub trait Config: frame_system::Config + pallet_treasury::Config + pallet_balanc
 	type MiningPool: MiningPoolStatApi<Difficulty, Self::AccountId>;
 	/// Max pool rate
 	type MiningPoolMaxRate: Get<Percent>;
+	/// Miner share origin
+	type MinerShareOrigin: EnsureOrigin<Self::Origin>;
 }
 
 /// Type alias for currency balance.
@@ -277,6 +281,17 @@ decl_module! {
 			Self::deposit_event(RawEvent::LockParamsChanged(lock_params));
 		}
 
+		/// Set miner rewards.
+		#[weight = <T as Config>::WeightInfo::set_miner_share()]
+		fn set_miner_share(origin, pct: Percent) {
+			T::MinerShareOrigin::ensure_origin(origin)?;
+
+			if pct >= Percent::zero() && pct <= Percent::one() {
+				<Self as Store>::MinerShare::put(pct);
+				Self::deposit_event(RawEvent::MinerShare(pct));
+			}
+		}
+
 		/// Unlock any vested rewards for `target` account.
 		#[weight = <T as Config>::WeightInfo::unlock()]
 		fn unlock(origin) {
@@ -347,6 +362,9 @@ decl_storage! {
 		/// Lock parameters (period and divide).
 		LockParams get(fn lock_params): Option<LockParameters>;
 
+		/// Miner share percent.
+		MinerShare get(fn miner_percent): Option<Percent>;
+
 		StorageVersion build(|_| migrations::StorageVersion::V1): migrations::StorageVersion;
 	}
 }
@@ -369,6 +387,8 @@ decl_event! {
 		Locked(AccountId, Balance),
 		/// Miner slashed.
 		MinerSlash(AccountId, Balance),
+		/// Miner share has changed .
+		MinerShare(Percent),
 	}
 }
 // Must be the same as in validator-set pallet
@@ -386,7 +406,10 @@ impl<T: Config> Module<T> {
 	}
 
 	fn do_reward(author: &T::AccountId, reward: BalanceOf<T>, when: T::BlockNumber) {
-		let mut miner_total = T::MinerRewardsPercent::get() * reward;
+		let miner_share = <Self as Store>::MinerShare::get()
+			.unwrap_or_else(|| T::MinerRewardsPercent::get());
+		let mut miner_total = miner_share * reward;
+
 		log::debug!(target: LOG_TARGET, "miner_total: {:?}", miner_total);
 
 		let pool_stat = T::MiningPool::get_stat(author);

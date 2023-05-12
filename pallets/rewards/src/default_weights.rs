@@ -50,4 +50,7 @@ impl crate::WeightInfo for () {
 	fn set_lock_params() -> Weight {
 		(0 as Weight).saturating_add(DbWeight::get().writes(1 as Weight))
 	}
+	fn set_miner_share() -> Weight {
+		(0 as Weight).saturating_add(DbWeight::get().writes(1 as Weight))
+	}
 }

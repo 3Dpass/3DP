@@ -508,6 +508,7 @@ impl rewards::Config for Runtime {
 	type MinerRewardsPercent = MinerRewardsPercent;
 	type MiningPool = MiningPool;
 	type MiningPoolMaxRate = MiningPoolMaxRate;
+	type MinerShareOrigin = EnsureRootOrHalfCouncil;
 }
 
 pub struct Author;
