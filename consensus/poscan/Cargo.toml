@@ -49,8 +49,6 @@ std = [
     "sp-block-builder/std",
     "sp-inherents/std",
     "sp-finality-grandpa/std",
-    "sp-consensus-poscan/std",
-    #"poscan-runtime/std",
     "sp-application-crypto/std",
     "sp-timestamp/std",
     "sp-std/std",

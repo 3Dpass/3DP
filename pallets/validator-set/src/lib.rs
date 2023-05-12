@@ -812,8 +812,11 @@ impl<T: Config, O: Offence<(T::AccountId, T::AccountId)>>
 	}
 }
 
-impl<T: Config> ValidatorSetApi<T::AccountId> for Pallet<T> {
+impl<T: Config> ValidatorSetApi<T::AccountId, T::BlockNumber, BalanceOf::<T>> for Pallet<T> {
 	fn validators() -> Vec<T::AccountId> {
 		Self::validators()
+	}
+	fn author(block_num: T::BlockNumber) -> Option<T::AccountId> {
+		Authors::<T>::get(block_num)
 	}
 }

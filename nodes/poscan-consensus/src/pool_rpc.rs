@@ -27,7 +27,7 @@ use sp_core::offchain::OffchainStorage;
 use sp_api::ProvideRuntimeApi;
 use sp_blockchain::HeaderBackend;
 use sc_client_api::backend::Backend;
-use sp_consensus_poscan::{MiningPoolApi, CheckMemberError, POSCAN_ALGO_GRID2D_V2};
+use sp_consensus_poscan::{MiningPoolApi, CheckMemberError, POSCAN_ALGO_GRID2D_V3_1};
 
 use alloc::string::String;
 use crate::pool::{MiningPool, ShareProposal, LOG_TARGET};
@@ -124,13 +124,13 @@ where
 		obj: Vec<u8>,
 	) -> RpcResult<u64> {
 
-		if algo_type != "Grid2dV2" {
-			return Err(JsonRpseeError::Custom("Accept Grid2dV2 algorithm only".to_string()))
+		if algo_type != "Grid2dV3.1" {
+			return Err(JsonRpseeError::Custom("Accept Grid2dV3.1 algorithm only".to_string()))
 		}
 
 		let shp = ShareProposal {
 			member_id: member_id.clone(),
-			algo_type: POSCAN_ALGO_GRID2D_V2,
+			algo_type: POSCAN_ALGO_GRID2D_V3_1,
 			hash,
 			pre_hash,
 			parent_hash,

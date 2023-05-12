@@ -23,6 +23,7 @@ use sp_runtime::traits::Block as BlockT;
 use sp_core::crypto::{Ss58Codec,UncheckedFrom, Ss58AddressFormat, set_default_ss58_version};
 use sp_core::Pair;
 use sp_consensus_poscan::{POSCAN_COIN_ID, POSCAN_ALGO_GRID2D_V2} ;
+use poscan_algo::get_obj_hashes;
 use async_trait::async_trait;
 use sc_rpc::SubscriptionTaskExecutor;
 use sc_finality_grandpa::{FinalityProofProvider as GrandpaFinalityProofProvider};
@@ -42,11 +43,14 @@ lazy_static! {
 pub struct ExecutorDispatch;
 
 impl sc_executor::NativeExecutionDispatch for ExecutorDispatch {
-   type ExtendHostFunctions = frame_benchmarking::benchmarking::HostFunctions;
+    type ExtendHostFunctions = (
+		frame_benchmarking::benchmarking::HostFunctions,
+		poscan_algo::hashable_object::HostFunctions,
+	);
 
-   fn dispatch(method: &str, data: &[u8]) -> Option<Vec<u8>> {
-			   runtime::api::dispatch(method, data)
-   }
+    fn dispatch(method: &str, data: &[u8]) -> Option<Vec<u8>> {
+		runtime::api::dispatch(method, data)
+    }
 
    fn native_version() -> sc_executor::NativeVersion {
 			   runtime::native_version()
@@ -176,6 +180,8 @@ pub fn new_partial(
 			executor,
 		)?;
 	let client = Arc::new(client);
+
+	poscan_algo::CLIENT.lock().replace(Box::new(client.clone()));
 
 	let telemetry = telemetry.map(|(worker, telemetry)| {
 		task_manager.spawn_handle().spawn("telemetry", None, worker.run());
@@ -459,6 +465,7 @@ pub fn new_full(
 						if hash_meets_difficulty(&seal.work, seal.difficulty) {
 							info!(">>> hash_meets_difficulty: submit it: {}, {}, {}",  &seal.work, &seal.poscan_hash, &seal.difficulty);
 							info!(">>> check verify: {}", compute.verify(&signature.clone(), &author));
+							info!(">>> pre_hash: {}", &metadata.pre_hash);
 							let _ = futures::executor::block_on(worker.submit(seal.encode(), &psdata));
 						}
 						else {

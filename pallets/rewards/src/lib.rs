@@ -33,7 +33,10 @@ mod tests;
 use codec::{Decode, Encode};
 use frame_support::{
 	decl_error, decl_event, decl_module, decl_storage, ensure,
-	traits::{Currency, Get, LockIdentifier, LockableCurrency, WithdrawReasons},
+	traits::{
+		Currency, Get, LockIdentifier, LockableCurrency,
+		WithdrawReasons,
+	},
 	weights::Weight,
 };
 use frame_system::{ensure_root, ensure_signed};
@@ -82,24 +85,6 @@ pub trait GenerateRewardLocks<T: Config> {
 	fn calc_rewards(when: T::BlockNumber) -> BalanceOf<T>;
 }
 
-// impl<T: Config> GenerateRewardLocks<T> for () {
-// 	fn generate_reward_locks(
-// 		_current_block: T::BlockNumber,
-// 		_total_reward: BalanceOf<T>,
-// 		_lock_parameters: Option<LockParameters>,
-// 	) -> BTreeMap<T::BlockNumber, BalanceOf<T>> {
-// 		Default::default()
-// 	}
-//
-// 	fn max_locks(_lock_bounds: LockBounds) -> u32 {
-// 		0
-// 	}
-//
-// 	fn calc_rewards(_when: T::BlockNumber) -> BalanceOf<T>{
-// 		0u32.into()
-// 	}
-// }
-
 pub trait WeightInfo {
 	fn on_initialize() -> Weight;
 	fn on_finalize() -> Weight;
@@ -110,7 +95,7 @@ pub trait WeightInfo {
 }
 
 /// Config for rewards.
-pub trait Config: frame_system::Config + pallet_treasury::Config {
+pub trait Config: frame_system::Config + pallet_treasury::Config + pallet_balances::Config {
 	/// The overarching event type.
 	type Event: From<Event<Self>> + Into<<Self as frame_system::Config>::Event>;
 	/// An implementation of on-chain currency.
@@ -124,7 +109,7 @@ pub trait Config: frame_system::Config + pallet_treasury::Config {
 	/// Lock Parameters Bounds.
 	type LockParametersBounds: Get<LockBounds>;
 	/// Pallet validator
-	type ValidatorSet: ValidatorSetApi<Self::AccountId>;
+	type ValidatorSet: ValidatorSetApi<Self::AccountId, Self::BlockNumber, BalanceOf::<Self>>;
 	/// Percent of rewards for miner
 	type MinerRewardsPercent: Get<Percent>;
 	/// Percent of rewards for miner
@@ -382,6 +367,8 @@ decl_event! {
 		LockParamsChanged(LockParameters),
 		/// Lock set.
 		Locked(AccountId, Balance),
+		/// Miner slashed.
+		MinerSlash(AccountId, Balance),
 	}
 }
 // Must be the same as in validator-set pallet
@@ -432,28 +419,24 @@ impl<T: Config> Module<T> {
 			let mut sum_rewards: BalanceOf<T> = Zero::zero();
 			for (member_id, w) in pool_stat.2.iter() {
 				let rewards = Perbill::from_rational(*w, tot_weight) * members_total;
-				let d = u128::from_le_bytes(rewards.encode().try_into().unwrap());
-				log::debug!(target: LOG_TARGET, "miner_member_reword: {}", d);
+				log::debug!(target: LOG_TARGET, "miner_member_reword: {:?}", rewards);
 				Self::do_reward_per_account(member_id, rewards, when);
 				sum_rewards = sum_rewards.saturating_add(rewards);
 			}
 			miner_total = pool_total.saturating_add(members_total - sum_rewards);
 		}
 		Self::do_reward_per_account(author, miner_total, when);
-
 		let validator_total = reward - miner_total;
 
-		let d = u128::from_le_bytes(miner_total.encode().try_into().unwrap());
-		log::debug!(target: LOG_TARGET, "miner_reword: {}", d);
+		log::debug!(target: LOG_TARGET, "miner_reword: {:?}", miner_total);
 
 		let validators = T::ValidatorSet::validators();
 
 		let n_val: usize = validators.len();
 		let per_val = Perbill::from_rational(1, n_val as u32) * validator_total;
 
-		let d = u128::from_le_bytes(per_val.encode().try_into().unwrap());
 		for val in validators.iter() {
-			log::debug!(target: LOG_TARGET, "validator_reword: {} for {:?}", d, val.encode());
+			log::debug!(target: LOG_TARGET, "validator_reword: {:?} for {:?}", per_val, val.encode());
 			Self::do_reward_per_account(val, per_val, when);
 		}
 	}
@@ -527,43 +510,46 @@ impl<T: Config> Module<T> {
 		<Self as Store>::RewardLocks::insert(author, locks);
 	}
 
-	pub fn unlock_upto(author: &T::AccountId, amount: BalanceOf<T>) {
+	pub fn unlock_upto(author: &T::AccountId, unlock_level: BalanceOf<T>) {
 		let mut locks = Self::reward_locks(&author);
 		let locked_amount = Self::total_locked(&author);
-		let mut total_unlock: BalanceOf<T> = Zero::zero();
-		let mut to_unlock = Vec::new();
-		let unlock_amount = locked_amount - amount;
 
-		let d = u128::from_le_bytes(locked_amount.encode().try_into().unwrap());
-		log::debug!(target: LOG_TARGET, "locked_amount: {}", d);
-		let d = u128::from_le_bytes(amount.encode().try_into().unwrap());
-		log::debug!(target: LOG_TARGET, "amount: {}", d);
+		let mut last_block = None;
+		let mut last_amount = Zero::zero();
+		let mut blocks_to_unlock = Vec::new();
 
+		log::debug!(target: LOG_TARGET, "miner locked_amount: {:#?}", locked_amount);
+		log::debug!(target: LOG_TARGET, "unlock to level: {:#?}", unlock_level);
+
+		let mut sum_unlock = locked_amount;
 		for (block_number, locked_balance) in locks.iter() {
-			if total_unlock.saturating_add(*locked_balance) >= unlock_amount {
-				let adj = total_unlock.saturating_add(*locked_balance) - unlock_amount;
-				total_unlock = total_unlock.saturating_add(adj);
-				if adj == Zero::zero() {
-					to_unlock.push(*block_number);
-				}
-				break
+			if sum_unlock >= *locked_balance {
+				blocks_to_unlock.push(*block_number);
+				sum_unlock = sum_unlock.saturating_sub(*locked_balance);
+				continue;
 			}
-			to_unlock.push(*block_number);
-			total_unlock = total_unlock.saturating_add(*locked_balance);
+
+			last_block = Some(*block_number);
+			last_amount = *locked_balance - sum_unlock;
+			sum_unlock = Zero::zero(); //locked_balance.saturating_sub(last_amount);
+
+			break
 		}
-		let d = u128::from_le_bytes(total_unlock.encode().try_into().unwrap());
-		log::debug!(target: LOG_TARGET, "total_unlocked: {}", d);
+		log::debug!(target: LOG_TARGET, "sum_unlocked: {:#?}", sum_unlock);
 
-		let total_locked = locked_amount -  total_unlock;
-
-		for block_number in to_unlock {
+		let new_locked = unlock_level.saturating_add(sum_unlock);
+		for block_number in blocks_to_unlock {
 			locks.remove(&block_number);
 		}
 
-		let d = u128::from_le_bytes(total_locked.encode().try_into().unwrap());
-		log::debug!(target: LOG_TARGET, "total_locked: {}", d);
+		if let Some(last_block) = last_block {
+			if last_amount > Zero::zero() {
+				locks.insert(last_block, last_amount);
+			}
+		}
+		log::debug!(target: LOG_TARGET, "new_locked: {:#?}", new_locked);
 
-		if total_locked <= Zero::zero()  {
+		if new_locked == Zero::zero()  {
 			<T as Config>::Currency::remove_lock(
 				REWARDS_ID,
 				&author,
@@ -573,7 +559,7 @@ impl<T: Config> Module<T> {
 			<T as Config>::Currency::set_lock(
 				REWARDS_ID,
 				&author,
-				total_locked,
+				new_locked,
 				WithdrawReasons::except(WithdrawReasons::TRANSACTION_PAYMENT),
 			);
 		}

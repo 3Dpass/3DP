@@ -74,6 +74,7 @@ pallet-contracts-rpc = { git = "https://github.com/paritytech/substrate", rev = 
 # local packages
 runtime = { package = "poscan-runtime", path = "../../runtime" }
 poscan-grid2d = { path = '../../consensus/poscan_grid2d' }
+poscan-algo = { path = '../../consensus/poscan_algo' }
 sc-consensus-poscan = { path = "../../consensus/poscan" }
 sp-consensus-poscan = { path = "../../primitives/consensus/poscan" }
 pallet-poscan = { path = "../../pallets/poscan", default-features = false }

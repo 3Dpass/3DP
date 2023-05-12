@@ -7,7 +7,8 @@ use ecies_ed25519;
 use sp_std::sync::Arc;
 use sp_core::{H256, U256};
 use parking_lot::{Mutex, Condvar};
-use poscan_grid2d::{hash_meets_difficulty, get_obj_hashes, DoubleHash, Compute};
+use poscan_grid2d::{hash_meets_difficulty, DoubleHash, Compute};
+use poscan_algo::get_obj_hashes;
 use runtime::AccountId;
 
 use sp_consensus_poscan::CheckMemberError;
@@ -178,7 +179,7 @@ impl MiningPool {
             return Err(PoolError::NotAccepted);
         }
 
-        let hashes = get_obj_hashes(&alg_id, &Vec::from(obj), &parent_hash);
+        let hashes = get_obj_hashes(&alg_id, &Vec::from(obj), &pre_hash);
 
         if hashes[0] != hash {
             log::info!(">>> pool verify: provided hashes are invalid");

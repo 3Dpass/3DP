@@ -1,5 +1,5 @@
 [package]
-name = 'poscan-grid2d'
+name = 'poscan-algo'
 version = "3.0.0"
 edition = '2018'
 authors = ['Substrate DevHub <https://github.com/substrate-developer-hub>']
@@ -8,17 +8,19 @@ description = 'Sha3-based Proof of Work algorithms for Substrate'
 license = "GPL-3.0-or-later"
 
 [dependencies]
-parity-scale-codec = { version = '3.1', default-features = false, features = ["derive"] }
+codec = { package = "parity-scale-codec", version = "3.1", default-features = false, features = ["derive"] }
 scale-info = { version = "2.0", default-features = false, features = ["derive"] }
-sha3 = "0.9"
+lazy_static = { version = "1.4.0" }
+lzss = { version = "0.8", default-features = false, features = ["alloc"] }
+parking_lot = "0.12"
 
 # Substrate packages
-sc-consensus-poscan = { default-features = false, version = "0.9", package = "sc-consensus-poscan", path = "../../consensus/poscan" }
-sp-api = { default-features = false, git = "https://github.com/paritytech/substrate", rev = "b0777b4c7f7" }
+sp-runtime-interface = { default-features = false, git = "https://github.com/paritytech/substrate", rev = "b0777b4c7f7" }
 sp-consensus-poscan = { default-features = false, version = "0.9", path = "../../primitives/consensus/poscan" }
 sp-core = { default-features = false, git = "https://github.com/paritytech/substrate", rev = "b0777b4c7f7" }
+sp-std = { default-features = false, git = "https://github.com/paritytech/substrate", rev = "b0777b4c7f7" }
 sp-runtime = { default-features = false, git = "https://github.com/paritytech/substrate", rev = "b0777b4c7f7" }
-poscan-algo = { default-features = false, path = "../../consensus/poscan_algo", optional = true }
+sp-blockchain = { optional = true, git = "https://github.com/paritytech/substrate", rev = "b0777b4c7f7" }
 log = "0.4"
 
 p3d = { version="0.3.3", git = "https://github.com/3Dpass/p3d", tag = "v0.6.3" }
@@ -26,12 +28,10 @@ p3d = { version="0.3.3", git = "https://github.com/3Dpass/p3d", tag = "v0.6.3" }
 [features]
 default = ["std"]
 std = [
-    "scale-info/std",
-    "parity-scale-codec/std",
-    "sc-consensus-poscan/std",
-    "sp-api/std",
-    "sp-consensus-poscan/std",
-    "sp-core/std",
-    "sp-runtime/std",
-    "poscan-algo",
+   "sp-std/std",
+   "sp-core/std",
+   "sp-runtime-interface/std",
+   "sp-runtime/std",
+   "sp-consensus-poscan/std",
+   "sp-blockchain",
 ]

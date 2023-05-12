@@ -4,13 +4,16 @@ use sc_consensus_poscan::{Error, PoscanData, PowAlgorithm};
 use sha3::{Digest, Sha3_256};
 use sp_api::ProvideRuntimeApi;
 use sp_consensus_poscan::Seal as RawSeal;
-use sp_consensus_poscan::{DifficultyApi, decompress_obj};
+use sp_consensus_poscan::DifficultyApi;
 use sp_core::{H256, U256, crypto::Pair, hashing::blake2_256, ByteArray};
 use sp_runtime::generic::BlockId;
 use sp_runtime::traits::Block as BlockT;
 // use frame_support::sp_runtime::print as prn;
 // use frame_support::runtime_print;
 use sc_consensus_poscan::app;
+use sp_consensus_poscan::POSCAN_ALGO_GRID2D_V3_1;
+use poscan_algo::get_obj_hashes;
+use log::*;
 
 /// Determine whether the given hash satisfies the given difficulty.
 /// The test is done by multiplying the two together. If the product
@@ -216,12 +219,8 @@ where
 			return Ok(false)
 		}
 
-		let mut obj = poscan_data.obj.clone();
-		if poscan_data.obj[..4] == vec![b'l', b'z', b's', b's'] {
-			obj = decompress_obj(&obj[4..]);
-		}
-
-		let hashes = get_obj_hashes(&poscan_data.alg_id, &obj, parent);
+		let h = if poscan_data.alg_id == POSCAN_ALGO_GRID2D_V3_1 { pre_hash } else { parent };
+		let hashes = get_obj_hashes(&poscan_data.alg_id, &poscan_data.obj, h);
 		if hashes != poscan_data.hashes {
 			info!(">>> verify: hashes != poscan_data.hashes");
 			return Ok(false)
@@ -230,47 +229,3 @@ where
 		Ok(true)
 	}
 }
-
-
-use log::*;
-use std::str::FromStr;
-use std::convert::TryInto;
-
-use sp_consensus_poscan::{POSCAN_ALGO_GRID2D_V2, POSCAN_ALGO_GRID2D_V3};
-
-pub fn get_obj_hashes(ver: &[u8; 16], data: &[u8], pre: &H256) -> Vec<H256> {
-	let mut buf: Vec<H256> = Vec::new();
-	let grid_size = 8;
-	let (alg_type, n_sect) =
-		if *ver == POSCAN_ALGO_GRID2D_V2 {
-			(p3d::AlgoType::Grid2dV2, 12)
-		}
-		else if *ver == POSCAN_ALGO_GRID2D_V3 {
-			(p3d::AlgoType::Grid2dV3, 12)
-		}
-		else {
-			(p3d::AlgoType::Grid2d, 66)
-		};
-
-	// log::debug!("Calc hashes for algorithm {}", String::from_utf8(ver.to_vec()).unwrap());
-
-	let pre = pre.encode()[0..4].try_into().ok();
-	let res = p3d::p3d_process(data, alg_type, grid_size, n_sect, pre);
-
-	match res {
-		Ok(v) => {
-			for item in v {
-				let h = H256::from_str(item.as_str()).unwrap();
-				buf.push(h);
-			}
-		},
-		Err(_) => {
-			// runtime_print!(">>> Error");
-			// TODO: handle error
-			return Vec::new()
-		},
-	}
-
-	buf
-}
-

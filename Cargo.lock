@@ -4251,9 +4251,11 @@ dependencies = [
  "frame-benchmarking",
  "frame-support",
  "frame-system",
+ "log",
  "parity-scale-codec",
  "scale-info",
  "sp-consensus-poscan",
+ "sp-core",
  "sp-runtime",
  "sp-std",
 ]
@@ -4921,6 +4923,25 @@ dependencies = [
 ]
 
 [[package]]
+name = "poscan-algo"
+version = "3.0.0"
+dependencies = [
+ "lazy_static",
+ "log",
+ "lzss",
+ "p3d",
+ "parity-scale-codec",
+ "parking_lot 0.12.1",
+ "scale-info",
+ "sp-blockchain",
+ "sp-consensus-poscan",
+ "sp-core",
+ "sp-runtime",
+ "sp-runtime-interface",
+ "sp-std",
+]
+
+[[package]]
 name = "poscan-consensus"
 version = "3.0.0"
 dependencies = [
@@ -4942,6 +4963,7 @@ dependencies = [
  "pallet-transaction-payment-rpc",
  "parity-scale-codec",
  "parking_lot 0.12.1",
+ "poscan-algo",
  "poscan-grid2d",
  "poscan-runtime",
  "rand 0.7.3",
@@ -4993,7 +5015,7 @@ dependencies = [
  "log",
  "p3d",
  "parity-scale-codec",
- "rand 0.8.5",
+ "poscan-algo",
  "sc-consensus-poscan",
  "scale-info",
  "sha3 0.9.1",

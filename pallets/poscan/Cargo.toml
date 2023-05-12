@@ -19,8 +19,10 @@ frame-support = { default-features = false, git = "https://github.com/paritytech
 frame-system = { default-features = false, git = "https://github.com/paritytech/substrate", rev = "b0777b4c7f7" }
 frame-benchmarking = { default-features = false, optional = true, git = "https://github.com/paritytech/substrate", rev = "b0777b4c7f7" }
 sp-std = { default-features = false, git = "https://github.com/paritytech/substrate", rev = "b0777b4c7f7" }
+sp-core = { default-features = false, git = "https://github.com/paritytech/substrate", rev = "b0777b4c7f7" }
 sp-runtime = { default-features = false, git = "https://github.com/paritytech/substrate", rev = "b0777b4c7f7" }
 sp-consensus-poscan = { default-features = false, path = "../../primitives/consensus/poscan" }
+log = "0.4"
 
 [features]
 default = ["std"]
@@ -31,6 +33,7 @@ std = [
 	"frame-system/std",
 	"frame-benchmarking/std",
 	"sp-std/std",
+	"sp-core/std",
 	"sp-runtime/std",
 	"sp-consensus-poscan/std",
 ]

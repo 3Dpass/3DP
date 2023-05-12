@@ -10,7 +10,7 @@ use sp_api::ProvideRuntimeApi;
 use sp_runtime::generic::DigestItem;
 use sp_blockchain::HeaderBackend;
 use sp_runtime::traits::Header;
-use sp_consensus_poscan::decompress_obj;
+use poscan_algo::decompress_obj;
 
 extern crate alloc;
 

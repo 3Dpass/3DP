@@ -1428,7 +1428,8 @@ impl_runtime_apis! {
 		}
 
 		fn initialize_block(header: &<Block as BlockT>::Header) {
-			Executive::initialize_block(header)
+			Executive::initialize_block(header);
+			// PoScan::initialize_block(header);
 		}
 	}
 
