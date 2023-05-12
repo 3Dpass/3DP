@@ -22,7 +22,7 @@ use sp_keystore::{SyncCryptoStore, SyncCryptoStorePtr};
 use sp_runtime::traits::Block as BlockT;
 use sp_core::crypto::{Ss58Codec,UncheckedFrom, Ss58AddressFormat, set_default_ss58_version};
 use sp_core::Pair;
-use sp_consensus_poscan::{POSCAN_COIN_ID, POSCAN_ALGO_GRID2D_V2} ;
+use sp_consensus_poscan::{POSCAN_COIN_ID, POSCAN_ALGO_GRID2D_V3_1} ;
 use poscan_algo::get_obj_hashes;
 use async_trait::async_trait;
 use sc_rpc::SubscriptionTaskExecutor;
@@ -436,13 +436,13 @@ pub fn new_full(
 							});
 
 					if let Some(mp) = maybe_mining_prop {
-						let hashes = get_obj_hashes(&POSCAN_ALGO_GRID2D_V2, &mp.pre_obj, &metadata.best_hash);
+						let hashes = get_obj_hashes(&POSCAN_ALGO_GRID2D_V3_1, &mp.pre_obj, &metadata.pre_hash);
 						if hashes.len() > 0 {
 							let obj_hash = hashes[0];
 							let dh = DoubleHash { pre_hash: metadata.pre_hash, obj_hash };
 							poscan_hash = dh.calc_hash();
 							poscan_data = Some(PoscanData {
-								alg_id: POSCAN_ALGO_GRID2D_V2,
+								alg_id: POSCAN_ALGO_GRID2D_V3_1,
 								hashes,
 								obj:
 								mp.pre_obj
