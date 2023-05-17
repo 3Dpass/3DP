@@ -59,6 +59,7 @@ pub enum RemoveReason {
 	Normal,
 	DepositBelowLimit,
 	ImOnlineSlash,
+	CouncilSlash,
 }
 
 #[frame_support::pallet]
@@ -195,6 +196,8 @@ pub mod pallet {
 		TmpDisalowed,
 		/// Unlock amount is invalid
 		UnlockAmountInvalid,
+		/// Validator not found
+		ValidatorNotFound,
 	}
 
 	#[pallet::hooks]
@@ -284,9 +287,35 @@ pub mod pallet {
 			T::AddRemoveOrigin::ensure_origin(origin)?;
 			let current_block = frame_system::Pallet::<T>::block_number();
 
+			if !Self::validators().contains(&validator_id) {
+				return Err(Error::<T>::ValidatorNotFound.into());
+			}
+
 			Self::do_remove_validator(validator_id.clone())?;
 			Self::unapprove_validator(validator_id.clone())?;
 			AccountRemoveReason::<T>::insert(&validator_id, Some((current_block, RemoveReason::Normal)));
+
+			Ok(())
+		}
+
+		#[pallet::weight(0)]
+		pub fn remove_validator_with_slash(
+			origin: OriginFor<T>,
+			validator_id: T::AccountId,
+		) -> DispatchResult {
+			T::AddRemoveOrigin::ensure_origin(origin)?;
+			let current_block = frame_system::Pallet::<T>::block_number();
+
+			if !Self::validators().contains(&validator_id) {
+				return Err(Error::<T>::ValidatorNotFound.into());
+			}
+
+			let penalty: BalanceOf<T> = T::PenaltyOffline::get().saturated_into();
+			Self::slash(&validator_id, penalty);
+
+			Self::do_remove_validator(validator_id.clone())?;
+			Self::unapprove_validator(validator_id.clone())?;
+			AccountRemoveReason::<T>::insert(&validator_id, Some((current_block, RemoveReason::CouncilSlash)));
 
 			Ok(())
 		}
@@ -326,6 +355,7 @@ pub mod pallet {
 				match remove_data.1 {
 					RemoveReason::Normal => { },
 					RemoveReason::DepositBelowLimit |
+					RemoveReason::CouncilSlash |
 					RemoveReason::ImOnlineSlash => {
 						let t1 = remove_data.0 + suspend_period.into();
 						let t2 = t1 + allow_period.into();
@@ -436,6 +466,54 @@ pub mod pallet {
 			}
 			Self::deposit_event(Event::ValidatorUnlockBalance(validator_id.clone(), unlock_amount));
 			log::debug!(target: LOG_TARGET, "Unlocked {:?} for validator_id: {:?}.", unlock_amount, validator_id);
+
+			Ok(())
+		}
+
+		#[pallet::weight(0)]
+		pub fn unlock_force(
+			origin: OriginFor<T>,
+			validator_id: T::AccountId,
+			amount: Option<BalanceOf<T>>,
+		) -> DispatchResult {
+			T::AddRemoveOrigin::ensure_origin(origin)?;
+
+			let lock_item = ValidatorLock::<T>::get(&validator_id).ok_or(Error::<T>::NotLocked)?;
+
+			let remove_all;
+			let unlock_amount;
+
+			if let Some(amount) = amount {
+				if amount > lock_item.1 {
+					return Err(Error::<T>::UnlockAmountInvalid.into())
+				}
+				unlock_amount = amount;
+				remove_all = amount == lock_item.1;
+			}
+			else {
+				unlock_amount = lock_item.1;
+				remove_all = true;
+			}
+
+			if remove_all {
+				<T as pallet::Config>::Currency::remove_lock(
+					LOCK_ID,
+					&validator_id,
+				);
+				ValidatorLock::<T>::remove(&validator_id);
+			}
+			else {
+				let new_lock_amount = lock_item.1 - unlock_amount;
+				<T as pallet::Config>::Currency::set_lock(
+					LOCK_ID,
+					&validator_id,
+					new_lock_amount,
+					WithdrawReasons::all(),
+				);
+				ValidatorLock::<T>::insert(&validator_id, Some((lock_item.0, new_lock_amount, lock_item.2)));
+			}
+			Self::deposit_event(Event::ValidatorUnlockBalance(validator_id.clone(), unlock_amount));
+			log::debug!(target: LOG_TARGET, "Unlocked {:?} for validator_id: {:?} by council.", unlock_amount, validator_id);
 
 			Ok(())
 		}
