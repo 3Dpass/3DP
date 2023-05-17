@@ -409,7 +409,7 @@ impl<T: Config> Module<T> {
 			let overmined = if pool_rate <= limit {
 				Perbill::zero()
 			}
-			else if pool_rate >= limit {
+			else if pool_rate >= limit.int_mul(2) {
 				Perbill::one()
 			}
 			else {
