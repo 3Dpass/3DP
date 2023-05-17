@@ -30,7 +30,7 @@ use frame_support::{
 	sp_runtime::SaturatedConversion,
 };
 pub use pallet::*;
-use sp_runtime::traits::{Convert, Zero};
+use sp_runtime::traits::{Convert, Zero, Saturating};
 use sp_staking::offence::{Offence, OffenceError, ReportOffence};
 use sp_version::RuntimeVersion;
 use sp_std::{collections::btree_set::BTreeSet, prelude::*};
@@ -193,6 +193,8 @@ pub mod pallet {
 		LockIsActive, // {pub upto_block: u32},
 		/// temporary disalowed
 		TmpDisalowed,
+		/// Unlock amount is invalid
+		UnlockAmountInvalid,
 	}
 
 	#[pallet::hooks]
@@ -404,8 +406,11 @@ pub mod pallet {
 			let unlock_amount;
 
 			if let Some(amount) = amount {
+				if amount > lock_item.1 {
+					return Err(Error::<T>::UnlockAmountInvalid.into())
+				}
 				unlock_amount = amount;
-				remove_all = false;
+				remove_all = amount == lock_item.1;
 			}
 			else {
 				unlock_amount = lock_item.1;
@@ -556,16 +561,16 @@ impl<T: Config> Pallet<T> {
 		log::debug!(target: LOG_TARGET, "Offline validator marked for auto removal: {:#?}", validator_id);
 	}
 
-	fn slash(validator_id: &T::AccountId, amount: BalanceOf<T>) {
+	fn slash(validator_id: &T::AccountId, slash_amount: BalanceOf<T>) {
 		let pot_id = pallet_treasury::Pallet::<T>::account_id();
 		let min_bal = <T as pallet::Config>::Currency::minimum_balance();
-
-		let zero = BalanceOf::<T>::zero();
 		let maybe_lock = ValidatorLock::<T>::get(validator_id);
-		let mut usable: u128 = pallet_balances::Pallet::<T>::usable_balance(validator_id).saturated_into();
+		let usable: u128 = pallet_balances::Pallet::<T>::usable_balance(validator_id).saturated_into();
+		let mut usable: BalanceOf<T> = usable.saturated_into();
 
-		let unlock_amount = amount - usable.saturated_into();
-		if unlock_amount > zero {
+		if usable < slash_amount + min_bal {
+			let unlock_amount = slash_amount + min_bal - usable;
+
 			if let Some(lock_item) = maybe_lock {
 				if unlock_amount <= lock_item.1 {
 					Self::set_lock(
@@ -574,20 +579,25 @@ impl<T: Config> Pallet<T> {
 						lock_item.1 - unlock_amount,
 						lock_item.2,
 					);
-					usable = pallet_balances::Pallet::<T>::usable_balance(validator_id).saturated_into();
+					let usable_val: u128 = pallet_balances::Pallet::<T>::usable_balance(validator_id).saturated_into();
+					usable = usable_val.saturated_into();
+
 				}
 			}
-			let unlock_amount = amount - usable.saturated_into();
-			if unlock_amount > zero {
-				log::debug!(target: LOG_TARGET, "Try to unlock rewards locks for {:#?}, usable: {}", validator_id, usable);
+			if usable < slash_amount + min_bal {
+				let unlock_amount = slash_amount + min_bal - usable;
+
+				log::debug!(target: LOG_TARGET, "Try to unlock rewards locks for {:#?}, usable: {:#?}", validator_id, usable);
 				let total_reward_locked = T::RewardLocksApi::locks(validator_id);
-				T::RewardLocksApi::unlock_upto(validator_id, total_reward_locked - unlock_amount);
-				usable = pallet_balances::Pallet::<T>::usable_balance(validator_id).saturated_into();
-				log::debug!(target: LOG_TARGET, "After unlock rewards locks for {:#?} usable: {}", validator_id, usable);
+				T::RewardLocksApi::unlock_upto(validator_id, total_reward_locked.saturating_sub(unlock_amount));
+				let usable_val: u128 = pallet_balances::Pallet::<T>::usable_balance(validator_id).saturated_into();
+				usable = usable_val.saturated_into();
+				log::debug!(target: LOG_TARGET, "After unlock rewards locks for {:#?} usable: {:#?}", validator_id, usable);
 			}
 		}
 
-		let amount = core::cmp::min(amount, usable.saturated_into()) - min_bal;
+		let usable = usable.saturating_sub(min_bal);
+		let amount = core::cmp::min(slash_amount, usable.saturated_into());
 		let res = <T as pallet::Config>::Currency::transfer(
 			validator_id, &pot_id, amount, ExistenceRequirement::KeepAlive,
 		);
@@ -667,14 +677,23 @@ impl<T: Config> Pallet<T> {
 		amount: BalanceOf<T>,
 		period: Option<u32>,
 	) {
-		<T as pallet::Config>::Currency::extend_lock(
-			LOCK_ID,
-			&validator_id,
-			amount,
-			WithdrawReasons::all(),
-		);
+		if amount > Zero::zero() {
+			<T as pallet::Config>::Currency::extend_lock(
+				LOCK_ID,
+				&validator_id,
+				amount,
+				WithdrawReasons::all(),
+			);
 
-		ValidatorLock::<T>::insert(&validator_id, Some((when, amount, period)));
+			ValidatorLock::<T>::insert(&validator_id, Some((when, amount, period)));
+		}
+		else {
+			<T as pallet::Config>::Currency::remove_lock(
+				LOCK_ID,
+				&validator_id,
+			);
+			ValidatorLock::<T>::remove(&validator_id);
+		}
 	}
 
 	fn renew_locks() {
