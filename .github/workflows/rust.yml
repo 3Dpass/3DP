@@ -16,11 +16,11 @@ jobs:
         include:
           - target: x86_64-unknown-linux-gnu
             os: ubuntu-latest
-            name: linux
+            name: linux-x86_64
             suffix: ''
           - target: aarch64-unknown-linux-gnu
             os: ubuntu-latest
-            name: linux
+            name: linux-aarch64
             suffix: ''
           - target: x86_64-apple-darwin
             os: macos-latest
