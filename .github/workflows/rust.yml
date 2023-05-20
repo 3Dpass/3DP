@@ -18,10 +18,14 @@ jobs:
             os: ubuntu-latest
             name: linux
             suffix: ''
-#          - target: x86_64-apple-darwin
-#            os: macos-latest
-#            name: macos
-#            suffix: ''
+          - target: aarch64-unknown-linux-gnu
+            os: ubuntu-latest
+            name: linux
+            suffix: ''
+          - target: x86_64-apple-darwin
+            os: macos-latest
+            name: macos
+            suffix: ''
 #          - target: x86_64-pc-windows-msvc
 #            os: windows-latest
 #            name: windows
