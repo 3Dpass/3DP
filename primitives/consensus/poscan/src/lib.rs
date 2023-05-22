@@ -45,6 +45,8 @@ pub const SUPPORTED_ALGORITHMS: [[u8; 16];4] =
 	];
 
 pub const REJECT_OLD_ALGO_SINCE: u32 = 370_900;
+pub const SCALE_DIFF_SINCE: u32 = 370_898;
+pub const SCALE_DIFF_BY: u32 = 1_000_000;
 pub const MAX_MINING_OBJ_LEN: usize = 100 * 1024;
 
 /// Type of seal.

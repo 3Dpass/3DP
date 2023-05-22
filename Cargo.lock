@@ -5020,6 +5020,7 @@ dependencies = [
  "scale-info",
  "sha3 0.9.1",
  "sp-api",
+ "sp-blockchain",
  "sp-consensus-poscan",
  "sp-core",
  "sp-runtime",

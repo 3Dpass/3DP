@@ -2,8 +2,9 @@ use std::sync::Arc;
 use parity_scale_codec::{Decode, Encode};
 use sc_consensus_poscan::{Error, PoscanData, PowAlgorithm};
 use sha3::{Digest, Sha3_256};
+use sp_blockchain::HeaderBackend;
 use sp_api::ProvideRuntimeApi;
-use sp_consensus_poscan::Seal as RawSeal;
+use sp_consensus_poscan::{Seal as RawSeal, SCALE_DIFF_SINCE, SCALE_DIFF_BY};
 use sp_consensus_poscan::DifficultyApi;
 use sp_core::{H256, U256, crypto::Pair, hashing::blake2_256, ByteArray};
 use sp_runtime::generic::BlockId;
@@ -134,16 +135,18 @@ impl<C> Clone for PoscanAlgorithm<C> {
 
 impl<B: BlockT<Hash = H256>, C> PowAlgorithm<B> for PoscanAlgorithm<C>
 where
-	C: ProvideRuntimeApi<B>,
+	C: ProvideRuntimeApi<B> + HeaderBackend<B>,
 	C::Api: DifficultyApi<B, U256>,
 {
 	type Difficulty = U256;
 
 	fn difficulty(&self, parent: B::Hash) -> Result<Self::Difficulty, Error<B>> {
 		let parent_id = BlockId::<B>::hash(parent);
+		let parent_num = self.client.block_number_from_id(&parent_id).unwrap().unwrap();
 		self.client
 			.runtime_api()
 			.difficulty(&parent_id)
+			.map(|d| if parent_num >= SCALE_DIFF_SINCE.into() { d / SCALE_DIFF_BY } else { d })
 			.map_err(|err| {
 				sc_consensus_poscan::Error::Environment(format!(
 					"Fetching difficulty from runtime failed: {:?}",

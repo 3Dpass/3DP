@@ -18,6 +18,7 @@ sp-api = { default-features = false, git = "https://github.com/paritytech/substr
 sp-consensus-poscan = { default-features = false, version = "0.9", path = "../../primitives/consensus/poscan" }
 sp-core = { default-features = false, git = "https://github.com/paritytech/substrate", rev = "b0777b4c7f7" }
 sp-runtime = { default-features = false, git = "https://github.com/paritytech/substrate", rev = "b0777b4c7f7" }
+sp-blockchain = { default-features = false, git = "https://github.com/paritytech/substrate", rev = "b0777b4c7f7" }
 poscan-algo = { default-features = false, path = "../../consensus/poscan_algo", optional = true }
 log = "0.4"
 
