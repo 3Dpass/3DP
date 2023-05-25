@@ -389,6 +389,8 @@ decl_event! {
 		MinerSlash(AccountId, Balance),
 		/// Miner share has changed .
 		MinerShare(Percent),
+		/// Miner slashed.
+		PoolExceedsLimit(AccountId, Balance),
 	}
 }
 // Must be the same as in validator-set pallet
@@ -430,6 +432,7 @@ impl<T: Config> Module<T> {
 			if overmined > Perbill::zero() {
 				let pot_id = pallet_treasury::Pallet::<T>::account_id();
 				drop(<T as Config>::Currency::deposit_creating(&pot_id, slash_amount));
+				Self::deposit_event(Event::<T>::PoolExceedsLimit(author.clone(), slash_amount));
 			}
 			miner_total = miner_total.saturating_sub(slash_amount);
 			log::debug!(target: LOG_TARGET, "miner_total: {:?}", miner_total);
