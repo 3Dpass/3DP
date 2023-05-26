@@ -1,5 +1,6 @@
 
-[![logo](https://3dpass.org/assets/img/3DPass_on_the_moon.png)](https://3dpass.org)
+[![logo](https://github.com/3Dpass/3DP/assets/107915078/11de380f-7f77-4cf6-831d-e6ac8d7ab1ec)](https://3dpass.org)
+
 
 # 3Dpass Node - mainnet
 
@@ -27,7 +28,7 @@ Every object, transformed by 3DPass, has its own unique and sustainable identity
 - Networking: we use the [`libp2p`](https://libp2p.io/) networking stack to allow for the
   nodes in the network to communicate with one another.
 
-[![Architecture](https://3dpass.org/assets/img/eco_system.png)](https://3dpass.org/features.html#integration)
+[![Architecture](https://3dpass.org/images/eco_system1.png)](https://3dpass.org/features#integration)
 
 ## Getting started with 3DPass Node
 
@@ -200,4 +201,4 @@ Run the second Node:
 target/release/poscan-consensus --base-path /tmp/bob --chain local --bob --port 30334 --ws-port 9945 --rpc-port 9934  --bootnodes /ip4/127.0.0.1/tcp/30333/p2p/12D3KooWEyoppNCUx8Yx66oV9fJnriXwCcXwDDUA2kj6vnc6iDEp --validator
 ```
 
-Copyright (C) 2022 3DPass https://3dpass.org/
+Copyright (C) 2023 3DPass https://3dpass.org/
