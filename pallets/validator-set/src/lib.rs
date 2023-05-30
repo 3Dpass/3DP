@@ -182,17 +182,17 @@ pub mod pallet {
 		AmountLockedBelowLimit,
 		/// decrease lock amount not allowed .
 		DecreaseLockAmountNotAllowed,
-		/// Decrease lcck prolongation not allowed.
+		/// Decrease lock prolongation not allowed.
 		DecreaseLockPeriodNotAllowed,
-		/// Lcck prolongation period too little.
+		/// Lock prolongation period too little.
 		PeriodLockBelowLimit, // {pub limit: u32},
 		/// No lock.
 		NotLocked,
-		/// Unsufficient Balance,
+		/// Insufficient Balance,
 		UnsufficientBalance,
 		/// lock ia active
 		LockIsActive, // {pub upto_block: u32},
-		/// temporary disalowed
+		/// temporary disallowed
 		TmpDisalowed,
 		/// Unlock amount is invalid
 		UnlockAmountInvalid,
