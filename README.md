@@ -34,7 +34,7 @@ Every object, transformed by 3Dpass, has its own unique and sustainable identity
 
 ### Download the latest release
 ```sh
-wget https://github.com/3Dpass/3DP/releases/download/v0.0.6/poscan-consensus-x86_64-unknown-linux-gnu.tar.gz
+wget https://github.com/3Dpass/3DP/releases/download/v8/poscan-consensus-x86_64-unknown-linux-gnu.tar.gz
 tar xzf poscan-consensus-x86_64-unknown-linux-gnu.tar.gz
 ```
 
