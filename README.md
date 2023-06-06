@@ -4,13 +4,13 @@
 
 # 3Dpass Node - mainnet
 
-3DPass is an OpenSource decentralized WEB 3.0 P2P Layer 1 blockchain platform for tokenization of real physical and virtual objects and its transformation into digital assets. The main idea of 3DPass is to make it possible for people to use real world objects in digital within smart-contracts and dApps and have full control over its copies (learn more about 3DPass [features](https://3dpass.org/features.html) ). This allows to establish 1:1 correspondence between an object and its asset and define ownership as an additional property of the asset providing zero-knowledge proof. Follow the [White Paper](https://3dpass.org/3DPass_white_paper.pdf) for the details.
+3Dpass is an OpenSource decentralized WEB 3.0 P2P Layer 1 blockchain platform for tokenization of real physical and virtual objects and its transformation into digital assets. The main idea of 3Dpass is to make it possible for people to use real world objects in digital within smart-contracts and dApps and have full control over its copies (learn more about 3Dpass [features](https://3dpass.org/features) ). This allows to establish 1:1 correspondence between an object and its asset and define ownership as an additional property of the asset providing zero-knowledge proof. Follow the [White Paper](https://3dpass.org/3DPass_white_paper.pdf) for the details.
 
-Every object, transformed by 3DPass, has its own unique and sustainable identity called [HASH ID](https://3dpass.org/features.html#3D_object_recognition) the object might be recognized by. The algorithm is flexible enough to adjust the definition of error to certain level of scanning precision.
+Every object, transformed by 3Dpass, has its own unique and sustainable identity called [HASH ID](https://3dpass.org/features#3drecognition) the object might be recognized by. The algorithm is flexible enough to adjust the definition of error to certain level of scanning precision.
 
-3DPass NODE is a Layer 1 blockchain based on [Substrate](https://www.substrate.io/) with brandnew consensus [Proof of Scan](https://3dpass.org/proof_of_scan.html) leveraging 3D object shape recognition algorithm called [Grid2d](https://3dpass.org/grid2d.html), which is implemented as [pass3d](https://github.com/3Dpass/pass3d) tool. 3Dpass NODEs are designed to provide object authenticity check. We call it "The Ledger of Unique Things". In order to encourage users to maintain the network and to solve issues there is a cryptocurrency 3DPass Coin.
+3DPass NODE is a Layer 1 blockchain based on [Substrate](https://www.substrate.io/) with brandnew consensus [Proof of Scan](https://3dpass.org/proof-of-scan) leveraging 3D object shape recognition algorithm called [Grid2d](https://3dpass.org/grid2d), which is implemented as [pass3d](https://github.com/3Dpass/pass3d) tool. 3Dpass NODEs are designed to provide object authenticity check. We call it "The Ledger of Unique Things". In order to encourage users to maintain the network and to solve issues there is a cryptocurrency 3Dpass Coin.
 
-[Contribution program](https://3dpass.org/distribution.html#contribution)  |  [Contributing guidelines](https://github.com/3Dpass/3DP/blob/main/CONTRIBUTING.md)  |  [Discord](https://discord.gg/u24WkXcwug)
+[Contribution program](https://3dpass.org/coin#distribution-contribution)  |  [Contributing guidelines](https://github.com/3Dpass/3DP/blob/main/CONTRIBUTING.md)  |  [Discord](https://discord.gg/u24WkXcwug)
 
 # Integration
 
@@ -18,9 +18,9 @@ Every object, transformed by 3DPass, has its own unique and sustainable identity
 
 - 3DPass NODE (based on [Substrate](https://substrate.io/)) - wallets, dApps, smart-contracts, IoT devices integration using API and RPC
 - [Pass3d](https://github.com/3Dpass/pass3d) and [p3d](https://github.com/3Dpass/p3d) recognition toolkit - recognition algorithms integration
-- [Proof of Scan](https://3dpass.org/proof_of_scan.html) consensus - the logic, using 3D objects recognition toolkit, that allows network participants to agree on the state of the blockchain
+- [Proof of Scan](https://3dpass.org/proof-of-scan) consensus - the logic, using 3D objects recognition toolkit, that allows network participants to agree on the state of the blockchain
 
-- [3DPass light wallet](https://github.com/3Dpass/wallet) - desktop users and 3D printing labs integration
+- [3Dpass light wallet](https://github.com/3Dpass/wallet) - desktop users and 3D printing labs integration
 - [Pass3d mobile](https://github.com/3Dpass/threedpass) - smartphone and tablets users integration
 - Smart contracts toolkit - Substrate based smart contract tools using [ink](https://paritytech.github.io/ink-docs/), a Rust-based embedded domain specific language (eDSL) for writing WebAssembly smart contracts. Learn more about [how it compares to Solidity](https://paritytech.github.io/ink-docs/ink-vs-solidity). As well, it allows unmodified EVM code to be executed in the 3DPass blockchain. Some special Substrate features are designed to closely emulate the functionality of executing contracts on the Ethereum mainnet within the 3DPass network.
 - IPFS storage - embedded decentralized storage for assets
@@ -30,7 +30,7 @@ Every object, transformed by 3DPass, has its own unique and sustainable identity
 
 [![Architecture](https://3dpass.org/images/eco_system1.png)](https://3dpass.org/features#integration)
 
-## Getting started with 3DPass Node
+## Getting started with 3Dpass Node
 
 ### Download the latest release
 ```sh
@@ -108,7 +108,7 @@ Make sure you have both keys in the keystore `~/3dp-chain/chains/3dpass/keystore
 
 Start the Node with the following command:
 ```bash
-./target/release/poscan-consensus --base-path ~/3dp-chain/ --chain mainnetSpecRaw.json --name MyNodeName --validator --telemetry-url "wss://submit.telemetry.3dpass.org/submit 0" --author <your mining address or pub key> --threads 2 --no-mdns
+./target/release/poscan-consensus --base-path ~/3dp-chain/ --chain mainnetSpecRaw.json --name MyNodeName --validator --telemetry-url "wss://submit.telemetry.3dpscan.io/submit 0" --author <your mining address or pub key> --threads 2 --no-mdns
 ```
 
 Run miner (You have to install [Bun](https://bun.sh/) before):
@@ -117,7 +117,7 @@ bun install
 bun miner.js --host 127.0.0.1 --port 9933
 ```
 
-Make sure you can see your node in the [list](https://telemetry.3dpass.org/). Use this [tutorial](https://3dpass.org/mainnet.html#mining_docker) for more details.
+Make sure you can see your node in the [list](https://telemetry.3dpscan.io/). Use this [tutorial](https://3dpass.org/mainnet#linux-mac) for more details.
 
 ## Mining with Docker
 This procedure will build and run the Node and Miner automatically with Docker.
@@ -152,12 +152,12 @@ version: "3.9"
 - `THREADS=2` is the amount of threads you are about to use for mining
 - `INTERVAL=100` is the amount of time in milliseconds between the last and the next one objects being sent towards the Node. Depending on how much threads are you mining with, reduce the interval until you reach desired proc load.
 
-You can generate your ADDRESS and MEMO_SEED phrase in the [wallet](https://wallet.3dpass.org/) (add new address). Make sure you can see your node in the [list](https://telemetry.3dpass.org/). Use this [tutorial](https://3dpass.org/mainnet.html#mining_docker) for more details.
+You can generate your ADDRESS and MEMO_SEED phrase in the [wallet](https://wallet.3dpass.org/) (add new address). Make sure you can see your node in the [list](https://telemetry.3dpscan.io/). Use this [tutorial](https://3dpass.org/mainnet#docker) for more details.
 
 
 ## Connect to the wallet Front-end
 Open the wallet page: https://wallet.3dpass.org/. In order to connect your Node to the wallet in local you need to set up your local API endpoint as `ws://127.0.0.1:9944` in the Settings.
-Follow this [guidelines](https://3dpass.org/mainnet.html#how_to_use_web3_wallet) for more details.
+Follow this [guidelines](https://3dpass.org/mainnet#wallet) for more details.
 
 ## Development
 
@@ -201,4 +201,4 @@ Run the second Node:
 target/release/poscan-consensus --base-path /tmp/bob --chain local --bob --port 30334 --ws-port 9945 --rpc-port 9934  --bootnodes /ip4/127.0.0.1/tcp/30333/p2p/12D3KooWEyoppNCUx8Yx66oV9fJnriXwCcXwDDUA2kj6vnc6iDEp --validator
 ```
 
-Copyright (C) 2023 3DPass https://3dpass.org/
+Copyright (C) 2002-2023 3Dpass https://3dpass.org/
