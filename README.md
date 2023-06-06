@@ -16,7 +16,7 @@ Every object, transformed by 3Dpass, has its own unique and sustainable identity
 
  This is an eco-system scheme, which represents general functional elements:
 
-- 3DPass NODE (based on [Substrate](https://substrate.io/)) - wallets, dApps, smart-contracts, IoT devices integration using API and RPC
+- 3Dpass NODE (based on [Substrate](https://substrate.io/)) - wallets, dApps, smart-contracts, IoT devices integration using API and RPC
 - [Pass3d](https://github.com/3Dpass/pass3d) and [p3d](https://github.com/3Dpass/p3d) recognition toolkit - recognition algorithms integration
 - [Proof of Scan](https://3dpass.org/proof-of-scan) consensus - the logic, using 3D objects recognition toolkit, that allows network participants to agree on the state of the blockchain
 
