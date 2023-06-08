@@ -52,7 +52,7 @@ jobs:
       - uses: actions-rs/toolchain@v1.0.6
         with:
           profile: minimal
-          toolchain: nightly
+          toolchain: nightly-2023-05-20
           override: true
 
       - name: Add WASM target
