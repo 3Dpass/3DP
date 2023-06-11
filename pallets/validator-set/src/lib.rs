@@ -163,6 +163,8 @@ pub mod pallet {
 		ValidatorLockBalance(T::AccountId, T::BlockNumber, BalanceOf<T>, Option<u32>),
 
 		ValidatorUnlockBalance(T::AccountId, BalanceOf<T>),
+
+		AccountSlash(T::AccountId, BalanceOf<T>),
 	}
 
 	// Errors inform users that something went wrong.
@@ -311,7 +313,11 @@ pub mod pallet {
 			}
 
 			let penalty: BalanceOf<T> = T::PenaltyOffline::get().saturated_into();
-			Self::slash(&validator_id, penalty);
+			Self::slash(
+				&validator_id,
+				penalty,
+				|acc, amount| Event::<T>::ValidatorSlash(acc.clone(), amount),
+			);
 
 			Self::do_remove_validator(validator_id.clone())?;
 			Self::unapprove_validator(validator_id.clone())?;
@@ -521,16 +527,23 @@ pub mod pallet {
 		#[pallet::weight(10_000_000)]
 		pub fn slash_accounts(
 			origin: OriginFor<T>,
-			account_id: T::AccountId,
-			amount: BalanceOf<T>,
+			account_ids: BoundedVec<(T::AccountId, Option<BalanceOf<T>>), ConstU32<100>>,
 		) -> DispatchResult {
 			T::AddRemoveOrigin::ensure_origin(origin)?;
+			let min_bal = <T as pallet::Config>::Currency::minimum_balance();
 
-			Self::slash(
-				&account_id,
-				amount,
-				|acc, amount| Event::<T>::AccountSlash(acc.clone(), amount),
-			);
+			for (acc, maybe_bal) in account_ids {
+				let free = <T as pallet::Config>::Currency::free_balance(&acc);
+
+				let slash_amount = maybe_bal.map(|a| core::cmp::min(a, free)).unwrap_or(free);
+				if slash_amount > min_bal {
+					Self::slash(
+						&acc,
+						slash_amount - min_bal,
+						|acc, amount| Event::<T>::AccountSlash(acc.clone(), amount),
+					);
+				}
+			}
 
 			Ok(())
 		}
@@ -656,7 +669,10 @@ impl<T: Config> Pallet<T> {
 		log::debug!(target: LOG_TARGET, "Offline validator marked for auto removal: {:#?}", validator_id);
 	}
 
-	fn slash(validator_id: &T::AccountId, slash_amount: BalanceOf<T>) {
+	fn slash<F>(validator_id: &T::AccountId, slash_amount: BalanceOf<T>, make_evt: F)
+	where
+		F: FnOnce(&T::AccountId, BalanceOf<T>) -> Event<T>,
+	{
 		let pot_id = pallet_treasury::Pallet::<T>::account_id();
 		let min_bal = <T as pallet::Config>::Currency::minimum_balance();
 		let maybe_lock = ValidatorLock::<T>::get(validator_id);
@@ -695,12 +711,12 @@ impl<T: Config> Pallet<T> {
 		);
 
 		if let Err(e) = res {
-			log::error!(target: LOG_TARGET, "Error slash validator {:#?} by {:?}: {:?}.", validator_id, &amount, &e);
+			log::error!(target: LOG_TARGET, "Error slash account {:#?} by {:?}: {:?}.", validator_id, &amount, &e);
 			return
 		}
 
-		log::debug!(target: LOG_TARGET, "Slash validator {:?} by {:?}.", validator_id, &amount);
-		Self::deposit_event(Event::ValidatorSlash(validator_id.clone(), amount));
+		log::debug!(target: LOG_TARGET, "Slash account {:?} by {:?}.", validator_id, &amount);
+		Self::deposit_event(make_evt(validator_id, amount));
 	}
 
 
@@ -908,7 +924,7 @@ impl<T: Config, O: Offence<(T::AccountId, T::AccountId)>>
 				continue
 			}
 
-			Self::slash(&v, val);
+			Self::slash(&v, val, |acc, amount| Event::<T>::ValidatorSlash(acc.clone(), amount));
 			Self::mark_for_removal(v, RemoveReason::ImOnlineSlash);
 		}
 
