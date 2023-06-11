@@ -3,6 +3,8 @@ name: Release CI
 on:
   workflow_dispatch:
   push:
+    branches-ignore:
+      - "test"
     tags:
       - "v*"
 
