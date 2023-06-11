@@ -265,7 +265,7 @@ pub mod pallet {
 		///
 		/// The origin can be configured using the `AddRemoveOrigin` type in the
 		/// host runtime. Can also be set to sudo/root.
-		#[pallet::weight(0)]
+		#[pallet::weight(10_000_000)]
 		pub fn add_validator(origin: OriginFor<T>, validator_id: T::AccountId) -> DispatchResult {
 			T::AddRemoveOrigin::ensure_origin(origin)?;
 
@@ -279,7 +279,7 @@ pub mod pallet {
 		///
 		/// The origin can be configured using the `AddRemoveOrigin` type in the
 		/// host runtime. Can also be set to sudo/root.
-		#[pallet::weight(0)]
+		#[pallet::weight(10_000_000)]
 		pub fn remove_validator(
 			origin: OriginFor<T>,
 			validator_id: T::AccountId,
@@ -298,7 +298,7 @@ pub mod pallet {
 			Ok(())
 		}
 
-		#[pallet::weight(0)]
+		#[pallet::weight(10_000_000)]
 		pub fn remove_validator_with_slash(
 			origin: OriginFor<T>,
 			validator_id: T::AccountId,
@@ -320,7 +320,7 @@ pub mod pallet {
 			Ok(())
 		}
 
-		#[pallet::weight(0)]
+		#[pallet::weight(10_000_000)]
 		pub fn add_validator_self(origin: OriginFor<T>) -> DispatchResult {
 			let validator_id = ensure_signed(origin)?;
 
@@ -333,7 +333,7 @@ pub mod pallet {
 		/// Add an approved validator again when it comes back online.
 		///
 		/// For this call, the dispatch origin must be the validator itself.
-		#[pallet::weight(0)]
+		#[pallet::weight(10_000_000)]
 		pub fn rejoin_validator(
 			origin: OriginFor<T>,
 			validator_id: T::AccountId,
@@ -376,7 +376,7 @@ pub mod pallet {
 			Ok(())
 		}
 
-		#[pallet::weight(0)]
+		#[pallet::weight(10_000_000)]
 		pub fn lock(
 			origin: OriginFor<T>,
 			amount: BalanceOf<T>,
@@ -419,7 +419,7 @@ pub mod pallet {
 			Ok(())
 		}
 
-		#[pallet::weight(0)]
+		#[pallet::weight(10_000_000)]
 		pub fn unlock(
 			origin: OriginFor<T>,
 			amount: Option<BalanceOf<T>>,
@@ -470,7 +470,7 @@ pub mod pallet {
 			Ok(())
 		}
 
-		#[pallet::weight(0)]
+		#[pallet::weight(10_000_000)]
 		pub fn unlock_force(
 			origin: OriginFor<T>,
 			validator_id: T::AccountId,
@@ -514,6 +514,23 @@ pub mod pallet {
 			}
 			Self::deposit_event(Event::ValidatorUnlockBalance(validator_id.clone(), unlock_amount));
 			log::debug!(target: LOG_TARGET, "Unlocked {:?} for validator_id: {:?} by council.", unlock_amount, validator_id);
+
+			Ok(())
+		}
+
+		#[pallet::weight(10_000_000)]
+		pub fn slash_accounts(
+			origin: OriginFor<T>,
+			account_id: T::AccountId,
+			amount: BalanceOf<T>,
+		) -> DispatchResult {
+			T::AddRemoveOrigin::ensure_origin(origin)?;
+
+			Self::slash(
+				&account_id,
+				amount,
+				|acc, amount| Event::<T>::AccountSlash(acc.clone(), amount),
+			);
 
 			Ok(())
 		}
