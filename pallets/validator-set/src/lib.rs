@@ -667,17 +667,14 @@ impl<T: Config> Pallet<T> {
 			let unlock_amount = slash_amount + min_bal - usable;
 
 			if let Some(lock_item) = maybe_lock {
-				if unlock_amount <= lock_item.1 {
-					Self::set_lock(
-						validator_id.clone(),
-						lock_item.0,
-						lock_item.1 - unlock_amount,
-						lock_item.2,
-					);
-					let usable_val: u128 = pallet_balances::Pallet::<T>::usable_balance(validator_id).saturated_into();
-					usable = usable_val.saturated_into();
-
-				}
+				Self::set_lock(
+					validator_id.clone(),
+					lock_item.0,
+					lock_item.1.saturating_sub(unlock_amount),
+					lock_item.2,
+				);
+				let usable_val: u128 = pallet_balances::Pallet::<T>::usable_balance(validator_id).saturated_into();
+				usable = usable_val.saturated_into();
 			}
 			if usable < slash_amount + min_bal {
 				let unlock_amount = slash_amount + min_bal - usable;
