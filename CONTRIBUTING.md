@@ -2,7 +2,7 @@
 
 In order to contribute and help 3DPass solve the Global Digital Transformation Challenge feel free to implement or develop new recognition algorithms into [pass3d](https://github.com/3Dpass/pass3d) toolkit (e.x. face recognition, fingerprint recognition, radio signal, 2D drawings, melody, voice, 3D objects, etc.). 
 
-However, it always encourages that developers contribute to 3DPass growth, would it be mining tools, network features, dApps, smart-contracts, impementations, new projects and ideas etc. Dive down into [3DPass contribution rewards program](https://3dpass.org/distribution.html#contribution).
+However, it always encourages that developers contribute to 3DPass growth, would it be mining tools, network features, dApps, smart-contracts, impementations, new projects and ideas etc. Dive down into [3Dpass contribution rewards program](https://3dpass.org/coin#distribution-contribution).
 
 - [Discord chat](https://discord.gg/u24WkXcwug)
 
@@ -11,12 +11,12 @@ However, it always encourages that developers contribute to 3DPass growth, would
  **Your help is always Welcome!**
 
 Feel free to open Pull Request if you already have somethinfg useful to add. If you haven't yet, we gathered some docs down below:
--   The [HASH ID](https://3dpass.org/features.html#3D_object_recognition)
--   The [Multi object options](https://3dpass.org/features.html#multi_object_options)
--   The [Proof of Scan](https://3dpass.org/proof_of_scan.html) docs
--   The [Grid2D](https://3dpass.org/grid2d.html) recognition algorithm description
+-   The [HASH ID](https://3dpass.org/features#3drecognition-hash-id)
+-   The [Multi object options](https://3dpass.org/features#multiobject)
+-   The [Proof of Scan](https://3dpass.org/proof-of-scan) docs
+-   The [Grid2D](https://3dpass.org/grid2d) recognition algorithm description
 -   The [Node interaction API](https://github.com/3Dpass/3DP/wiki)
--   The [Integration](https://3dpass.org/features.html#integration)
+-   The [Integration](https://3dpass.org/features#integration)
 
 ## Reporting Bugs
 
