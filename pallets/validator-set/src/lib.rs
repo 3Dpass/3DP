@@ -163,8 +163,6 @@ pub mod pallet {
 		ValidatorLockBalance(T::AccountId, T::BlockNumber, BalanceOf<T>, Option<u32>),
 
 		ValidatorUnlockBalance(T::AccountId, BalanceOf<T>),
-
-		AccountSlash(T::AccountId, BalanceOf<T>),
 	}
 
 	// Errors inform users that something went wrong.
@@ -520,30 +518,6 @@ pub mod pallet {
 			}
 			Self::deposit_event(Event::ValidatorUnlockBalance(validator_id.clone(), unlock_amount));
 			log::debug!(target: LOG_TARGET, "Unlocked {:?} for validator_id: {:?} by council.", unlock_amount, validator_id);
-
-			Ok(())
-		}
-
-		#[pallet::weight(10_000_000)]
-		pub fn slash_accounts(
-			origin: OriginFor<T>,
-			account_ids: BoundedVec<(T::AccountId, Option<BalanceOf<T>>), ConstU32<100>>,
-		) -> DispatchResult {
-			T::AddRemoveOrigin::ensure_origin(origin)?;
-			let min_bal = <T as pallet::Config>::Currency::minimum_balance();
-
-			for (acc, maybe_bal) in account_ids {
-				let free = <T as pallet::Config>::Currency::free_balance(&acc);
-
-				let slash_amount = maybe_bal.map(|a| core::cmp::min(a, free)).unwrap_or(free);
-				if slash_amount > min_bal {
-					Self::slash(
-						&acc,
-						slash_amount - min_bal,
-						|acc, amount| Event::<T>::AccountSlash(acc.clone(), amount),
-					);
-				}
-			}
 
 			Ok(())
 		}
