@@ -324,16 +324,6 @@ pub mod pallet {
 			Ok(())
 		}
 
-		#[pallet::weight(10_000_000)]
-		pub fn add_validator_self(origin: OriginFor<T>) -> DispatchResult {
-			let validator_id = ensure_signed(origin)?;
-
-			Self::do_add_validator(validator_id.clone(), true)?;
-			Self::approve_validator(validator_id)?;
-
-			Ok(())
-		}
-
 		/// Add an approved validator again when it comes back online.
 		///
 		/// For this call, the dispatch origin must be the validator itself.
