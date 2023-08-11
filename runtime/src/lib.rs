@@ -73,6 +73,7 @@ use sp_consensus_poscan::{
 };
 
 use mining_pool_stat_api::{MiningPoolStatApi, CheckMemberError};
+use poscan_api::PoscanApi;
 
 /// An index to a block.
 pub type BlockNumber = u32;
@@ -969,6 +970,9 @@ parameter_types! {
 
 impl pallet_validator_set::Config for Runtime {
 	type Event = Event;
+	type AuthorityId = ImOnlineId;
+	type EstimateUnsignedPriority = ConstU64<{TransactionPriority::MAX / 2}>;
+	type EstimatePriority = ConstU64<{TransactionPriority::MAX / 2}>;
 	type AddRemoveOrigin = EnsureRootOrHalfCouncil;
 	// type AddRemoveOrigin = EnsureRoot<AccountId>;
 	type MinAuthorities = MinAuthorities;
@@ -1297,9 +1301,22 @@ impl pallet_atomic_swap::Config for Runtime {
 	type ProofLimit = ConstU32<1024>;
 }
 
+parameter_types! {
+	pub const RewardsDefault: u128 = 1_000 * DOLLARS;
+	pub const AuthorPartDefault: Percent = Percent::from_percent(30);
+
+}
+
 impl pallet_poscan::Config for Runtime {
 	type Event = Event;
+	type Call = Call;
 	// type MaxBytesInHash = frame_support::traits::ConstU32<64>;
+	type PoscanEngineId = PoscanEngineId;
+	type EstimatePeriod = ConstU32<5>;
+	// type MaxObjectSize = ConstU32<100_000>;
+	type RewardsDefault = RewardsDefault;
+	type AuthorPartDefault = AuthorPartDefault;
+	type Currency = Balances;
 }
 
 impl pallet_sudo::Config for Runtime {
@@ -1379,7 +1396,7 @@ construct_runtime!(
 		RankedPolls: pallet_referenda::<Instance2>,
 		RankedCollective: pallet_ranked_collective,
 		AtomicSwap: pallet_atomic_swap,
-		PoScan: pallet_poscan::{Pallet, Call, Storage, Event<T>},
+		PoScan: pallet_poscan, // ::{Pallet, Call, Storage, Event<T>, Inherent},
 		MiningPool: pallet_mining_pool,
 		Sudo: pallet_sudo,
 	}
@@ -1602,6 +1619,12 @@ impl_runtime_apis! {
 		}
 		fn get_stat(pool_id: &AccountId) -> Option<(Percent, Percent, Vec<(AccountId,u32)>)> {
 			<MiningPool as MiningPoolStatApi<sp_consensus_poscan::Difficulty, AccountId>>::get_stat(pool_id)
+		}
+	}
+
+	impl sp_consensus_poscan::PoscanApi<Block> for Runtime {
+		fn uncompleted_objects() -> Option<Vec<(u32, Vec<u8>)>> {
+			<PoScan as PoscanApi>::uncompleted_objects()
 		}
 	}
 

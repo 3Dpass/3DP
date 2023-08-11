@@ -20,9 +20,12 @@ use parking_lot::Mutex;
 use std::str::FromStr;
 use sp_keystore::{SyncCryptoStore, SyncCryptoStorePtr};
 use sp_runtime::traits::Block as BlockT;
+use sp_api::ProvideRuntimeApi;
+use sp_runtime::generic::BlockId;
 use sp_core::crypto::{Ss58Codec,UncheckedFrom, Ss58AddressFormat, set_default_ss58_version};
 use sp_core::Pair;
 use sp_consensus_poscan::{POSCAN_COIN_ID, POSCAN_ALGO_GRID2D_V3_1} ;
+use sp_consensus_poscan::PoscanApi;
 use poscan_algo::get_obj_hashes;
 use async_trait::async_trait;
 use sc_rpc::SubscriptionTaskExecutor;
@@ -102,18 +105,27 @@ type FullClient =
 type FullBackend = sc_service::TFullBackend<Block>;
 type FullSelectChain = sc_consensus::LongestChain<FullBackend, Block>;
 
-pub struct CreateInherentDataProviders;
+pub struct CreateInherentDataProviders {
+	author: Option<Vec<u8>>,
+}
 
 #[async_trait]
 impl sp_inherents::CreateInherentDataProviders<Block, ()> for CreateInherentDataProviders {
-	type InherentDataProviders = sp_timestamp::InherentDataProvider;
+	type InherentDataProviders = (
+		sp_timestamp::InherentDataProvider,
+		pallet_poscan::inherents::InherentDataProvider,
+	);
 
 	async fn create_inherent_data_providers(
 		&self,
 		_parent: <Block as BlockT>::Hash,
 		_extra_args: (),
 	) -> Result<Self::InherentDataProviders, Box<dyn std::error::Error + Send + Sync>> {
-		Ok(sp_timestamp::InherentDataProvider::from_system_time())
+		// Ok(sp_timestamp::InherentDataProvider::from_system_time())
+		Ok((
+			sp_timestamp::InherentDataProvider::from_system_time(),
+			pallet_poscan::inherents::InherentDataProvider::with_author(self.author.clone()),
+		))
 	}
 }
 
@@ -126,6 +138,7 @@ pub fn new_partial(
 	config: &Configuration,
 	// check_inherents_after: u32,
 	// enable_weak_subjectivity: bool,
+	author: Option<&str>,
 ) -> Result<
 	PartialComponents<
 		FullClient,
@@ -181,6 +194,9 @@ pub fn new_partial(
 		)?;
 	let client = Arc::new(client);
 
+	let keystore_path = config.keystore.path().map(|p| p.to_owned());
+	let auth = decode_author(author, keystore_container.sync_keystore(), keystore_path)?.encode();
+
 	poscan_algo::CLIENT.lock().replace(Box::new(client.clone()));
 
 	let telemetry = telemetry.map(|(worker, telemetry)| {
@@ -213,7 +229,7 @@ pub fn new_partial(
 		poscan_grid2d::PoscanAlgorithm::new(client.clone()),
 		0, // check inherents starting at block 0
 		select_chain.clone(),
-		CreateInherentDataProviders,
+		CreateInherentDataProviders { author: Some(auth.encode()) },
 		can_author_with,
 	);
 
@@ -245,6 +261,7 @@ pub fn new_full(
 	author: Option<&str>,
 	threads: usize,
 ) -> Result<TaskManager, ServiceError> {
+
 	let sc_service::PartialComponents {
 		client,
 		backend,
@@ -254,7 +271,7 @@ pub fn new_full(
 		select_chain,
 		transaction_pool,
 		other: (pow_block_import, grandpa_link, shared_voter_state, mut telemetry),
-	} = new_partial(&config)?;
+	} = new_partial(&config, author)?;
 
 	let grandpa_protocol_name = sc_finality_grandpa::protocol_standard_name(
 		&client.block_hash(0).ok().flatten().expect("Genesis block exists; qed"),
@@ -367,7 +384,8 @@ pub fn new_full(
 			network.clone(),
 			network.clone(),
 			Some(author.encode()),
-			CreateInherentDataProviders,
+			// CreateInherentDataProviders,
+			CreateInherentDataProviders { author: Some(author.encode()) },
 			// time to wait for a new block before starting to mine a new one
 			Duration::from_secs(10),
 			// how long to take to actually build the block (i.e. executing extrinsics)
@@ -417,10 +435,14 @@ pub fn new_full(
 			let mut poscan_hash = poscan_hash.clone();
 			let mining_pool = mining_pool.as_ref().map(|a| a.clone());
 			let pair = pair.clone();
+			let client = client.clone();
 
 			thread::spawn(move || loop {
 				let metadata = worker.metadata();
 				if let Some(metadata) = metadata {
+					let block_id = BlockId::hash(metadata.best_hash);
+					let _ = client.runtime_api().uncompleted_objects(&block_id);
+
 					let maybe_mining_prop =
 						mining_pool.clone()
 							.map(|mining_pool| {

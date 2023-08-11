@@ -2544,6 +2544,9 @@ name = "lazy_static"
 version = "1.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e2abad23fbc42b3700f2f279844dc832adb2b2eb069b2df918f455c4e18cc646"
+dependencies = [
+ "spin",
+]
 
 [[package]]
 name = "lazycell"
@@ -4248,16 +4251,22 @@ dependencies = [
 name = "pallet-poscan"
 version = "0.0.1"
 dependencies = [
+ "async-trait",
  "frame-benchmarking",
  "frame-support",
  "frame-system",
  "log",
  "parity-scale-codec",
+ "poscan-algo",
+ "poscan-api",
  "scale-info",
  "sp-consensus-poscan",
  "sp-core",
+ "sp-inherents",
  "sp-runtime",
  "sp-std",
+ "sp-timestamp",
+ "thiserror",
 ]
 
 [[package]]
@@ -4568,14 +4577,18 @@ dependencies = [
  "frame-benchmarking",
  "frame-support",
  "frame-system",
+ "lazy_static",
  "log",
  "pallet-balances",
+ "pallet-poscan",
  "pallet-session",
  "pallet-treasury",
  "parity-scale-codec",
+ "poscan-algo",
  "rewards-api",
  "scale-info",
  "serde",
+ "sp-application-crypto",
  "sp-consensus-poscan",
  "sp-core",
  "sp-io",
@@ -4942,6 +4955,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "poscan-api"
+version = "3.0.0"
+dependencies = [
+ "frame-system",
+ "parity-scale-codec",
+ "sp-consensus-poscan",
+ "sp-runtime",
+ "sp-std",
+]
+
+[[package]]
 name = "poscan-consensus"
 version = "3.0.0"
 dependencies = [
@@ -5083,6 +5107,7 @@ dependencies = [
  "pallet-vesting",
  "pallet-whitelist",
  "parity-scale-codec",
+ "poscan-api",
  "scale-info",
  "smallvec",
  "sp-api",

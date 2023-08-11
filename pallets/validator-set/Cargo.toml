@@ -11,6 +11,7 @@ serde = { features = ['derive'], version = '1.0.126' }
 
 [dependencies]
 log = { default-features = false, version = '0.4.17'}
+lazy_static = { version = "1.4.0", features = ['spin_no_std'] }
 codec = { default-features = false, features = ['derive'], package = 'parity-scale-codec', version = '3.1' }
 
 sp-core = { default-features = false, git = "tps://github.com/paritytech/substrate", rev = "b0777b4c7f7" }
@@ -19,6 +20,7 @@ sp-runtime = { default-features = false, git = "https://github.com/paritytech/su
 sp-std = { default-features = false, git = "https://github.com/paritytech/substrate", rev = "b0777b4c7f7" }
 sp-staking = { default-features = false, git = "https://github.com/paritytech/substrate", rev = "b0777b4c7f7" }
 sp-version = { default-features = false, git = "https://github.com/paritytech/substrate", rev = "b0777b4c7f7" }
+sp-application-crypto = { default-features = false, git = "https://github.com/paritytech/substrate", rev = "b0777b4c7f7" }
 frame-benchmarking = { default-features = false, git = "tps://github.com/paritytech/substrate", rev = "b0777b4c7f7", optional = true }
 frame-support = { default-features = false, git = "https://github.com/paritytech/substrate", rev = "b0777b4c7f7" }
 frame-system = { default-features = false, git = "https://github.com/paritytech/substrate", rev = "b0777b4c7f7" }
@@ -31,6 +33,8 @@ scale-info = { default-features = false, features = ['derive'], version = '2.1.1
 rewards-api = { default-features = false, path = "../../traits/rewards" }
 validator-set-api = { default-features = false, path = "../../traits/validator-set" }
 sp-consensus-poscan = { path = "../../primitives/consensus/poscan", default-features = false }
+pallet-poscan = { path = "../../pallets/poscan", default-features = false }
+poscan-algo = { default-features = false, path = "../../consensus/poscan_algo" }
 
 [features]
 default = ['std']
@@ -47,5 +51,8 @@ std = [
     'sp-runtime/std',
     'pallet-session/std',
     'rewards-api/std',
+    'sp-application-crypto/std',
+    'pallet-poscan/std',
+    'poscan-algo/std',
 ]
 try-runtime = ['frame-support/try-runtime']

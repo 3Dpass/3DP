@@ -161,6 +161,10 @@ sp_api::decl_runtime_apis! {
 	pub trait AlgorithmApi {
 		fn identifier() -> [u8; 8];
 	}
+
+	pub trait PoscanApi {
+		fn uncompleted_objects() -> Option<Vec<(u32, Vec<u8>)>>;
+	}
 }
 
 pub fn compress_obj(obj: &[u8]) -> Vec<u8> {

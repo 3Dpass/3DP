@@ -1,0 +1,26 @@
+[package]
+name = "poscan-api"
+version = "3.0.0"
+edition = "2018"
+authors = ['Substrate DevHub <https://github.com/substrate-developer-hub>']
+repository = 'https://github.com/substrate-developer-hub/recipes'
+description = "A trait that supplies a set of accounts for use in a Substrate runtime"
+license = "GPL-3.0-or-later"
+
+[dependencies]
+codec = { package = "parity-scale-codec", version = "3.1", default-features = false, features = ["derive"] }
+sp-std = { default-features = false, git = "https://github.com/paritytech/substrate", rev = "b0777b4c7f7" }
+sp-runtime = { default-features = false, git = "https://github.com/paritytech/substrate", rev = "b0777b4c7f7" }
+frame-system = { default-features = false, git = "https://github.com/paritytech/substrate", rev = "b0777b4c7f7" }
+
+sp-consensus-poscan = { default-features = false, path = "../../primitives/consensus/poscan" }
+
+[features]
+default = ['std']
+std = [
+    "sp-std/std",
+    "sp-runtime/std",
+    "frame-system/std",
+    "sp-consensus-poscan/std",
+]
+

@@ -1,12 +1,33 @@
+use alloc::string::String;
 use codec::Decode;
+
+use sp_std::boxed::Box;
+use sp_std::vec::Vec;
 use sp_inherents::{InherentIdentifier, InherentData};
 
+// #[cfg(feature = "std")]
+// use poscan_algo::get_obj_hashes;
+
+// #[cfg(feature = "std")]
+// use sp_consensus_poscan::POSCAN_ALGO_GRID2D_V3_1;
+
 // This needs to be unique for the runtime.
-const INHERENT_IDENTIFIER: InherentIdentifier = *b"p3d";
+const INHERENT_IDENTIFIER: InherentIdentifier = *b"p3d     ";
 
 /// Some custom inherent data provider
-struct InherentDataProvider;
+pub struct InherentDataProvider {
+    pub author: Option<Vec<u8>>,
+    pub obj_idx: Option<u32>,
+    pub obj: Option<Vec<u8>>,
+}
 
+impl InherentDataProvider {
+    pub fn with_author(author: Option<Vec<u8>>) -> Self {
+        Self { author: author.clone(), obj_idx: None, obj: None }
+    }
+}
+
+#[cfg(feature = "std")]
 #[async_trait::async_trait]
 impl sp_inherents::InherentDataProvider for InherentDataProvider {
     fn provide_inherent_data(
@@ -14,7 +35,11 @@ impl sp_inherents::InherentDataProvider for InherentDataProvider {
         inherent_data: &mut InherentData,
     ) -> Result<(), sp_inherents::Error> {
         // We can insert any data that implements [`codec::Encode`].
-        inherent_data.put_data(INHERENT_IDENTIFIER, &"hello")
+
+        log::debug!(target: super::LOG_TARGET,"provide_inherent_data");
+        // let _hashes = get_obj_hashes(&POSCAN_ALGO_GRID2D_V3_1, &[], &H256::default());
+
+        inherent_data.put_data(INHERENT_IDENTIFIER, &self.author)
     }
 
     /// When validating the inherents, the runtime implementation can throw errors. We support
