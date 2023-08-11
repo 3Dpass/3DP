@@ -19,6 +19,9 @@
 mod mock;
 mod tests;
 
+use lazy_static::lazy_static;
+use core::sync::atomic::AtomicBool;
+
 use frame_support::{
 	ensure,
 	pallet_prelude::*,
@@ -29,13 +32,31 @@ use frame_support::{
 	},
 	sp_runtime::SaturatedConversion,
 };
+
+use frame_system::offchain::{
+	CreateSignedTransaction,
+	SubmitTransaction,
+};
+use sp_application_crypto::RuntimeAppPublic;
 pub use pallet::*;
-use sp_runtime::traits::{Convert, Zero, Saturating};
+use sp_runtime::{
+	traits::{Convert, Zero, Saturating},
+	offchain::{
+		storage_lock::{StorageLock, Time},
+		storage::{
+			// MutateStorageError,
+			StorageRetrievalError,
+			StorageValueRef,
+		},
+	},
+};
 use sp_staking::offence::{Offence, OffenceError, ReportOffence};
 use sp_version::RuntimeVersion;
 use sp_std::{collections::btree_set::BTreeSet, prelude::*};
 use core::convert::TryInto;
 use sp_consensus_poscan::HOURS;
+use poscan_algo;
+use sp_consensus_poscan::POSCAN_ALGO_GRID2D_V3_1;
 
 use rewards_api::RewardLocksApi;
 use validator_set_api::ValidatorSetApi;
@@ -44,6 +65,7 @@ const CUR_SPEC_VERSION: u32 = 101;
 const UPGRADE_SLASH_DELAY: u32 = 5 * 24 * HOURS;
 const LOCK_ID: LockIdentifier = *b"validatr";
 pub const LOG_TARGET: &str = "runtime::validator-set";
+const ESTIMATION_LOCK: &'static [u8] = b"validator-set::estimate";
 
 pub type BalanceOf<T> =
 <<T as Config>::Currency as Currency<<T as frame_system::Config>::AccountId>>::Balance;
@@ -52,6 +74,11 @@ type NegativeImbalanceOf<T> = <<T as Config>::Currency as Currency<
 	<T as frame_system::Config>::AccountId,
 >>::NegativeImbalance;
 
+lazy_static! {
+    pub static ref CALC: AtomicBool = {
+        AtomicBool::default()
+    };
+}
 
 #[derive(Encode, Decode, Debug, Clone, PartialEq, TypeInfo, Default)]
 pub enum RemoveReason {
@@ -62,6 +89,17 @@ pub enum RemoveReason {
 	CouncilSlash,
 }
 
+#[derive(Encode, Decode, Clone, PartialEq, Eq, RuntimeDebug, TypeInfo)]
+pub struct Estimation<AuthorityId>
+// <BlockNumber>
+// where
+// 	BlockNumber: PartialEq + Eq + Decode + Encode,
+{
+	pub obj_idx: u32,
+	pub t: u128,
+	pub authority_id: AuthorityId,
+}
+
 #[frame_support::pallet]
 pub mod pallet {
 	use super::*;
@@ -70,9 +108,23 @@ pub mod pallet {
 	/// Configure the pallet by specifying the parameters and types on which it
 	/// depends.
 	#[pallet::config]
-	pub trait Config: frame_system::Config + pallet_session::Config + pallet_treasury::Config + pallet_balances::Config {
+	pub trait Config: frame_system::Config
+		+ pallet_session::Config
+		+ pallet_treasury::Config
+		+ pallet_balances::Config
+		+ pallet_poscan::Config
+		+ CreateSignedTransaction<Call<Self>>
+	{
 		/// The Event type.
 		type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
+
+		/// The identifier type for an authority.
+		type AuthorityId: Member
+			+ Parameter
+			+ RuntimeAppPublic
+			+ Ord
+			+ MaybeSerializeDeserialize
+			+ MaxEncodedLen;
 
 		/// Origin for adding or removing a validator.
 		type AddRemoveOrigin: EnsureOrigin<Self::Origin>;
@@ -85,6 +137,12 @@ pub mod pallet {
 
 		#[pallet::constant]
 		type PoscanEngineId: Get<[u8; 4]>;
+
+		#[pallet::constant]
+		type EstimatePriority: Get<TransactionPriority>;
+
+		#[pallet::constant]
+		type EstimateUnsignedPriority: Get<TransactionPriority>;
 
 		#[pallet::constant]
 		type FilterLevels: Get<[(u128, u32); 4]>;
@@ -208,7 +266,7 @@ pub mod pallet {
 				.iter()
 				.filter_map(|s| s.as_pre_runtime())
 				.filter_map(|(id, mut data)| {
-					if id == T::PoscanEngineId::get() {
+					if id == <T as pallet::Config>::PoscanEngineId::get() {
 						T::AccountId::decode(&mut data).ok()
 					} else {
 						None
@@ -234,6 +292,49 @@ pub mod pallet {
 			let current_block = frame_system::Pallet::<T>::block_number();
 			<LastUpgrade<T>>::put(current_block);
 			0
+		}
+
+		fn offchain_worker(block_number: T::BlockNumber) {
+			log::debug!(target: LOG_TARGET, "offchain_worker: try to estimate objects");
+
+			// if Self::set_sent(block_number) {
+			// 	if let Err(e_str) = Self::send_mining_stat() {
+			// 		log::error!(target: LOG_TARGET, "{}", e_str);
+			// 	}
+			// }
+			// let calc_lock = CALC.lock();
+			//
+			// // if !calc_lock.is_empty() {
+			// // 	return
+			// // }
+			//
+			// let _ = pallet_poscan::Claims::<T>::get(0);
+			// calc_lock.insert(123);
+
+			let objects = pallet_poscan::Pallet::<T>::created_objects();
+			if objects.len() > 0 {
+				// TODO: check local storage
+				let obj = objects[0].clone();
+				let algo_id = POSCAN_ALGO_GRID2D_V3_1;
+				log::debug!(target: LOG_TARGET, "offchain_worker: estimate obj_idx {}", &obj.0);
+				let res = poscan_algo::hashable_object::estimate_obj(&algo_id, &obj.1.obj);
+
+				if let Some((t, hashes)) = res {
+					use sp_core::H256;
+					let calc_hashes: Vec<H256> = obj.1.hashes.into();
+					if hashes == calc_hashes {
+						log::debug!(target: LOG_TARGET, "offchain_worker: estimated obj_idx {}: {}", &obj.0, &t);
+						Self::save_estimation(block_number, obj.0, t);
+					}
+					else {
+						log::debug!(target: LOG_TARGET, "offchain_worker: estimated but hashes are invalid obj_idx {}: {}", &obj.0, &t);
+					}
+				}
+				else {
+					log::debug!(target: LOG_TARGET, "offchain_worker: estimation failed obj_idx {}", &obj.0);
+				}
+			}
+			let _ = Self::send_estimations();
 		}
 	}
 
@@ -510,6 +611,70 @@ pub mod pallet {
 			log::debug!(target: LOG_TARGET, "Unlocked {:?} for validator_id: {:?} by council.", unlock_amount, validator_id);
 
 			Ok(())
+		}
+
+		#[pallet::weight(0)]
+		pub fn submit_estimation(
+			origin: OriginFor<T>,
+			est: Estimation<T::AuthorityId>,
+			_signature: <T::AuthorityId as RuntimeAppPublic>::Signature,
+		) -> DispatchResultWithPostInfo {
+			log::debug!(target: LOG_TARGET, "submit_estimation");
+
+			ensure_none(origin)?;
+
+			let acc = T::AccountId::decode(&mut &est.authority_id.encode()[..]).unwrap();
+
+			// let total_validators = Validators::<T>::
+
+			pallet_poscan::Pallet::<T>::add_obj_estimation(&acc, est.obj_idx, est.t);
+
+
+			// let pool_id = mining_stat.pool_id;
+			//
+			// ensure!(<Pools<T>>::contains_key(&pool_id), Error::<T>::PoolNotFound);
+			//
+			// let pool = <Pools<T>>::get(&pool_id);
+			// let mut members: Vec<(T::AccountId, u32)> = mining_stat.pow_stat.into_iter().filter(|ms| pool.contains(&ms.0)).collect();
+			// PowStat::<T>::insert(&pool_id, &members);
+			// log::debug!(target: LOG_TARGET, "submit_mining_stat stat - ok");
+			Ok(().into())
+		}
+	}
+
+	#[pallet::validate_unsigned]
+	impl<T: Config> ValidateUnsigned for Pallet<T> {
+		type Call = Call<T>;
+
+		fn validate_unsigned(_source: TransactionSource, call: &Self::Call) -> TransactionValidity {
+			if let Call::submit_estimation { est, signature } = call {
+				let authority_id = &est.authority_id;
+				let authority_id = T::AuthorityId::decode(&mut &authority_id.encode()[..]).unwrap();
+
+				log::debug!(target: LOG_TARGET, "validate_unsigned for estimation");
+
+				let signature_valid = est.using_encoded(|encoded_est| {
+					authority_id.verify(&encoded_est, signature)
+				});
+
+				if !signature_valid {
+					log::debug!(target: LOG_TARGET, "validate_unsigned::InvalidTransaction::BadProof");
+					return InvalidTransaction::BadProof.into()
+				}
+
+				ValidTransaction::with_tag_prefix("EstimateObject")
+					.priority(T::EstimateUnsignedPriority::get())
+					.and_provides(call.encode())
+					.and_provides(authority_id)
+					.longevity(
+						5u64,
+					)
+					.propagate(true)
+					.build()
+			} else {
+				log::debug!(target: LOG_TARGET, "validate_unsigned::InvalidTransaction::Call");
+				InvalidTransaction::Call.into()
+			}
 		}
 	}
 }
@@ -795,6 +960,106 @@ impl<T: Config> Pallet<T> {
 		}
 		false
 	}
+
+	fn send_estimations() -> Result<(), &'static str> {
+		log::debug!(target: LOG_TARGET, "send_estimation");
+		let local_keys = T::AuthorityId::all();
+
+		log::debug!(target: LOG_TARGET, "Number of AuthorityId keys: {}", local_keys.len());
+		let local_key = local_keys.get(0).ok_or("No key for validator in local keystorage")?;
+		let _network_state = sp_io::offchain::network_state().map_err(|_| "OffchainErr::NetworkState")?;
+
+		let send_item = |obj_idx: u32, t: u128| -> Result<(), &'static str> {
+			let est = Estimation { obj_idx, t, authority_id: local_key.clone() };
+			let signature = local_key.sign(&est.encode()).ok_or("OffchainErr::FailedSigning")?;
+
+			log::debug!(target: LOG_TARGET, "Call::submit_estimationfor obj_idx={} - ok", &obj_idx);
+			let call = Call::submit_estimation { est, signature };
+
+			SubmitTransaction::<T, Call<T>>::submit_unsigned_transaction(call.into())
+				.map_err(|_| "OffchainErr::SubmitTransaction")?;
+
+			log::debug!(target: LOG_TARGET, "Call::submit_estimation for obj_idx={} - ok", &obj_idx);
+			Ok(())
+		};
+
+		let mut lock = StorageLock::<Time>::new(ESTIMATION_LOCK);
+		let _guard = lock.lock();
+
+		let key = b"estimations";
+		let val = StorageValueRef::persistent(key);
+
+		let _res = val.mutate(|est: Result<Option<Vec<(u32, u128, u32)>>, StorageRetrievalError>| {
+			match est {
+				Ok(Some(mut v)) => { // if block_number < block + T::StatPeriod::get() =>
+					for item in v.iter_mut() {
+						if item.2 == 0 {
+							// send
+							let _ = send_item(item.0, item.1);
+							item.2 = 1;
+						}
+					}
+					Ok(v)
+				},
+				Ok(None) => Ok(Vec::new()),
+				_ => return Err("Send estimation local storage error"),
+			}
+		});
+
+		Ok(())
+	}
+
+	fn save_estimation(_block_number: T::BlockNumber, object_idx: u32, t: u128) -> bool {
+		let mut lock = StorageLock::<Time>::new(ESTIMATION_LOCK);
+		let _guard = lock.lock();
+
+		let key = b"estimations";
+		let val = StorageValueRef::persistent(key);
+
+		let res = val.mutate(|est: Result<Option<Vec<(u32, u128, u32)>>, StorageRetrievalError>| {
+			match est {
+				Ok(Some(mut v)) => { // if block_number < block + T::StatPeriod::get() =>
+					let pos = v.iter().position(|&r| r.0 == object_idx);
+					if let Some(pos) = pos {
+						if v[pos].2 > 0 {
+							log::debug!(target: LOG_TARGET, "Estimation has been  already written to local storage: {}", &object_idx);
+							return Err("RECENTLY_SENT")
+						} else {
+							v[pos] = (object_idx, t, 0)
+						}
+					} else {
+						v.push((object_idx, t, 0))
+					}
+					Ok(v)
+				},
+				Ok(None) => Ok(vec![(object_idx, t, 0)]),
+
+				// In every other case we attempt to acquire the lock and send a transaction.
+				_ => return Err("ERROR"),
+			}
+		});
+
+		log::debug!(target: LOG_TARGET, "Estimation written to local storage: {}", res.is_ok());
+		// TODO: check res correctly
+		res.is_ok()
+	}
+
+	// fn get_estimations() -> Vec<u32> {
+	// 	let mut lock = StorageLock::<Time>::new(ESTIMATION_LOCK);
+	// 	let _guard = lock.lock();
+	// 	let key = b"estimations";
+	// 	let val = StorageValueRef::persistent(key);
+	//
+	// 	let res = val.get();
+	// 	let v = match res {
+	// 		Ok(Some(v)) => v,
+	// 		_ => Vec::new(),
+	// 	};
+	//
+	// 	// log::debug!(target: LOG_TARGET, "Estimations: {}", &v);
+	// 	v
+	// }
+
 }
 
 // Provides the new set of validators to the session module when session is

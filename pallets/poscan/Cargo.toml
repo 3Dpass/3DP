@@ -13,6 +13,8 @@ repository = "https://github.com/substrate-developer-hub/substrate-node-template
 targets = ["x86_64-unknown-linux-gnu"]
 
 [dependencies]
+async-trait = "0.1.50"
+thiserror = { version = "1.0.30", optional = true }
 codec = { package = "parity-scale-codec", version = "3.1", default-features = false, features = ["derive"] }
 scale-info = { version = "2.0", default-features = false, features = ["derive"] }
 frame-support = { default-features = false, git = "https://github.com/paritytech/substrate", rev = "b0777b4c7f7" }
@@ -21,12 +23,18 @@ frame-benchmarking = { default-features = false, optional = true, git = "https:/
 sp-std = { default-features = false, git = "https://github.com/paritytech/substrate", rev = "b0777b4c7f7" }
 sp-core = { default-features = false, git = "https://github.com/paritytech/substrate", rev = "b0777b4c7f7" }
 sp-runtime = { default-features = false, git = "https://github.com/paritytech/substrate", rev = "b0777b4c7f7" }
+sp-inherents = { default-features = false, git = "https://github.com/paritytech/substrate", rev = "b0777b4c7f7" }
+# TODO: Remove sp-timestamp
+sp-timestamp = { default-features = false, git = "https://github.com/paritytech/substrate", rev = "b0777b4c7f7" }
 sp-consensus-poscan = { default-features = false, path = "../../primitives/consensus/poscan" }
+poscan-algo = { default-features = false, path = "../../consensus/poscan_algo" }
+poscan-api = { default-features = false, path = "../../traits/poscan" }
 log = "0.4"
 
 [features]
 default = ["std"]
 std = [
+	"thiserror",
 	"codec/std",
 	"scale-info/std",
 	"frame-support/std",
@@ -35,7 +43,10 @@ std = [
 	"sp-std/std",
 	"sp-core/std",
 	"sp-runtime/std",
+ 	"sp-inherents/std",
+ 	"sp-timestamp/std",
 	"sp-consensus-poscan/std",
+	"poscan-api/std",
 ]
 
 # runtime-benchmarks = ["frame-benchmarking/runtime-benchmarks"]

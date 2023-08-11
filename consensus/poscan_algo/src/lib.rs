@@ -119,6 +119,34 @@ pub trait HashableObject {
 			}
 		}
 	}
+
+	fn estimate_obj(ver: &[u8; 16], data: &[u8]) -> Option<(u128, Vec<H256>)> {
+		use std::thread;
+		use std::time::{Duration as TimeDuration, SystemTime};
+
+		let v = ver.clone();
+		let d = Vec::from(data);
+		let handler = thread::spawn(move || {
+			let bgn = SystemTime::now();
+			let hashes = get_obj_hashes(&v, &d, &H256::default());
+			// *res.lock() = 1;
+			(SystemTime::now().duration_since(bgn).unwrap(), hashes)
+		});
+
+		// let mut bgn = SystemTime::now();
+		// let mut t = TimeDuration::default();
+		for _ in 0..10 {
+			thread::sleep(TimeDuration::from_secs(1));
+			if handler.is_finished() {
+				let res = handler.join().unwrap();
+				return Some((res.0.as_millis(), res.1))
+			}
+			// else {
+			// 	_t = SystemTime::now().duration_since(bgn).unwrap();
+			// }
+		}
+		None
+	}
 }
 
 #[cfg(feature = "std")]
@@ -136,8 +164,9 @@ pub fn get_obj_hashes(ver: &[u8; 16], data: &[u8], pre: &H256) -> Vec<H256> {
 			POSCAN_ALGO_GRID2D_V3_1 => (p3d::AlgoType::Grid2dV3, 12),
 			_ => (p3d::AlgoType::Grid2d, 66),
 		};
-	let pre = pre.encode()[0..4].try_into().ok();
-	let res = p3d::p3d_process(&obj, alg_type, grid_size, n_sect, pre);
+
+	let rot = if *pre == H256::default() { None } else { pre.encode()[0..4].try_into().ok() };
+	let res = p3d::p3d_process(&obj, alg_type, grid_size, n_sect, rot);
 
 	match res {
 		Ok(v) => {

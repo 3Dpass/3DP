@@ -29,7 +29,7 @@ use lzss::{Lzss, SliceReader, VecWriter};
 
 /// The `ConsensusEngineId` of PoScan.
 pub const POSCAN_ENGINE_ID: ConsensusEngineId = [b'p', b'o', b's', b'c'];
-pub const POSCAN_COIN_ID: u8 = 71;
+pub const POSCAN_COIN_ID: u8 = 72;
 
 pub const POSCAN_ALGO_GRID2D: [u8; 16] = *b"grid2d-1.1      ";
 pub const POSCAN_ALGO_GRID2D_V2: [u8; 16] = *b"grid2d-1.2      ";
@@ -160,6 +160,10 @@ sp_api::decl_runtime_apis! {
 
 	pub trait AlgorithmApi {
 		fn identifier() -> [u8; 8];
+	}
+
+	pub trait PoscanApi {
+		fn uncompleted_objects() -> Option<Vec<(u32, Vec<u8>)>>;
 	}
 }
 
