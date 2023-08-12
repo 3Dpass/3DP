@@ -67,6 +67,9 @@ pub enum InherentError {
 	/// Object hashes are invalid.
 	#[cfg_attr(feature = "std", error("Invalid hashes for object_idx {0}."))]
 	InvalidObjectHashes(u32),
+	/// Object hashes are duplicated.
+	#[cfg_attr(feature = "std", error("Duplicated hashes for object_idx {0} and {1}."))]
+	DuplicatedObjectHashes(u32, u32),
 }
 
 impl IsFatalError for InherentError {
@@ -74,6 +77,7 @@ impl IsFatalError for InherentError {
 		match self {
 			InherentError::ObjectNotFound(_) => true,
 			InherentError::InvalidObjectHashes(_) => true,
+			InherentError::DuplicatedObjectHashes(..) => true,
 		}
 	}
 }
@@ -183,6 +187,8 @@ pub mod pallet {
 	pub enum Error<T> {
 		/// The proof has already been claimed.
 		ProofAlreadyClaimed,
+		/// Object hashes are duplicated.
+		DuplicatedHashes,
 		/// The proof does not exist, so it cannot be revoked.
 		NoSuchProof,
 		/// The proof is claimed by another account, so caller can't revoke it.
@@ -262,6 +268,13 @@ pub mod pallet {
 							&POSCAN_ALGO_GRID2D_V3_1, &obj, &H256::default()
 					).try_into().unwrap(),
 			};
+
+			for (_idx, claim) in Claims::<T>::iter() {
+				let min_len = core::cmp::min(claim.hashes.len(), hashes.len());
+				if claim.hashes.iter().eq(hashes[0..min_len].iter()) {
+					return Err(Error::<T>::DuplicatedHashes.into());
+				}
+			}
 
 			log::debug!(target: LOG_TARGET, "hashes len={}", hashes.len());
 
@@ -405,6 +418,16 @@ pub mod pallet {
 
 						if obj_data.hashes == hashes {
 							log::debug!(target: LOG_TARGET, "check_inherent: hashes true");
+
+							for (claim_idx, claim_data) in Claims::<T>::iter() {
+								if claim_idx != *obj_idx {
+									let min_len = core::cmp::min(claim_data.hashes.len(), hashes.len());
+									if claim_data.hashes.iter().eq(hashes[0..min_len].iter()) {
+										return Err(Self::Error::DuplicatedObjectHashes(*obj_idx, claim_idx))
+									}
+								}
+							}
+
 							Ok(())
 						}
 						else {
