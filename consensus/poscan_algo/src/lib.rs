@@ -44,7 +44,11 @@ pub type BlockId = generic::BlockId<Block>;
 
 #[cfg(feature = "std")]
 lazy_static! {
-    pub static ref CLIENT: Mutex<Option<Box<Arc<dyn Send + Sync + HeaderBackend<Block>>>>> = {
+    pub static ref CLIENT: Mutex<Option<
+			(
+				Box<Arc<dyn Send + Sync + HeaderBackend<Block>>>,
+				bool,
+			)>> = {
         Mutex::new(None)
     };
 }
@@ -64,16 +68,26 @@ pub trait HashableObject {
 		get_obj_hashes(ver, data, pre)
 	}
 
+	fn is_light() -> Result<bool, Error> {
+		if CLIENT.lock().is_none() {
+			Err(Error::NoClient)
+		}
+		else {
+			let client = CLIENT.lock().clone().unwrap();
+			Ok(client.1)
+		}
+	}
+
 	fn prev_mining_data() -> Result<(u32, H256, H256, Vec<u8>, Vec<H256>, Vec<u8>), Error> {
 		if CLIENT.lock().is_none() {
 			Err(Error::NoClient)
 		}
 		else {
 			let client = CLIENT.lock().clone().unwrap();
-			let prev_num = client.info().best_number;
+			let prev_num = client.0.info().best_number;
 			let block_id = BlockId::number(prev_num);
 
-			match client.header(block_id) {
+			match client.0.header(block_id) {
 				Ok(maybe_prev_block) =>
 					match maybe_prev_block {
 						Some(signed_block) => {

@@ -197,7 +197,7 @@ pub fn new_partial(
 	let keystore_path = config.keystore.path().map(|p| p.to_owned());
 	let auth = decode_author(author, keystore_container.sync_keystore(), keystore_path)?.encode();
 
-	poscan_algo::CLIENT.lock().replace(Box::new(client.clone()));
+	poscan_algo::CLIENT.lock().replace((Box::new(client.clone()), config.role.is_light()));
 
 	let telemetry = telemetry.map(|(worker, telemetry)| {
 		task_manager.spawn_handle().spawn("telemetry", None, worker.run());
