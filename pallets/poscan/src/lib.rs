@@ -409,6 +409,12 @@ pub mod pallet {
 
 			let t: Result<(), Self::Error> = match call {
 				Call::approve { obj_idx, .. } => {
+					if let Ok(is_light) = poscan_algo::hashable_object::is_light() {
+						if is_light {
+							return Ok(())
+						}
+					}
+
 					let obj_data = &Claims::<T>::get(obj_idx);
 					if let Some(obj_data) = obj_data {
 						let hashes: BoundedVec<H256, ConstU32<MAX_OBJECT_HASHES>> =
