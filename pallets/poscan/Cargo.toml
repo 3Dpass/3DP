@@ -29,6 +29,7 @@ sp-timestamp = { default-features = false, git = "https://github.com/paritytech/
 sp-consensus-poscan = { default-features = false, path = "../../primitives/consensus/poscan" }
 poscan-algo = { default-features = false, path = "../../consensus/poscan_algo" }
 poscan-api = { default-features = false, path = "../../traits/poscan" }
+validator-set-api = { default-features = false, path = "../../traits/validator-set" }
 log = "0.4"
 
 [features]

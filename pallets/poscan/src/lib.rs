@@ -36,6 +36,7 @@ use sp_inherents::IsFatalError;
 
 use sp_consensus_poscan::POSCAN_ALGO_GRID2D_V3_1;
 use poscan_api::PoscanApi;
+use validator_set_api::ValidatorSetApi;
 
 pub mod inherents;
 
@@ -91,30 +92,32 @@ pub mod pallet {
 	// type MAX_OBJECT_SIZE = ConstU32<100_000>;
 
 	#[derive(Clone, Encode, Decode, TypeInfo, MaxEncodedLen, RuntimeDebug)]
-	pub enum ObjectState<Account, Block>
+	pub enum ObjectState<Block>
 	where
-		Account: Encode + Decode + TypeInfo + Member,
+		// Account: Encode + Decode + TypeInfo + Member,
 		Block: Encode + Decode + TypeInfo + Member,
 	{
 		Created(Block),
-		Estimating(Block, u128), // number of estimations, total time
+		Estimating(Block),
 		Estimated(u128),
-		Approved(Account),
+		Approved,
 	}
 
 	#[derive(Clone, Encode, Decode, TypeInfo, MaxEncodedLen)]
 	pub struct ClaimData<Account, Block>
-	where
-		Account: Encode + Decode + TypeInfo + Member,
-		Block: Encode + Decode + TypeInfo + Member,
+		where
+			Account: Encode + Decode + TypeInfo + Member,
+			Block: Encode + Decode + TypeInfo + Member,
 	{
-		pub state: ObjectState<Account, Block>,
+		pub state: ObjectState<Block>,
 		pub obj: BoundedVec<u8, ConstU32<MAX_OBJECT_SIZE>>,
 		pub hashes: BoundedVec<H256, ConstU32<MAX_OBJECT_HASHES>>,
-		// pub estimation: Option<u128>,
+		pub when_created: Block,
+		pub when_approved: Option<Block>,
 		pub owner: Account,
 		pub estimators: BoundedVec<(Account, u128), ConstU32<MAX_ESTIMATORS>>,
-		pub cnt: u32,
+		pub approvers: BoundedVec<Account, ConstU32<256>>,
+		pub num_approvals: u8,
 		pub est_rewards: u128,
 		pub author_rewards: u128,
 	}
@@ -141,6 +144,8 @@ pub mod pallet {
 		type AuthorPartDefault: Get<Percent>;
 
 		type Currency: LockableCurrency<Self::AccountId>;
+
+		type ValidatorSet: ValidatorSetApi<Self::AccountId, Self::BlockNumber, BalanceOf::<Self>>;
 
 		// #[pallet::constant]MAX_OBJECT_SIZE Get<u32>;
 	}
@@ -189,6 +194,8 @@ pub mod pallet {
 		ProofAlreadyClaimed,
 		/// Object hashes are duplicated.
 		DuplicatedHashes,
+		/// Zero approvals requested.
+		ZeroApprovalsRequested,
 		/// The proof does not exist, so it cannot be revoked.
 		NoSuchProof,
 		/// The proof is claimed by another account, so caller can't revoke it.
@@ -208,14 +215,16 @@ pub mod pallet {
 						Some(ref mut claim) => {
 							match claim.state {
 								ObjectState::Created(_) => {
-									claim.state = ObjectState::Estimating(now, 0);
+									claim.state = ObjectState::Estimating(now);
 									log::debug!(target: LOG_TARGET, "on_initialize ok for obj_idx={}", &obj_idx);
 								},
-								ObjectState::Estimating(block_num, t) => {
+								ObjectState::Estimating(block_num) => {
 									log::debug!(target: LOG_TARGET, "on_initialize: Estimating");
-
-									if now > block_num + T::EstimatePeriod::get().into() && claim.cnt > 0 {
-										claim.state = ObjectState::Estimated(t / (claim.cnt as u128));
+									let est_cnt = claim.estimators.len();
+									let majority = T::ValidatorSet::validators().len() / 2;
+									if now > block_num + T::EstimatePeriod::get().into() && est_cnt > majority {
+										let t = claim.estimators.iter().fold(0, |_, t| t.1);
+										claim.state = ObjectState::Estimated(t / (est_cnt as u128));
 										log::debug!(target: LOG_TARGET, "on_initialize mark as estimated obj_idx={}", &obj_idx);
 										Self::reward_estimators(obj_idx);
 									}
@@ -243,10 +252,15 @@ pub mod pallet {
 		pub fn put_object(
 			origin: OriginFor<T>,
 			obj: BoundedVec<u8, ConstU32<MAX_OBJECT_SIZE>>,
+			num_approvals: u8,
 			hashes: Option<BoundedVec<H256, ConstU32<MAX_OBJECT_HASHES>>>,
 		) -> DispatchResultWithPostInfo {
 			let acc = ensure_signed(origin)?;
 			let claim_idx = <Pallet::<T>>::claim_count();
+
+			if num_approvals == 0 {
+				return Err(Error::<T>::ZeroApprovalsRequested.into());
+			}
 
 			for (_idx, claim) in Claims::<T>::iter() {
 				if claim.obj == obj {
@@ -284,9 +298,12 @@ pub mod pallet {
 				state,
 				obj,
 				hashes,
-				cnt: 0,
+				when_created: block_num,
+				when_approved: None,
 				owner: acc.clone(),
 				estimators: BoundedVec::default(),
+				approvers: BoundedVec::default(),
+				num_approvals,
 				est_rewards: actual_rewords.0.saturated_into(),
 				author_rewards: actual_rewords.1.saturated_into(),
 			};
@@ -319,29 +336,35 @@ pub mod pallet {
 
 			Claims::<T>::mutate(&obj_idx, |claim| {
 				match claim {
-					Some(ClaimData {ref mut state, ref owner, ref author_rewards, ..} ) => {
-						// TODO:
-						if let ObjectState::Estimated(_) = state {
-							*state = ObjectState::Approved(author.clone());
-							log::debug!(target: LOG_TARGET, "approve applyed for obj_idx={}", &obj_idx);
+					Some(ref mut claim_data) => {
+						if let ObjectState::Estimated(_) = claim_data.state {
+							if claim_data.approvers.try_push(author.clone()).is_err() {
+								log::debug!(target: LOG_TARGET, "approve addition err for obj_idx={}", &obj_idx);
+								return
+							}
 
-							let tot_locked: u128 = AccountLock::<T>::get(&owner).saturated_into();
-							let new_locked: u128 = tot_locked.saturating_sub((*author_rewards).saturated_into()).saturated_into();
-							Self::set_lock(&owner, new_locked.saturated_into());
+							let author_rewards = &claim_data.author_rewards / claim_data.num_approvals as u128;
+							let tot_locked: u128 = AccountLock::<T>::get(&claim_data.owner).saturated_into();
+							let new_locked: u128 = tot_locked.saturating_sub((author_rewards).saturated_into()).saturated_into();
+							Self::set_lock(&claim_data.owner, new_locked.saturated_into());
 							let res = <T as pallet::Config>::Currency::transfer(
-								owner, &author, (*author_rewards).saturated_into(), ExistenceRequirement::KeepAlive,
+								&claim_data.owner, &author, author_rewards.saturated_into(), ExistenceRequirement::KeepAlive,
 							);
 							match res {
 								Ok(_) => {
-									log::debug!(target: LOG_TARGET, "author rewards ok for obj_idx={}", &obj_idx);
+									log::debug!(target: LOG_TARGET, "author {:#?} rewards ok for obj_idx={}", &author, &obj_idx);
 								},
 								Err(_) => {
 									log::debug!(target: LOG_TARGET, "approve rewards err for obj_idx={}", &obj_idx);
 								}
 							};
+							if claim_data.approvers.len() >= claim_data.num_approvals as usize {
+								claim_data.state = ObjectState::Approved;
+								log::debug!(target: LOG_TARGET, "approve applyed for obj_idx={}", &obj_idx);
+							}
 						}
 						else {
-							log::debug!(target: LOG_TARGET, "approve invalid state ({:?}) for obj_idx={}", state, &obj_idx);
+							log::debug!(target: LOG_TARGET, "approve invalid state ({:#?}) for obj_idx={}", &claim_data.state, &obj_idx);
 						}
 					},
 					None => log::debug!(target: LOG_TARGET, "approve no claim with obj_idx={}", &obj_idx),
@@ -499,49 +522,29 @@ impl<T: Config> Pallet<T> {
 
 		Claims::<T>::mutate(obj_idx, |claim| {
 			match claim {
-				// Some(ClaimData {state: ObjectState::Estimating(_, ref mut cnt, ref mut t), ..} ) => {
-				Some(obj_data) => { // {state: ObjectState::Estimating(_, ref mut cnt, ref mut t), ref mut estimators, ..} ) => {
-					// *t += &dt;
-					// let mut new_obj_data = obj_data.clone();
+				Some(obj_data) => {
 					if let ObjectState::Estimating(..) = obj_data.state {
-						obj_data.cnt = &obj_data.cnt + 1;
 						let mut a: Vec<_> = obj_data.estimators.to_vec();
 						a.push((acc.clone(), dt));
 						obj_data.estimators = a.try_into().unwrap();
 						log::debug!(target: LOG_TARGET, "add_obj_estimation ok for obj_idx={}", &obj_idx);
 					}
 				},
-				// Some(_st) => log::debug!(target: LOG_TARGET, "add_obj_estimation invalide state for obj_idx={}", &obj_idx),
 				None => log::debug!(target: LOG_TARGET, "add_obj_estimation no claim with obj_idx={}", &obj_idx),
 			}
 		});
 	}
 
-	// fn lock(account_id: &T::AccountId, lock_amount: &BalanceOf<T>) -> DispatchResult {
-	// 	<T as pallet::Config>::Currency::set_lock(
-	// 		LOCK_ID,
-	// 		&account_id,
-	// 		*lock_amount,
-	// 		WithdrawReasons::all(),
-	// 	);
-	// 	let _ = AccountLock::<T>::mutate(account_id, |_v| lock_amount);
-	//
-	// 	Ok(())
-	// }
-
 	fn reward_estimators(obj_idx: ClaimIdx) {
 		log::debug!(target: LOG_TARGET, "reward_estimators");
 
-		// TODO: remove lock and rewards estimators
-		// let current_number = frame_system::Pallet::<T>::block_number();
 		let obj_data = Claims::<T>::get(&obj_idx).unwrap();
-		// let n_est = obj_data.estimators.len();
 		let rewards = Self::rewards(Some(obj_idx));
 
 		if let Some((est_rewards, _)) = rewards {
 			let owner = obj_data.owner;
 			// TODO:
-			let rewards_by_est: u128 = est_rewards.saturated_into::<u128>() / (obj_data.cnt as u128);
+			let rewards_by_est: u128 = est_rewards.saturated_into::<u128>() / (obj_data.estimators.len() as u128);
 			let mut payed_rewards: BalanceOf<T> = BalanceOf::<T>::default();
 			log::debug!(target: LOG_TARGET, "estimator rewards: {:?}", rewards_by_est);
 
