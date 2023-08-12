@@ -1310,7 +1310,7 @@ parameter_types! {
 impl pallet_poscan::Config for Runtime {
 	type Event = Event;
 	type Call = Call;
-	// type MaxBytesInHash = frame_support::traits::ConstU32<64>;
+	type ValidatorSet = ValidatorSet;
 	type PoscanEngineId = PoscanEngineId;
 	type EstimatePeriod = ConstU32<5>;
 	// type MaxObjectSize = ConstU32<100_000>;

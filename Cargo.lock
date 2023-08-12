@@ -4267,6 +4267,7 @@ dependencies = [
  "sp-std",
  "sp-timestamp",
  "thiserror",
+ "validator-set-api",
 ]
 
 [[package]]
