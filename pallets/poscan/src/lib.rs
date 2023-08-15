@@ -104,7 +104,7 @@ pub mod pallet {
 	}
 
 	#[derive(Clone, Encode, Decode, TypeInfo, MaxEncodedLen)]
-	pub struct ClaimData<Account, Block>
+	pub struct ObjData<Account, Block>
 		where
 			Account: Encode + Decode + TypeInfo + Member,
 			Block: Encode + Decode + TypeInfo + Member,
@@ -122,7 +122,7 @@ pub mod pallet {
 		pub author_rewards: u128,
 	}
 
-	pub type ClaimIdx = u32;
+	pub type ObjIdx = u32;
 
 	/// Configure the pallet by specifying the parameters and types on which it depends.
 	#[pallet::config]
@@ -156,15 +156,15 @@ pub mod pallet {
 
 	#[pallet::storage]
 	#[pallet::getter(fn owners)]
-	pub type Owners<T: Config> = StorageMap<_, Twox64Concat, T::AccountId, BoundedVec<ClaimIdx, ConstU32<100>>, ValueQuery>;
+	pub type Owners<T: Config> = StorageMap<_, Twox64Concat, T::AccountId, BoundedVec<ObjIdx, ConstU32<100>>, ValueQuery>;
 
 	#[pallet::storage]
-	#[pallet::getter(fn claim_count)]
-	pub type ClaimCount<T> = StorageValue<_, ClaimIdx, ValueQuery>;
+	#[pallet::getter(fn obj_count)]
+	pub type ObjCount<T> = StorageValue<_, ObjIdx, ValueQuery>;
 
 	#[pallet::storage]
-	#[pallet::getter(fn claims)]
-	pub type Claims<T: Config> = StorageMap<_, Twox64Concat, ClaimIdx, ClaimData<T::AccountId, T::BlockNumber>, OptionQuery>;
+	#[pallet::getter(fn objects)]
+	pub type Objects<T: Config> = StorageMap<_, Twox64Concat, ObjIdx, ObjData<T::AccountId, T::BlockNumber>, OptionQuery>;
 
 	#[pallet::storage]
 	#[pallet::getter(fn locks)]
@@ -181,26 +181,22 @@ pub mod pallet {
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(super) fn deposit_event)]
 	pub enum Event<T: Config> {
-		/// Event emitted when a proof has been claimed. [who, claim]
-		ClaimCreated(T::AccountId),
-		/// Event emitted when a claim is revoked by the owner. [who, claim]
-		GetMiningObject(Vec<u8>),
+		/// Event emitted when an object has been created.
+		ObjCreated(T::AccountId),
+		/// Event emitted when an object has been approved.
+		ObjApproved,
 	}
 
 	// Errors inform users that something went wrong.
 	#[pallet::error]
 	pub enum Error<T> {
-		/// The proof has already been claimed.
-		ProofAlreadyClaimed,
+		/// The object exists.
+		ObjectExists,
 		/// Object hashes are duplicated.
 		DuplicatedHashes,
 		/// Zero approvals requested.
 		ZeroApprovalsRequested,
-		/// The proof does not exist, so it cannot be revoked.
-		NoSuchProof,
-		/// The proof is claimed by another account, so caller can't revoke it.
-		NotProofOwner,
-		/// Unsufficient balance for object claim.
+		/// Unsufficient balance to process object.
 		UnsufficientBalance,
 	}
 
@@ -209,31 +205,31 @@ pub mod pallet {
 		fn on_initialize(now: T::BlockNumber) -> Weight {
 			log::debug!(target: LOG_TARGET, "on_initialize");
 
-			for obj_idx in Claims::<T>::iter_keys() {
-				Claims::<T>::mutate(obj_idx, |claim| {
-					match claim {
-						Some(ref mut claim) => {
-							match claim.state {
+			for obj_idx in Objects::<T>::iter_keys() {
+				Objects::<T>::mutate(obj_idx, |obj_data| {
+					match obj_data {
+						Some(ref mut obj_data) => {
+							match obj_data.state {
 								ObjectState::Created(_) => {
-									claim.state = ObjectState::Estimating(now);
+									obj_data.state = ObjectState::Estimating(now);
 									log::debug!(target: LOG_TARGET, "on_initialize ok for obj_idx={}", &obj_idx);
 								},
 								ObjectState::Estimating(block_num) => {
 									log::debug!(target: LOG_TARGET, "on_initialize: Estimating");
-									let est_cnt = claim.estimators.len();
+									let est_cnt = obj_data.estimators.len();
 									let majority = T::ValidatorSet::validators().len() / 2;
 									if now > block_num + T::EstimatePeriod::get().into() && est_cnt > majority {
-										let t = claim.estimators.iter().fold(0, |_, t| t.1);
-										claim.state = ObjectState::Estimated(t / (est_cnt as u128));
+										let t = obj_data.estimators.iter().fold(0, |_, t| t.1);
+										obj_data.state = ObjectState::Estimated(t / (est_cnt as u128));
 										log::debug!(target: LOG_TARGET, "on_initialize mark as estimated obj_idx={}", &obj_idx);
 										Self::reward_estimators(obj_idx);
 									}
 								},
 								_ => {},
 							};
-						},
+						}
 						None => {
-							log::debug!(target: LOG_TARGET, "on_initialize no claim with obj_idx={}", &obj_idx);
+							log::debug!(target: LOG_TARGET, "on_initialize no object with obj_idx={}", &obj_idx);
 						},
 					}
 				});
@@ -256,15 +252,15 @@ pub mod pallet {
 			hashes: Option<BoundedVec<H256, ConstU32<MAX_OBJECT_HASHES>>>,
 		) -> DispatchResultWithPostInfo {
 			let acc = ensure_signed(origin)?;
-			let claim_idx = <Pallet::<T>>::claim_count();
+			let obj_idx = <Pallet::<T>>::obj_count();
 
 			if num_approvals == 0 {
 				return Err(Error::<T>::ZeroApprovalsRequested.into());
 			}
 
-			for (_idx, claim) in Claims::<T>::iter() {
-				if claim.obj == obj {
-					return Err(Error::<T>::ProofAlreadyClaimed.into());
+			for (_idx, obj_data) in Objects::<T>::iter() {
+				if obj_data.obj == obj {
+					return Err(Error::<T>::ObjectExists.into());
 				}
 			}
 
@@ -283,9 +279,9 @@ pub mod pallet {
 					).try_into().unwrap(),
 			};
 
-			for (_idx, claim) in Claims::<T>::iter() {
-				let min_len = core::cmp::min(claim.hashes.len(), hashes.len());
-				if claim.hashes.iter().eq(hashes[0..min_len].iter()) {
+			for (_idx, obj_data) in Objects::<T>::iter() {
+				let min_len = core::cmp::min(obj_data.hashes.len(), hashes.len());
+				if obj_data.hashes.iter().eq(hashes[0..min_len].iter()) {
 					return Err(Error::<T>::DuplicatedHashes.into());
 				}
 			}
@@ -294,7 +290,7 @@ pub mod pallet {
 
 			let block_num = <frame_system::Pallet<T>>::block_number();
 			let state =  ObjectState::Created(block_num);
-			let claim_data = ClaimData::<T::AccountId, T::BlockNumber> {
+			let obj_data = ObjData::<T::AccountId, T::BlockNumber> {
 				state,
 				obj,
 				hashes,
@@ -307,12 +303,12 @@ pub mod pallet {
 				est_rewards: actual_rewords.0.saturated_into(),
 				author_rewards: actual_rewords.1.saturated_into(),
 			};
-			<Claims<T>>::insert(claim_idx, claim_data);
-			<ClaimCount<T>>::put(claim_idx + 1);
+			<Objects<T>>::insert(obj_idx, obj_data);
+			<ObjCount<T>>::put(obj_idx + 1);
 			let _ = <Owners<T>>::mutate(acc.clone(), |v| v.try_push(1));
 
 			// TODO:
-			Self::deposit_event(Event::ClaimCreated(acc));
+			Self::deposit_event(Event::ObjCreated(acc));
 			Ok(().into())
 		}
 
@@ -334,21 +330,21 @@ pub mod pallet {
 		)-> DispatchResultWithPostInfo {
 			ensure_none(origin)?;
 
-			Claims::<T>::mutate(&obj_idx, |claim| {
-				match claim {
-					Some(ref mut claim_data) => {
-						if let ObjectState::Estimated(_) = claim_data.state {
-							if claim_data.approvers.try_push(author.clone()).is_err() {
+			Objects::<T>::mutate(&obj_idx, |obj| {
+				match obj {
+					Some(ref mut obj_data) => {
+						if let ObjectState::Estimated(_) = obj_data.state {
+							if obj_data.approvers.try_push(author.clone()).is_err() {
 								log::debug!(target: LOG_TARGET, "approve addition err for obj_idx={}", &obj_idx);
 								return
 							}
 
-							let author_rewards = &claim_data.author_rewards / claim_data.num_approvals as u128;
-							let tot_locked: u128 = AccountLock::<T>::get(&claim_data.owner).saturated_into();
+							let author_rewards = &obj_data.author_rewards / obj_data.num_approvals as u128;
+							let tot_locked: u128 = AccountLock::<T>::get(&obj_data.owner).saturated_into();
 							let new_locked: u128 = tot_locked.saturating_sub((author_rewards).saturated_into()).saturated_into();
-							Self::set_lock(&claim_data.owner, new_locked.saturated_into());
+							Self::set_lock(&obj_data.owner, new_locked.saturated_into());
 							let res = <T as pallet::Config>::Currency::transfer(
-								&claim_data.owner, &author, author_rewards.saturated_into(), ExistenceRequirement::KeepAlive,
+								&obj_data.owner, &author, author_rewards.saturated_into(), ExistenceRequirement::KeepAlive,
 							);
 							match res {
 								Ok(_) => {
@@ -358,16 +354,18 @@ pub mod pallet {
 									log::debug!(target: LOG_TARGET, "approve rewards err for obj_idx={}", &obj_idx);
 								}
 							};
-							if claim_data.approvers.len() >= claim_data.num_approvals as usize {
-								claim_data.state = ObjectState::Approved;
+							if obj_data.approvers.len() >= obj_data.num_approvals as usize {
+								obj_data.state = ObjectState::Approved;
+								Self::deposit_event(Event::ObjApproved);
 								log::debug!(target: LOG_TARGET, "approve applyed for obj_idx={}", &obj_idx);
+
 							}
 						}
 						else {
-							log::debug!(target: LOG_TARGET, "approve invalid state ({:#?}) for obj_idx={}", &claim_data.state, &obj_idx);
+							log::debug!(target: LOG_TARGET, "approve invalid state ({:#?}) for obj_idx={}", &obj_data.state, &obj_idx);
 						}
 					},
-					None => log::debug!(target: LOG_TARGET, "approve no claim with obj_idx={}", &obj_idx),
+					None => log::debug!(target: LOG_TARGET, "approve no object with obj_idx={}", &obj_idx),
 				}
 			});
 
@@ -438,7 +436,7 @@ pub mod pallet {
 						}
 					}
 
-					let obj_data = &Claims::<T>::get(obj_idx);
+					let obj_data = &Objects::<T>::get(obj_idx);
 					if let Some(obj_data) = obj_data {
 						let hashes: BoundedVec<H256, ConstU32<MAX_OBJECT_HASHES>> =
 							poscan_algo::hashable_object::calc_obj_hashes(
@@ -448,11 +446,11 @@ pub mod pallet {
 						if obj_data.hashes == hashes {
 							log::debug!(target: LOG_TARGET, "check_inherent: hashes true");
 
-							for (claim_idx, claim_data) in Claims::<T>::iter() {
-								if claim_idx != *obj_idx {
-									let min_len = core::cmp::min(claim_data.hashes.len(), hashes.len());
-									if claim_data.hashes.iter().eq(hashes[0..min_len].iter()) {
-										return Err(Self::Error::DuplicatedObjectHashes(*obj_idx, claim_idx))
+							for (idx, obj_data) in Objects::<T>::iter() {
+								if idx != *obj_idx {
+									let min_len = core::cmp::min(obj_data.hashes.len(), hashes.len());
+									if obj_data.hashes.iter().eq(hashes[0..min_len].iter()) {
+										return Err(Self::Error::DuplicatedObjectHashes(*obj_idx, idx))
 									}
 								}
 							}
@@ -482,16 +480,16 @@ pub mod pallet {
 }
 
 impl<T: Config> Pallet<T> {
-	pub fn created_objects() -> Vec<(u32, ClaimData<T::AccountId, T::BlockNumber>)> {
+	pub fn created_objects() -> Vec<(u32, ObjData<T::AccountId, T::BlockNumber>)> {
 		log::debug!(target: LOG_TARGET, "Select estimated");
 
-		let mut v: Vec<(u32, ClaimData<T::AccountId, T::BlockNumber>)> = Vec::new();
-		for (idx, claim) in Claims::<T>::iter() {
-			if let ObjectState::Created(_) = claim.state {
-				v.push((idx, claim));
+		let mut v: Vec<(u32, ObjData<T::AccountId, T::BlockNumber>)> = Vec::new();
+		for (idx, obj_data) in Objects::<T>::iter() {
+			if let ObjectState::Created(_) = obj_data.state {
+				v.push((idx, obj_data));
 			}
 		}
-		log::debug!(target: LOG_TARGET, "Select created {} claim(s)", v.len());
+		log::debug!(target: LOG_TARGET, "Select created {} object(s)", v.len());
 		v
 	}
 
@@ -499,29 +497,29 @@ impl<T: Config> Pallet<T> {
 		Vec::new()
 	}
 
-	pub fn estimated_objects() -> Vec<(u32, ClaimData<T::AccountId, T::BlockNumber>)> {
+	pub fn estimated_objects() -> Vec<(u32, ObjData<T::AccountId, T::BlockNumber>)> {
 		log::debug!(target: LOG_TARGET, "Select estimated");
 
-		let mut v: Vec<(u32, ClaimData<T::AccountId, T::BlockNumber>)> = Vec::new();
-		for (idx, claim) in Claims::<T>::iter() {
-			if let ObjectState::Estimated(diff) = claim.state {
+		let mut v: Vec<(u32, ObjData<T::AccountId, T::BlockNumber>)> = Vec::new();
+		for (idx, obj_data) in Objects::<T>::iter() {
+			if let ObjectState::Estimated(diff) = obj_data.state {
 				if diff < 10 {
-					v.push((idx, claim));
+					v.push((idx, obj_data));
 				}
 				else {
-					log::info!(target: LOG_TARGET, "Estimation of claim {} is too big", &idx);
+					log::info!(target: LOG_TARGET, "Estimation of object {} is too big", &idx);
 				}
 			}
 		}
-		log::debug!(target: LOG_TARGET, "Estimated {} claim(s)", v.len());
+		log::debug!(target: LOG_TARGET, "Estimated {} object(s)", v.len());
 		v
 	}
 
 	pub fn add_obj_estimation(acc: &T::AccountId, obj_idx: u32, dt: u128) {
 		log::debug!(target: LOG_TARGET, "add_obj_estimation");
 
-		Claims::<T>::mutate(obj_idx, |claim| {
-			match claim {
+		Objects::<T>::mutate(obj_idx, |obj_data| {
+			match obj_data {
 				Some(obj_data) => {
 					if let ObjectState::Estimating(..) = obj_data.state {
 						let mut a: Vec<_> = obj_data.estimators.to_vec();
@@ -530,15 +528,15 @@ impl<T: Config> Pallet<T> {
 						log::debug!(target: LOG_TARGET, "add_obj_estimation ok for obj_idx={}", &obj_idx);
 					}
 				},
-				None => log::debug!(target: LOG_TARGET, "add_obj_estimation no claim with obj_idx={}", &obj_idx),
+				None => log::debug!(target: LOG_TARGET, "add_obj_estimation no object with obj_idx={}", &obj_idx),
 			}
 		});
 	}
 
-	fn reward_estimators(obj_idx: ClaimIdx) {
+	fn reward_estimators(obj_idx: ObjIdx) {
 		log::debug!(target: LOG_TARGET, "reward_estimators");
 
-		let obj_data = Claims::<T>::get(&obj_idx).unwrap();
+		let obj_data = Objects::<T>::get(&obj_idx).unwrap();
 		let rewards = Self::rewards(Some(obj_idx));
 
 		if let Some((est_rewards, _)) = rewards {
@@ -585,9 +583,9 @@ impl<T: Config> Pallet<T> {
 		}
 	}
 
-	fn rewards(obj_idx: Option<ClaimIdx>) -> Option<(BalanceOf::<T>, BalanceOf::<T>)> {
+	fn rewards(obj_idx: Option<ObjIdx>) -> Option<(BalanceOf::<T>, BalanceOf::<T>)> {
 		if let Some(obj_idx) = obj_idx {
-			let obj_data = &Claims::<T>::get(obj_idx);
+			let obj_data = &Objects::<T>::get(obj_idx);
 			if let Some(obj_data) = obj_data {
 				Some((obj_data.est_rewards.saturated_into(), obj_data.author_rewards.saturated_into()))
 			}
