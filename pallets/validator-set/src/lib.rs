@@ -297,44 +297,36 @@ pub mod pallet {
 		fn offchain_worker(block_number: T::BlockNumber) {
 			log::debug!(target: LOG_TARGET, "offchain_worker: try to estimate objects");
 
-			// if Self::set_sent(block_number) {
-			// 	if let Err(e_str) = Self::send_mining_stat() {
-			// 		log::error!(target: LOG_TARGET, "{}", e_str);
-			// 	}
-			// }
-			// let calc_lock = CALC.lock();
-			//
-			// // if !calc_lock.is_empty() {
-			// // 	return
-			// // }
-			//
-			// let _ = pallet_poscan::Claims::<T>::get(0);
-			// calc_lock.insert(123);
+			let local_keys = T::AuthorityId::all();
+			let local_key = local_keys.get(0);
 
-			let objects = pallet_poscan::Pallet::<T>::created_objects();
-			if objects.len() > 0 {
-				// TODO: check local storage
-				let obj = objects[0].clone();
-				let algo_id = POSCAN_ALGO_GRID2D_V3_1;
-				log::debug!(target: LOG_TARGET, "offchain_worker: estimate obj_idx {}", &obj.0);
-				let res = poscan_algo::hashable_object::estimate_obj(&algo_id, &obj.1.obj);
+			if let Some(local_key) = local_key {
+				let acc = T::AccountId::decode(&mut &local_key.encode()[..]).unwrap();
+				if Self::validators().contains(&acc) {
+					let objects = pallet_poscan::Pallet::<T>::created_objects();
+					if objects.len() > 0 {
+						// TODO: check local storage
+						let obj = objects[0].clone();
+						let algo_id = POSCAN_ALGO_GRID2D_V3_1;
+						log::debug!(target: LOG_TARGET, "offchain_worker: estimate obj_idx {}", &obj.0);
+						let res = poscan_algo::hashable_object::estimate_obj(&algo_id, &obj.1.obj);
 
-				if let Some((t, hashes)) = res {
-					use sp_core::H256;
-					let calc_hashes: Vec<H256> = obj.1.hashes.into();
-					if hashes == calc_hashes {
-						log::debug!(target: LOG_TARGET, "offchain_worker: estimated obj_idx {}: {}", &obj.0, &t);
-						Self::save_estimation(block_number, obj.0, t);
+						if let Some((t, hashes)) = res {
+							use sp_core::H256;
+							let calc_hashes: Vec<H256> = obj.1.hashes.into();
+							if hashes == calc_hashes {
+								log::debug!(target: LOG_TARGET, "offchain_worker: estimated obj_idx {}: {}", &obj.0, &t);
+								Self::save_estimation(block_number, obj.0, t);
+							} else {
+								log::debug!(target: LOG_TARGET, "offchain_worker: estimated but hashes are invalid obj_idx {}: {}", &obj.0, &t);
+							}
+						} else {
+							log::debug!(target: LOG_TARGET, "offchain_worker: estimation failed obj_idx {}", &obj.0);
+						}
 					}
-					else {
-						log::debug!(target: LOG_TARGET, "offchain_worker: estimated but hashes are invalid obj_idx {}: {}", &obj.0, &t);
-					}
-				}
-				else {
-					log::debug!(target: LOG_TARGET, "offchain_worker: estimation failed obj_idx {}", &obj.0);
+					let _ = Self::send_estimations();
 				}
 			}
-			let _ = Self::send_estimations();
 		}
 	}
 
@@ -624,20 +616,8 @@ pub mod pallet {
 			ensure_none(origin)?;
 
 			let acc = T::AccountId::decode(&mut &est.authority_id.encode()[..]).unwrap();
-
-			// let total_validators = Validators::<T>::
-
 			pallet_poscan::Pallet::<T>::add_obj_estimation(&acc, est.obj_idx, est.t);
 
-
-			// let pool_id = mining_stat.pool_id;
-			//
-			// ensure!(<Pools<T>>::contains_key(&pool_id), Error::<T>::PoolNotFound);
-			//
-			// let pool = <Pools<T>>::get(&pool_id);
-			// let mut members: Vec<(T::AccountId, u32)> = mining_stat.pow_stat.into_iter().filter(|ms| pool.contains(&ms.0)).collect();
-			// PowStat::<T>::insert(&pool_id, &members);
-			// log::debug!(target: LOG_TARGET, "submit_mining_stat stat - ok");
 			Ok(().into())
 		}
 	}
