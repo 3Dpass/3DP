@@ -330,6 +330,8 @@ pub mod pallet {
 		)-> DispatchResultWithPostInfo {
 			ensure_none(origin)?;
 
+
+
 			Objects::<T>::mutate(&obj_idx, |obj| {
 				match obj {
 					Some(ref mut obj_data) => {
@@ -355,6 +357,8 @@ pub mod pallet {
 								}
 							};
 							if obj_data.approvers.len() >= obj_data.num_approvals as usize {
+								let current_block = <frame_system::Pallet<T>>::block_number();
+								obj_data.when_approved = Some(current_block);
 								obj_data.state = ObjectState::Approved;
 								Self::deposit_event(Event::ObjApproved);
 								log::debug!(target: LOG_TARGET, "approve applyed for obj_idx={}", &obj_idx);
