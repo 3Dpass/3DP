@@ -420,19 +420,11 @@ pub fn new_full(
 		 	"Unable to mine: key not found in keystore".to_string(),
 		))?;
 
-		info!(">>> Spawn mining loop");
-
 		// Start Mining
-		let poscan_data: Option<PoscanData> = None;
-		let poscan_hash: H256 = H256::random();
-
 		info!(">>> Spawn mining loop(s)");
 
 		for _i in 0..threads {
 			let worker = worker.clone();
-			let author = author.clone();
-			let mut poscan_data = poscan_data.clone();
-			let mut poscan_hash = poscan_hash.clone();
 			let mining_pool = mining_pool.as_ref().map(|a| a.clone());
 			let pair = pair.clone();
 			let client = client.clone();
@@ -462,38 +454,36 @@ pub fn new_full(
 						if hashes.len() > 0 {
 							let obj_hash = hashes[0];
 							let dh = DoubleHash { pre_hash: metadata.pre_hash, obj_hash };
-							poscan_hash = dh.calc_hash();
-							poscan_data = Some(PoscanData {
+							let poscan_hash = dh.calc_hash();
+							let mut psdata = PoscanData {
 								alg_id: POSCAN_ALGO_GRID2D_V3_1,
 								hashes,
 								obj:
-								mp.pre_obj
-							});
+								mp.pre_obj.clone(),
+							};
+
+							let compute = Compute {
+								difficulty: metadata.difficulty,
+								pre_hash: metadata.pre_hash,
+								poscan_hash,
+							};
+
+							let signature = compute.sign(&pair);
+							let seal = compute.seal(signature.clone());
+							if hash_meets_difficulty(&seal.work, seal.difficulty) {
+								info!(">>> hash_meets_difficulty: submit it: {}, {}, {}",  &seal.work, &seal.poscan_hash, &seal.difficulty);
+								let hashes = get_obj_hashes(&POSCAN_ALGO_GRID2D_V3_1, &mp.pre_obj, &metadata.pre_hash);
+								psdata.hashes = hashes;
+
+								let _ = futures::executor::block_on(worker.submit(seal.encode(), &psdata));
+							}
+							else {
+								// info!(">>> does not meet difficulty");
+							}
 						}
 					}
 					else {
-					  	thread::sleep(Duration::new(1, 0));
-					}
-
-					if let Some(ref psdata) = poscan_data {
-						let compute = Compute {
-							difficulty: metadata.difficulty,
-							pre_hash: metadata.pre_hash,
-							poscan_hash,
-						};
-
-						let signature = compute.sign(&pair);
-						let seal = compute.seal(signature.clone());
-						if hash_meets_difficulty(&seal.work, seal.difficulty) {
-							info!(">>> hash_meets_difficulty: submit it: {}, {}, {}",  &seal.work, &seal.poscan_hash, &seal.difficulty);
-							info!(">>> check verify: {}", compute.verify(&signature.clone(), &author));
-							info!(">>> pre_hash: {}", &metadata.pre_hash);
-							let _ = futures::executor::block_on(worker.submit(seal.encode(), &psdata));
-						}
-						else {
-							// info!(">>> does not meet difficulty");
-						}
-						poscan_data = None;
+						thread::sleep(Duration::new(1, 0));
 					}
 				} else {
 					thread::sleep(Duration::from_millis(10));
