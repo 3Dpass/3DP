@@ -3,6 +3,7 @@
 use sp_core::{H256, Encode, Decode};
 use sp_std::vec::Vec;
 use sp_runtime_interface::runtime_interface;
+use sp_core::offchain::Duration;
 
 #[cfg(feature = "std")]
 use lazy_static::lazy_static;
@@ -15,7 +16,12 @@ use sp_std::{
 	str::FromStr,
 };
 #[cfg(feature = "std")]
-use sp_consensus_poscan::{POSCAN_ALGO_GRID2D_V2, POSCAN_ALGO_GRID2D_V3, POSCAN_ALGO_GRID2D_V3_1};
+use sp_consensus_poscan::{
+	POSCAN_ALGO_GRID2D_V2,
+	POSCAN_ALGO_GRID2D_V3,
+	POSCAN_ALGO_GRID2D_V3_1,
+	POSCAN_ALGO_GRID2D_V3A,
+};
 
 #[cfg(feature = "std")]
 use lzss::{Lzss, SliceReader, VecWriter};
@@ -24,6 +30,10 @@ use lzss::{Lzss, SliceReader, VecWriter};
 use parking_lot::Mutex;
 #[cfg(feature = "std")]
 use sp_blockchain::HeaderBackend;
+#[cfg(feature = "std")]
+use std::thread;
+#[cfg(feature = "std")]
+use std::time::{Duration as TimeDuration, SystemTime};
 #[cfg(feature = "std")]
 use sp_runtime::generic;
 #[cfg(feature = "std")]
@@ -66,6 +76,10 @@ pub enum Error {
 pub trait HashableObject {
 	fn calc_obj_hashes(ver: &[u8; 16], data: &[u8], pre: &H256) -> Vec<H256> {
 		get_obj_hashes(ver, data, pre)
+	}
+
+	fn calc_obj_hashes_n(ver: &[u8; 16], data: &[u8], pre: &H256, n: u32) -> Vec<H256> {
+		get_obj_hashes_n(ver, data, pre, n as usize)
 	}
 
 	fn is_light() -> Result<bool, Error> {
@@ -134,10 +148,7 @@ pub trait HashableObject {
 		}
 	}
 
-	fn estimate_obj(ver: &[u8; 16], data: &[u8]) -> Option<(u128, Vec<H256>)> {
-		use std::thread;
-		use std::time::{Duration as TimeDuration, SystemTime};
-
+	fn estimate_obj(ver: &[u8; 16], data: &[u8], timeout: Duration) -> Option<(u128, Vec<H256>)> {
 		let v = ver.clone();
 		let d = Vec::from(data);
 		let handler = thread::spawn(move || {
@@ -147,17 +158,13 @@ pub trait HashableObject {
 			(SystemTime::now().duration_since(bgn).unwrap(), hashes)
 		});
 
-		// let mut bgn = SystemTime::now();
-		// let mut t = TimeDuration::default();
-		for _ in 0..10 {
-			thread::sleep(TimeDuration::from_secs(1));
+		let n = timeout.millis() / 100;
+		for _ in 0..n {
+			thread::sleep(TimeDuration::from_millis(100));
 			if handler.is_finished() {
 				let res = handler.join().unwrap();
 				return Some((res.0.as_millis(), res.1))
 			}
-			// else {
-			// 	_t = SystemTime::now().duration_since(bgn).unwrap();
-			// }
 		}
 		None
 	}
@@ -165,6 +172,11 @@ pub trait HashableObject {
 
 #[cfg(feature = "std")]
 pub fn get_obj_hashes(ver: &[u8; 16], data: &[u8], pre: &H256) -> Vec<H256> {
+	get_obj_hashes_n(ver, data, pre, 10)
+}
+
+#[cfg(feature = "std")]
+pub fn get_obj_hashes_n(ver: &[u8; 16], data: &[u8], pre: &H256, depth: usize) -> Vec<H256> {
 	let mut buf: Vec<H256> = Vec::new();
 	let mut obj = data.to_vec();
 	if data[..4] == vec![b'l', b'z', b's', b's'] {
@@ -176,11 +188,12 @@ pub fn get_obj_hashes(ver: &[u8; 16], data: &[u8], pre: &H256) -> Vec<H256> {
 			POSCAN_ALGO_GRID2D_V2 => (p3d::AlgoType::Grid2dV2, 12),
 			POSCAN_ALGO_GRID2D_V3 |
 			POSCAN_ALGO_GRID2D_V3_1 => (p3d::AlgoType::Grid2dV3, 12),
+			POSCAN_ALGO_GRID2D_V3A => (p3d::AlgoType::Grid2dV3a, 12),
 			_ => (p3d::AlgoType::Grid2d, 66),
 		};
 
 	let rot = if *pre == H256::default() { None } else { pre.encode()[0..4].try_into().ok() };
-	let res = p3d::p3d_process(&obj, alg_type, grid_size, n_sect, rot);
+	let res = p3d::p3d_process_n(&obj, alg_type, depth, grid_size, n_sect, rot);
 
 	match res {
 		Ok(v) => {

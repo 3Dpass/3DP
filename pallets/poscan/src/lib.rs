@@ -32,9 +32,10 @@ use sp_runtime::traits::{Saturating, Zero};
 
 // use sp_core::crypto::AccountId32;
 use sp_core::H256;
+use sp_core::offchain::Duration;
 use sp_inherents::IsFatalError;
 
-use sp_consensus_poscan::POSCAN_ALGO_GRID2D_V3_1;
+use sp_consensus_poscan::POSCAN_ALGO_GRID2D_V3A;
 use poscan_api::PoscanApi;
 use validator_set_api::ValidatorSetApi;
 
@@ -53,7 +54,9 @@ pub type BalanceOf<T> =
 <<T as Config>::Currency as Currency<<T as frame_system::Config>::AccountId>>::Balance;
 
 const MAX_OBJECT_SIZE: u32 = 100_000;
-const MAX_OBJECT_HASHES: u32 = 10;
+const DEFAULT_OBJECT_HASHES: u32 = 10;
+const MAX_OBJECT_HASHES: u32 = 256 + DEFAULT_OBJECT_HASHES;
+const DEFAULT_MAX_ALGO_TIME: u32 = 10;  // 10 sec
 const MAX_ESTIMATORS: u32 = 1000;
 const LOCK_ID: LockIdentifier = *b"poscan  ";
 
@@ -86,21 +89,54 @@ impl IsFatalError for InherentError {
 
 #[frame_support::pallet]
 pub mod pallet {
-	// use frame_support::pallet_prelude::*;
-    use frame_system::pallet_prelude::*;
+	use frame_support::traits::Len;
+	use frame_system::pallet_prelude::*;
 	use super::*;
-	// type MAX_OBJECT_SIZE = ConstU32<100_000>;
+
+	#[derive(Clone, PartialEq, Encode, Decode, TypeInfo, MaxEncodedLen, RuntimeDebug)]
+	pub enum Algo3D {
+		Grid2dLow,
+		Grid2dHigh,
+	}
+
+	#[derive(Clone, PartialEq, Encode, Decode, TypeInfo, MaxEncodedLen, RuntimeDebug)]
+	pub enum ObjectCategory
+	{
+		/// 3D objects
+		Objects3D(Algo3D),
+		/// 2D drawings
+		Drawings2D,
+		/// Music
+		Music,
+		/// Biometrics
+		Biometrics,
+		/// Movements
+		Movements,
+		/// Texts
+		Texts,
+	}
 
 	#[derive(Clone, Encode, Decode, TypeInfo, MaxEncodedLen, RuntimeDebug)]
 	pub enum ObjectState<Block>
 	where
-		// Account: Encode + Decode + TypeInfo + Member,
 		Block: Encode + Decode + TypeInfo + Member,
 	{
 		Created(Block),
 		Estimating(Block),
-		Estimated(u128),
+		Estimated(Block, u64),
+		NotApproved(Block),
 		Approved,
+	}
+
+	#[derive(Clone, Encode, Decode, TypeInfo, MaxEncodedLen)]
+	pub struct Approval<Account, Block>
+		where
+			Account: Encode + Decode + TypeInfo + Member,
+			Block: Encode + Decode + TypeInfo + Member,
+	{
+		pub account_id: Account,
+		pub when: Block,
+		pub proof: Option<H256>,
 	}
 
 	#[derive(Clone, Encode, Decode, TypeInfo, MaxEncodedLen)]
@@ -111,12 +147,13 @@ pub mod pallet {
 	{
 		pub state: ObjectState<Block>,
 		pub obj: BoundedVec<u8, ConstU32<MAX_OBJECT_SIZE>>,
+		pub category: ObjectCategory,
 		pub hashes: BoundedVec<H256, ConstU32<MAX_OBJECT_HASHES>>,
 		pub when_created: Block,
 		pub when_approved: Option<Block>,
 		pub owner: Account,
-		pub estimators: BoundedVec<(Account, u128), ConstU32<MAX_ESTIMATORS>>,
-		pub approvers: BoundedVec<Account, ConstU32<256>>,
+		pub estimators: BoundedVec<(Account, u64), ConstU32<MAX_ESTIMATORS>>,
+		pub approvers: BoundedVec<Approval<Account, Block>, ConstU32<256>>,
 		pub num_approvals: u8,
 		pub est_rewards: u128,
 		pub author_rewards: u128,
@@ -134,8 +171,14 @@ pub mod pallet {
 		#[pallet::constant]
 		type PoscanEngineId: Get<[u8; 4]>;
 
+		/// Origin for pallet admin.
+		type AdminOrigin: EnsureOrigin<Self::Origin>;
+
 		#[pallet::constant]
 		type EstimatePeriod: Get<u32>;
+
+		#[pallet::constant]
+		type ApproveTimeout: Get<u32>;
 
 		#[pallet::constant]
 		type RewardsDefault: Get<u128>;
@@ -178,13 +221,19 @@ pub mod pallet {
 	#[pallet::getter(fn author_part)]
 	pub type AuthorPart<T> = StorageValue<_, Percent, OptionQuery>;
 
+	#[pallet::storage]
+	#[pallet::getter(fn algo_time)]
+	pub type MaxAlgoTime<T> = StorageValue<_, u32, OptionQuery>;
+
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(super) fn deposit_event)]
 	pub enum Event<T: Config> {
 		/// Event emitted when an object has been created.
 		ObjCreated(T::AccountId),
 		/// Event emitted when an object has been approved.
-		ObjApproved,
+		ObjApproved(ObjIdx),
+		/// Event emitted when an object has not been approved (expired).
+		ObjNotApproved(ObjIdx),
 	}
 
 	// Errors inform users that something went wrong.
@@ -198,6 +247,8 @@ pub mod pallet {
 		ZeroApprovalsRequested,
 		/// Unsufficient balance to process object.
 		UnsufficientBalance,
+		/// Unsupported category.
+		UnsupportedCategory,
 	}
 
 	#[pallet::hooks]
@@ -210,6 +261,20 @@ pub mod pallet {
 					match obj_data {
 						Some(ref mut obj_data) => {
 							match obj_data.state {
+								ObjectState::Created(when) |
+								ObjectState::Estimated(when, _) |
+								ObjectState::Estimating(when)
+								if {
+									let when_last_approved = obj_data.approvers
+										.last()
+										.map(|a| a.when)
+										.unwrap_or(when);
+									now > when_last_approved + T::ApproveTimeout::get().into()
+								} => {
+									log::debug!(target: LOG_TARGET, "on_initialize mark as NotApproved obj_idx={}", &obj_idx);
+									obj_data.state = ObjectState::NotApproved(now);
+									Self::deposit_event(Event::ObjNotApproved(obj_idx));
+								},
 								ObjectState::Created(_) => {
 									obj_data.state = ObjectState::Estimating(now);
 									log::debug!(target: LOG_TARGET, "on_initialize ok for obj_idx={}", &obj_idx);
@@ -218,9 +283,9 @@ pub mod pallet {
 									log::debug!(target: LOG_TARGET, "on_initialize: Estimating");
 									let est_cnt = obj_data.estimators.len();
 									let majority = T::ValidatorSet::validators().len() / 2;
-									if now > block_num + T::EstimatePeriod::get().into() && est_cnt > majority {
+									if now > block_num + T::EstimatePeriod::get().into() && est_cnt >= majority {
 										let t = obj_data.estimators.iter().fold(0, |_, t| t.1);
-										obj_data.state = ObjectState::Estimated(t / (est_cnt as u128));
+										obj_data.state = ObjectState::Estimated(now, t / (est_cnt as u64));
 										log::debug!(target: LOG_TARGET, "on_initialize mark as estimated obj_idx={}", &obj_idx);
 										Self::reward_estimators(obj_idx);
 									}
@@ -244,9 +309,11 @@ pub mod pallet {
 	// Dispatchable functions must be annotated with a weight and must return a DispatchResult.
 	#[pallet::call]
 	impl<T: Config> Pallet<T> {
+		/// Put file to poscan storage
 		#[pallet::weight(10_000 * obj.len() as u64)]
 		pub fn put_object(
 			origin: OriginFor<T>,
+			category: ObjectCategory,
 			obj: BoundedVec<u8, ConstU32<MAX_OBJECT_SIZE>>,
 			num_approvals: u8,
 			hashes: Option<BoundedVec<H256, ConstU32<MAX_OBJECT_HASHES>>>,
@@ -274,10 +341,13 @@ pub mod pallet {
 
 			let hashes = match hashes {
 				Some(hashes) => hashes,
-				None => poscan_algo::hashable_object::calc_obj_hashes(
-							&POSCAN_ALGO_GRID2D_V3_1, &obj, &H256::default()
-					).try_into().unwrap(),
+				None => Self::calc_hashes(&category, &obj, DEFAULT_OBJECT_HASHES)?,
 			};
+
+			log::debug!(target: LOG_TARGET, "put_object::hashes");
+			for a in hashes.iter() {
+				log::debug!(target: LOG_TARGET, "{:#?}", a);
+			}
 
 			for (_idx, obj_data) in Objects::<T>::iter() {
 				let min_len = core::cmp::min(obj_data.hashes.len(), hashes.len());
@@ -293,6 +363,7 @@ pub mod pallet {
 			let obj_data = ObjData::<T::AccountId, T::BlockNumber> {
 				state,
 				obj,
+				category,
 				hashes,
 				when_created: block_num,
 				when_approved: None,
@@ -326,17 +397,17 @@ pub mod pallet {
 			origin: OriginFor<T>,
 			author: T::AccountId,
 			obj_idx: u32,
-			_ok: bool,
+			proof: Option<H256>, // additional hash if found
 		)-> DispatchResultWithPostInfo {
 			ensure_none(origin)?;
-
-
 
 			Objects::<T>::mutate(&obj_idx, |obj| {
 				match obj {
 					Some(ref mut obj_data) => {
-						if let ObjectState::Estimated(_) = obj_data.state {
-							if obj_data.approvers.try_push(author.clone()).is_err() {
+						if let ObjectState::Estimated(..) = obj_data.state {
+							let current_block = <frame_system::Pallet<T>>::block_number();
+							let approval = Approval { account_id: author.clone(), when: current_block, proof};
+							if obj_data.approvers.try_push(approval).is_err() {
 								log::debug!(target: LOG_TARGET, "approve addition err for obj_idx={}", &obj_idx);
 								return
 							}
@@ -357,10 +428,9 @@ pub mod pallet {
 								}
 							};
 							if obj_data.approvers.len() >= obj_data.num_approvals as usize {
-								let current_block = <frame_system::Pallet<T>>::block_number();
 								obj_data.when_approved = Some(current_block);
 								obj_data.state = ObjectState::Approved;
-								Self::deposit_event(Event::ObjApproved);
+								Self::deposit_event(Event::ObjApproved(obj_idx));
 								log::debug!(target: LOG_TARGET, "approve applyed for obj_idx={}", &obj_idx);
 
 							}
@@ -373,6 +443,17 @@ pub mod pallet {
 				}
 			});
 
+			Ok(().into())
+		}
+
+		#[pallet::weight(1_000_000)]
+		pub fn set_algo_time(
+			origin: OriginFor<T>,
+			algo_time: u32,
+		) -> DispatchResultWithPostInfo {
+			T::AdminOrigin::ensure_origin(origin)?;
+
+			MaxAlgoTime::<T>::put(algo_time);
 			Ok(().into())
 		}
 	}
@@ -405,20 +486,16 @@ pub mod pallet {
 
 				let obj_idx = objects[0].0;
 				let obj_data = &objects[0].1;
+				let proof_num: u32 = (obj_data.hashes.len() + obj_data.approvers.len()) as u32 + 1;
+				let (res, proof) = Self::check_hashes(&obj_data, proof_num);
 
-				let hashes: BoundedVec<H256, ConstU32<MAX_OBJECT_HASHES>> =
-					poscan_algo::hashable_object::calc_obj_hashes(
-						&POSCAN_ALGO_GRID2D_V3_1, &obj_data.obj, &H256::default()
-					)
-					.try_into().unwrap();
-
-				if obj_data.hashes == hashes {
+				if res {
 					log::debug!(target: LOG_TARGET, "create_inherent: hashes true");
-					Some(Call::approve { author, obj_idx, ok: true })
+					Some(Call::approve { author, obj_idx, proof })
 				}
 				else {
 					log::debug!(target: LOG_TARGET, "create_inherent: hashes false");
-					Some(Call::approve { author, obj_idx, ok: false })
+					None
 				}
 			}
 			else {
@@ -442,18 +519,19 @@ pub mod pallet {
 
 					let obj_data = &Objects::<T>::get(obj_idx);
 					if let Some(obj_data) = obj_data {
-						let hashes: BoundedVec<H256, ConstU32<MAX_OBJECT_HASHES>> =
-							poscan_algo::hashable_object::calc_obj_hashes(
-								&POSCAN_ALGO_GRID2D_V3_1, &obj_data.obj, &H256::default()
-							).try_into().unwrap();
+						let hashes = &obj_data.hashes;
 
-						if obj_data.hashes == hashes {
+						let proof_num: u32 = (obj_data.hashes.len() + obj_data.approvers.len()) as u32;
+						let (res, _) = Self::check_hashes(&obj_data, proof_num);
+
+						if res {
 							log::debug!(target: LOG_TARGET, "check_inherent: hashes true");
 
 							for (idx, obj_data) in Objects::<T>::iter() {
 								if idx != *obj_idx {
 									let min_len = core::cmp::min(obj_data.hashes.len(), hashes.len());
 									if obj_data.hashes.iter().eq(hashes[0..min_len].iter()) {
+										log::error!(target: LOG_TARGET, "check_inherent: for obj_idx={} duplicated hashes found in obj_idx={}", obj_idx, &idx);
 										return Err(Self::Error::DuplicatedObjectHashes(*obj_idx, idx))
 									}
 								}
@@ -506,8 +584,8 @@ impl<T: Config> Pallet<T> {
 
 		let mut v: Vec<(u32, ObjData<T::AccountId, T::BlockNumber>)> = Vec::new();
 		for (idx, obj_data) in Objects::<T>::iter() {
-			if let ObjectState::Estimated(diff) = obj_data.state {
-				if diff < 10 {
+			if let ObjectState::Estimated(_, diff) = obj_data.state {
+				if diff < Self::max_algo_time().millis() {
 					v.push((idx, obj_data));
 				}
 				else {
@@ -519,7 +597,7 @@ impl<T: Config> Pallet<T> {
 		v
 	}
 
-	pub fn add_obj_estimation(acc: &T::AccountId, obj_idx: u32, dt: u128) {
+	pub fn add_obj_estimation(acc: &T::AccountId, obj_idx: u32, dt: u64) {
 		log::debug!(target: LOG_TARGET, "add_obj_estimation");
 
 		Objects::<T>::mutate(obj_idx, |obj_data| {
@@ -604,7 +682,69 @@ impl<T: Config> Pallet<T> {
 			let est_rewards = rewards.saturating_sub(author_rewards);
 			Some((est_rewards, author_rewards))
 		}
+	}
 
+	fn calc_hashes(cat: &ObjectCategory, obj: &Vec<u8>, num_hashes: u32) -> Result<BoundedVec<H256, ConstU32<MAX_OBJECT_HASHES>>, Error::<T>> {
+		match cat {
+			ObjectCategory::Objects3D(Algo3D::Grid2dLow) => {
+				Ok(poscan_algo::hashable_object::calc_obj_hashes_n(
+					&POSCAN_ALGO_GRID2D_V3A, &obj, &H256::default(), num_hashes,
+				).try_into().unwrap())
+			},
+			_ => {
+				Err(Error::UnsupportedCategory)
+			}
+		}
+	}
+
+	fn check_hashes(obj_data: &ObjData<T::AccountId, T::BlockNumber>, proof_num: u32) -> (bool, Option<H256>) {
+		let res_hashes =
+			Self::calc_hashes(&obj_data.category, &obj_data.obj, proof_num.clone());
+
+		if res_hashes.is_err() {
+			return (false, None)
+		}
+
+		let mut hashes: Vec<_> = res_hashes.unwrap()
+			.iter()
+			.map(|a| Some(*a))
+			.collect();
+
+		let mut all_prev_hashes = // : BoundedVec<H256, ConstU32<MAX_OBJECT_HASHES>> =
+			obj_data.hashes
+				.iter()
+				.map(|a| Some(*a))
+				.collect::<Vec<_>>();
+		all_prev_hashes.extend(obj_data.approvers.iter().map(|a| a.proof));
+
+		hashes.extend(sp_std::iter::repeat(None).take(proof_num as usize - hashes.len()));
+		let proof = *hashes.get(proof_num as usize - 1).unwrap_or(&None);
+		log::debug!(target: LOG_TARGET, "all_prev_hashes len={}", all_prev_hashes.len());
+		log::debug!(target: LOG_TARGET, "hashes len={}", hashes.len());
+
+		log::debug!(target: LOG_TARGET, "all_prev_hashes");
+		for a in all_prev_hashes.iter() {
+			log::debug!(target: LOG_TARGET, "{:#?}", &a);
+		}
+
+		log::debug!(target: LOG_TARGET, "hashes");
+		for a in hashes.iter() {
+			log::debug!(target: LOG_TARGET, "{:#?}", &a);
+		}
+
+		if all_prev_hashes == hashes[0..all_prev_hashes.len()].to_vec() {
+			log::debug!(target: LOG_TARGET, "create_inherent: hashes true");
+			(true, proof)
+		}
+		else {
+			log::debug!(target: LOG_TARGET, "create_inherent: hashes false");
+			(false, proof)
+		}
+	}
+
+	pub fn max_algo_time() -> Duration {
+		let tout = MaxAlgoTime::<T>::get().unwrap_or(DEFAULT_MAX_ALGO_TIME);
+		Duration::from_millis(tout as u64 * 1000)
 	}
 }
 

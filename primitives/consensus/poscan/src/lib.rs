@@ -35,6 +35,7 @@ pub const POSCAN_ALGO_GRID2D: [u8; 16] = *b"grid2d-1.1      ";
 pub const POSCAN_ALGO_GRID2D_V2: [u8; 16] = *b"grid2d-1.2      ";
 pub const POSCAN_ALGO_GRID2D_V3: [u8; 16] = *b"grid2d-1.3      ";
 pub const POSCAN_ALGO_GRID2D_V3_1: [u8; 16] = *b"grid2d-1.3.1    ";
+pub const POSCAN_ALGO_GRID2D_V3A: [u8; 16] = *b"grid2d-1.3a     ";
 
 pub const SUPPORTED_ALGORITHMS: [[u8; 16];4] =
 	[
