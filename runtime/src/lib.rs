@@ -1312,7 +1312,9 @@ impl pallet_poscan::Config for Runtime {
 	type Call = Call;
 	type ValidatorSet = ValidatorSet;
 	type PoscanEngineId = PoscanEngineId;
-	type EstimatePeriod = ConstU32<5>;
+	type AdminOrigin = MoreThanHalfCouncil;
+	type EstimatePeriod = ConstU32<3>;
+	type ApproveTimeout = ConstU32<5>;
 	// type MaxObjectSize = ConstU32<100_000>;
 	type RewardsDefault = RewardsDefault;
 	type AuthorPartDefault = AuthorPartDefault;

@@ -56,7 +56,7 @@ use sp_std::{collections::btree_set::BTreeSet, prelude::*};
 use core::convert::TryInto;
 use sp_consensus_poscan::HOURS;
 use poscan_algo;
-use sp_consensus_poscan::POSCAN_ALGO_GRID2D_V3_1;
+use sp_consensus_poscan::POSCAN_ALGO_GRID2D_V3A;
 
 use rewards_api::RewardLocksApi;
 use validator_set_api::ValidatorSetApi;
@@ -90,13 +90,9 @@ pub enum RemoveReason {
 }
 
 #[derive(Encode, Decode, Clone, PartialEq, Eq, RuntimeDebug, TypeInfo)]
-pub struct Estimation<AuthorityId>
-// <BlockNumber>
-// where
-// 	BlockNumber: PartialEq + Eq + Decode + Encode,
-{
+pub struct Estimation<AuthorityId> {
 	pub obj_idx: u32,
-	pub t: u128,
+	pub t: u64,
 	pub authority_id: AuthorityId,
 }
 
@@ -307,9 +303,10 @@ pub mod pallet {
 					if objects.len() > 0 {
 						// TODO: check local storage
 						let obj = objects[0].clone();
-						let algo_id = POSCAN_ALGO_GRID2D_V3_1;
+						let algo_id = POSCAN_ALGO_GRID2D_V3A;
 						log::debug!(target: LOG_TARGET, "offchain_worker: estimate obj_idx {}", &obj.0);
-						let res = poscan_algo::hashable_object::estimate_obj(&algo_id, &obj.1.obj);
+						let timeout = pallet_poscan::Pallet::<T>::max_algo_time();
+						let res = poscan_algo::hashable_object::estimate_obj(&algo_id, &obj.1.obj, timeout);
 
 						if let Some((t, hashes)) = res {
 							use sp_core::H256;
@@ -949,7 +946,7 @@ impl<T: Config> Pallet<T> {
 		let local_key = local_keys.get(0).ok_or("No key for validator in local keystorage")?;
 		let _network_state = sp_io::offchain::network_state().map_err(|_| "OffchainErr::NetworkState")?;
 
-		let send_item = |obj_idx: u32, t: u128| -> Result<(), &'static str> {
+		let send_item = |obj_idx: u32, t: u64| -> Result<(), &'static str> {
 			let est = Estimation { obj_idx, t, authority_id: local_key.clone() };
 			let signature = local_key.sign(&est.encode()).ok_or("OffchainErr::FailedSigning")?;
 
@@ -969,7 +966,7 @@ impl<T: Config> Pallet<T> {
 		let key = b"estimations";
 		let val = StorageValueRef::persistent(key);
 
-		let _res = val.mutate(|est: Result<Option<Vec<(u32, u128, u32)>>, StorageRetrievalError>| {
+		let _res = val.mutate(|est: Result<Option<Vec<(u32, u64, u32)>>, StorageRetrievalError>| {
 			match est {
 				Ok(Some(mut v)) => { // if block_number < block + T::StatPeriod::get() =>
 					for item in v.iter_mut() {

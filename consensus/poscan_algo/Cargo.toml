@@ -23,7 +23,7 @@ sp-runtime = { default-features = false, git = "https://github.com/paritytech/su
 sp-blockchain = { optional = true, git = "https://github.com/paritytech/substrate", rev = "b0777b4c7f7" }
 log = "0.4"
 
-p3d = { version="0.3.3", git = "https://github.com/3Dpass/p3d", tag = "v0.6.3" }
+p3d = { version="0.3.4", git="https://github.com/3Dpass/p3d", rev="71ea892" }
 
 [features]
 default = ["std"]
