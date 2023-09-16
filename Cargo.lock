@@ -3846,7 +3846,7 @@ dependencies = [
 [[package]]
 name = "p3d"
 version = "0.3.4"
-source = "git+https://github.com/3Dpass/p3d?rev=71ea892#71ea8929ee6177955af8e4d52d7d67005d30ebd3"
+source = "git+https://github.com/3Dpass/p3d?rev=914cf44#914cf4405503387e9b2915c531e01d2443be4be9"
 dependencies = [
  "base16ct",
  "cgmath",

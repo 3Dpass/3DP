@@ -249,6 +249,8 @@ pub mod pallet {
 		UnsufficientBalance,
 		/// Unsupported category.
 		UnsupportedCategory,
+		/// No hashes provided.
+		NoHashes,
 	}
 
 	#[pallet::hooks]
@@ -343,6 +345,10 @@ pub mod pallet {
 				Some(hashes) => hashes,
 				None => Self::calc_hashes(&category, &obj, DEFAULT_OBJECT_HASHES)?,
 			};
+
+			if hashes.len() == 0 {
+				return Err(Error::<T>::NoHashes.into());
+			}
 
 			log::debug!(target: LOG_TARGET, "put_object::hashes");
 			for a in hashes.iter() {
