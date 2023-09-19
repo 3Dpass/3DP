@@ -54,6 +54,7 @@ use sp_staking::offence::{Offence, OffenceError, ReportOffence};
 use sp_version::RuntimeVersion;
 use sp_std::{collections::btree_set::BTreeSet, prelude::*};
 use core::convert::TryInto;
+use sp_core::H256;
 use sp_consensus_poscan::HOURS;
 use poscan_algo;
 use sp_consensus_poscan::POSCAN_ALGO_GRID2D_V3A;
@@ -309,7 +310,13 @@ pub mod pallet {
 						let res = poscan_algo::hashable_object::estimate_obj(&algo_id, &obj.1.obj, timeout);
 
 						if let Some((t, hashes)) = res {
-							use sp_core::H256;
+							let t: u64 = if let Ok(t) = t.try_into() {
+								t
+							}
+							else {
+								log::error!(target: LOG_TARGET, "offchain_worker: estimation too big ({}) obj_idx {}", &t, &obj.0);
+								return
+							};
 							let calc_hashes: Vec<H256> = obj.1.hashes.into();
 							if hashes == calc_hashes {
 								log::debug!(target: LOG_TARGET, "offchain_worker: estimated obj_idx {}: {}", &obj.0, &t);
@@ -969,23 +976,26 @@ impl<T: Config> Pallet<T> {
 					Ok(v)
 				},
 				Ok(None) => Ok(Vec::new()),
-				_ => return Err("Send estimation local storage error"),
+				Err(e) => {
+					log::error!(target: LOG_TARGET, "Estimation read from local storage error: {:#?}", e);
+					return Err("Send estimation local storage error")
+				},
 			}
 		});
 
 		Ok(())
 	}
 
-	fn save_estimation(_block_number: T::BlockNumber, object_idx: u32, t: u128) -> bool {
+	fn save_estimation(_block_number: T::BlockNumber, object_idx: u32, t: u64) -> bool {
 		let mut lock = StorageLock::<Time>::new(ESTIMATION_LOCK);
 		let _guard = lock.lock();
 
 		let key = b"estimations";
 		let val = StorageValueRef::persistent(key);
 
-		let res = val.mutate(|est: Result<Option<Vec<(u32, u128, u32)>>, StorageRetrievalError>| {
+		let res = val.mutate(|est: Result<Option<Vec<(u32, u64, u32)>>, StorageRetrievalError>| {
 			match est {
-				Ok(Some(mut v)) => { // if block_number < block + T::StatPeriod::get() =>
+				Ok(Some(mut v)) => {
 					let pos = v.iter().position(|&r| r.0 == object_idx);
 					if let Some(pos) = pos {
 						if v[pos].2 > 0 {
@@ -1000,9 +1010,10 @@ impl<T: Config> Pallet<T> {
 					Ok(v)
 				},
 				Ok(None) => Ok(vec![(object_idx, t, 0)]),
-
-				// In every other case we attempt to acquire the lock and send a transaction.
-				_ => return Err("ERROR"),
+				Err(e) => {
+					log::error!(target: LOG_TARGET, "Estimation write to local storage error: {:#?}", e);
+					return Err("ERROR")
+				},
 			}
 		});
 
