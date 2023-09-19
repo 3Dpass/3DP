@@ -798,16 +798,6 @@ impl<T: Config> Pallet<T> {
 				let usable_val: u128 = pallet_balances::Pallet::<T>::usable_balance(validator_id).saturated_into();
 				usable = usable_val.saturated_into();
 			}
-			if usable < slash_amount + min_bal {
-				let unlock_amount = slash_amount + min_bal - usable;
-
-				log::debug!(target: LOG_TARGET, "Try to unlock rewards locks for {:#?}, usable: {:#?}", validator_id, usable);
-				let total_reward_locked = T::RewardLocksApi::locks(validator_id);
-				T::RewardLocksApi::unlock_upto(validator_id, total_reward_locked.saturating_sub(unlock_amount));
-				let usable_val: u128 = pallet_balances::Pallet::<T>::usable_balance(validator_id).saturated_into();
-				usable = usable_val.saturated_into();
-				log::debug!(target: LOG_TARGET, "After unlock rewards locks for {:#?} usable: {:#?}", validator_id, usable);
-			}
 		}
 
 		let usable = usable.saturating_sub(min_bal);
@@ -892,7 +882,7 @@ impl<T: Config> Pallet<T> {
 		period: Option<u32>,
 	) {
 		if amount > Zero::zero() {
-			<T as pallet::Config>::Currency::extend_lock(
+			<T as pallet::Config>::Currency::set_lock(
 				LOCK_ID,
 				&validator_id,
 				amount,
