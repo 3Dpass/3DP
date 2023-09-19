@@ -181,7 +181,7 @@ impl MiningPool {
 
         let hashes = get_obj_hashes(&alg_id, &Vec::from(obj), &pre_hash);
 
-        if hashes[0] != hash {
+        if hashes.len() > 0 && hashes[0] != hash {
             log::info!(">>> pool verify: provided hashes are invalid");
             return Err(PoolError::NotAccepted);
         }
