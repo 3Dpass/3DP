@@ -284,8 +284,8 @@ pub mod pallet {
 								ObjectState::Estimating(block_num) => {
 									log::debug!(target: LOG_TARGET, "on_initialize: Estimating");
 									let est_cnt = obj_data.estimators.len();
-									let majority = T::ValidatorSet::validators().len() / 2;
-									if now > block_num + T::EstimatePeriod::get().into() && est_cnt >= majority {
+									let n_val = T::ValidatorSet::validators().len();
+									if now > block_num + T::EstimatePeriod::get().into() && est_cnt * 2 >= n_val {
 										let t = obj_data.estimators.iter().fold(0, |_, t| t.1);
 										obj_data.state = ObjectState::Estimated(now, t / (est_cnt as u64));
 										log::debug!(target: LOG_TARGET, "on_initialize mark as estimated obj_idx={}", &obj_idx);
@@ -661,14 +661,6 @@ impl<T: Config> Pallet<T> {
 			);
 		}
 		let _ = AccountLock::<T>::mutate(account_id, |_v| amount);
-	}
-
-	pub fn get_inherent_provider(author: &Vec<u8>) -> self::inherents::InherentDataProvider {
-		self::inherents::InherentDataProvider {
-			author: Some(author.clone()),
-			obj_idx: None,
-			obj: None,
-		}
 	}
 
 	fn rewards(obj_idx: Option<ObjIdx>) -> Option<(BalanceOf::<T>, BalanceOf::<T>)> {
