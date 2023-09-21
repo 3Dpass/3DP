@@ -128,6 +128,13 @@ pub mod pallet {
 		Approved,
 	}
 
+	#[derive(Clone, Encode, Decode, TypeInfo, MaxEncodedLen, RuntimeDebug, PartialEq)]
+	pub enum NotApprovedReason
+	{
+		Expired,
+		DuplicateFound(ObjIdx, ObjIdx),
+	}
+
 	#[derive(Clone, Encode, Decode, TypeInfo, MaxEncodedLen)]
 	pub struct Approval<Account, Block>
 		where
@@ -153,6 +160,7 @@ pub mod pallet {
 		pub when_approved: Option<Block>,
 		pub owner: Account,
 		pub estimators: BoundedVec<(Account, u64), ConstU32<MAX_ESTIMATORS>>,
+		pub est_outliers: BoundedVec<Account, ConstU32<MAX_ESTIMATORS>>,
 		pub approvers: BoundedVec<Approval<Account, Block>, ConstU32<256>>,
 		pub num_approvals: u8,
 		pub est_rewards: u128,
@@ -233,7 +241,7 @@ pub mod pallet {
 		/// Event emitted when an object has been approved.
 		ObjApproved(ObjIdx),
 		/// Event emitted when an object has not been approved (expired).
-		ObjNotApproved(ObjIdx),
+		ObjNotApproved(ObjIdx, NotApprovedReason),
 	}
 
 	// Errors inform users that something went wrong.
@@ -275,7 +283,8 @@ pub mod pallet {
 								} => {
 									log::debug!(target: LOG_TARGET, "on_initialize mark as NotApproved obj_idx={}", &obj_idx);
 									obj_data.state = ObjectState::NotApproved(now);
-									Self::deposit_event(Event::ObjNotApproved(obj_idx));
+									obj_data.est_outliers = Self::outliers(&obj_data.estimators);
+									Self::deposit_event(Event::ObjNotApproved(obj_idx, NotApprovedReason::Expired));
 								},
 								ObjectState::Created(_) => {
 									obj_data.state = ObjectState::Estimating(now);
@@ -283,13 +292,21 @@ pub mod pallet {
 								},
 								ObjectState::Estimating(block_num) => {
 									log::debug!(target: LOG_TARGET, "on_initialize: Estimating");
-									let est_cnt = obj_data.estimators.len();
-									let n_val = T::ValidatorSet::validators().len();
-									if now > block_num + T::EstimatePeriod::get().into() && est_cnt * 2 >= n_val {
-										let t = obj_data.estimators.iter().fold(0, |_, t| t.1);
-										obj_data.state = ObjectState::Estimated(now, t / (est_cnt as u64));
-										log::debug!(target: LOG_TARGET, "on_initialize mark as estimated obj_idx={}", &obj_idx);
-										Self::reward_estimators(obj_idx);
+									if now > block_num + T::EstimatePeriod::get().into() {
+										obj_data.est_outliers = Self::outliers(&obj_data.estimators);
+										let n_est = obj_data.estimators.len() - obj_data.est_outliers.len();
+										let n_val = T::ValidatorSet::validators().len();
+
+										if n_est * 2 >= n_val {
+											let t = obj_data.estimators
+												.iter()
+												.filter(|a| !obj_data.est_outliers.contains(&a.0))
+												.fold(0, |_, t| t.1
+												);
+											obj_data.state = ObjectState::Estimated(now, t / (n_est as u64));
+											log::debug!(target: LOG_TARGET, "on_initialize mark as estimated obj_idx={}", &obj_idx);
+											Self::reward_estimators(obj_idx);
+										}
 									}
 								},
 								_ => {},
@@ -356,9 +373,11 @@ pub mod pallet {
 			}
 
 			for (_idx, obj_data) in Objects::<T>::iter() {
-				let min_len = core::cmp::min(obj_data.hashes.len(), hashes.len());
-				if obj_data.hashes.iter().eq(hashes[0..min_len].iter()) {
-					return Err(Error::<T>::DuplicatedHashes.into());
+				if !matches!(obj_data.state, ObjectState::NotApproved(_)) {
+					let min_len = core::cmp::min(obj_data.hashes.len(), hashes.len());
+					if obj_data.hashes.iter().eq(hashes[0..min_len].iter()) {
+						return Err(Error::<T>::DuplicatedHashes.into());
+					}
 				}
 			}
 
@@ -375,6 +394,7 @@ pub mod pallet {
 				when_approved: None,
 				owner: acc.clone(),
 				estimators: BoundedVec::default(),
+				est_outliers: BoundedVec::default(),
 				approvers: BoundedVec::default(),
 				num_approvals,
 				est_rewards: actual_rewords.0.saturated_into(),
@@ -434,6 +454,20 @@ pub mod pallet {
 								}
 							};
 							if obj_data.approvers.len() >= obj_data.num_approvals as usize {
+
+								for (idx, obj) in Objects::<T>::iter() {
+									if !matches!(obj.state, ObjectState::NotApproved(_)) {
+										let min_len = core::cmp::min(obj_data.hashes.len(), obj.hashes.len());
+										if obj_data.hashes.iter().eq(obj.hashes[0..min_len].iter()) {
+											Self::deposit_event(Event::ObjNotApproved(
+												obj_idx,
+												NotApprovedReason::DuplicateFound(obj_idx, idx))
+											);
+											return;
+										}
+									}
+								}
+
 								obj_data.when_approved = Some(current_block);
 								obj_data.state = ObjectState::Approved;
 								Self::deposit_event(Event::ObjApproved(obj_idx));
@@ -629,16 +663,18 @@ impl<T: Config> Pallet<T> {
 
 		if let Some((est_rewards, _)) = rewards {
 			let owner = obj_data.owner;
-			// TODO:
-			let rewards_by_est: u128 = est_rewards.saturated_into::<u128>() / (obj_data.estimators.len() as u128);
+			let rewards_by_est: u128 = est_rewards.saturated_into::<u128>() / ((obj_data.estimators.len() - obj_data.est_outliers.len()) as u128);
+
 			let mut payed_rewards: BalanceOf<T> = BalanceOf::<T>::default();
 			log::debug!(target: LOG_TARGET, "estimator rewards: {:?}", rewards_by_est);
 
 			for (acc, _est) in obj_data.estimators.iter() {
-				let _res = <T as pallet::Config>::Currency::transfer(
-					&owner, &acc, rewards_by_est.saturated_into(), ExistenceRequirement::KeepAlive,
-				);
-				payed_rewards = payed_rewards.saturating_add(rewards_by_est.saturated_into());
+				if !obj_data.est_outliers.contains(&acc) {
+					let _res = <T as pallet::Config>::Currency::transfer(
+						&owner, &acc, rewards_by_est.saturated_into(), ExistenceRequirement::KeepAlive,
+					);
+					payed_rewards = payed_rewards.saturating_add(rewards_by_est.saturated_into());
+				}
 			}
 
 			let tot_locked: u128 = AccountLock::<T>::get(&owner).saturated_into();
@@ -743,6 +779,38 @@ impl<T: Config> Pallet<T> {
 	pub fn max_algo_time() -> Duration {
 		let tout = MaxAlgoTime::<T>::get().unwrap_or(DEFAULT_MAX_ALGO_TIME);
 		Duration::from_millis(tout as u64 * 1000)
+	}
+
+	fn outliers(
+		estimators: &BoundedVec<(T::AccountId, u64), ConstU32<MAX_ESTIMATORS>>
+	) -> BoundedVec<T::AccountId, ConstU32<MAX_ESTIMATORS>> {
+
+		let mut sorted: Vec<(T::AccountId, u64)> = estimators.clone().into();
+		sorted.sort_by_key(|a| a.1);
+
+		let n = estimators.len();
+		let q1 = &n / 4;
+		let d1 = (&n % 4) as u64;
+
+		let q3= (3 * &n) / 4;
+		let d3= ((3 * &n) % 4) as u64;
+
+		let val1 = (&sorted[q1].1 * &d1 + &sorted[q1 + 1].1 * (4 - &d1)) as f64 / 4.0;
+		let val2 = (&sorted[q3].1 * &d3 + &sorted[q3 + 1].1 * (4 - &d3)) as f64 / 4.0;
+		let iqr = val2 - val1;
+
+		let r = 1.5f64  * iqr as f64;
+		let rng = (val1 - r)..(val2 + r);
+
+		estimators.iter()
+			.filter_map(
+				|a|
+					if rng.contains(&(a.1 as f64)) { None }
+					else { Some(a.0.clone()) }
+			)
+			.collect::<Vec<_>>()
+			.try_into()
+			.unwrap()
 	}
 }
 
