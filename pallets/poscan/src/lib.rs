@@ -784,29 +784,43 @@ impl<T: Config> Pallet<T> {
 	fn outliers(
 		estimators: &BoundedVec<(T::AccountId, u64), ConstU32<MAX_ESTIMATORS>>
 	) -> BoundedVec<T::AccountId, ConstU32<MAX_ESTIMATORS>> {
+		let est_zero = estimators.iter()
+			.filter_map(
+				|a|
+					if a.1 == 0 { Some(a) } else { None }
+			)
+			.collect::<Vec<_>>();
 
 		let mut sorted: Vec<(T::AccountId, u64)> = estimators.clone().into();
 		sorted.sort_by_key(|a| a.1);
 
-		let n = estimators.len();
-		let q1 = &n / 4;
-		let d1 = (&n % 4) as u64;
+		sorted.retain(|a| !est_zero.iter().any(|b| b.0 == a.0));
+		let n = sorted.len();
+		if n < 4 {
+			return est_zero.iter()
+				.map(|a| a.0.clone())
+				.collect::<Vec<_>>()
+				.try_into()
+				.unwrap();
+		}
 
-		let q3= (3 * &n) / 4;
-		let d3= ((3 * &n) % 4) as u64;
+		let q1 = (&n - 1) / 4;
+		let q3 = (3 * (&n - 1)) / 4;
+		let d = ((&n - 1) % 4) as u64;
 
-		let val1 = (&sorted[q1].1 * &d1 + &sorted[q1 + 1].1 * (4 - &d1)) as f64 / 4.0;
-		let val2 = (&sorted[q3].1 * &d3 + &sorted[q3 + 1].1 * (4 - &d3)) as f64 / 4.0;
+		let val1 = (&sorted[q1].1 * (4 - &d) + &sorted[q1 + 1].1 * &d) as f64 / 4.0;
+		let val2 = (&sorted[q3].1 * (4 - &d) + &sorted[q3 + 1].1 * &d) as f64 / 4.0;
 		let iqr = val2 - val1;
+		let r = 1.5f64 * iqr as f64;
+		let rng = (val1 - r)..=(val2 + r);
 
-		let r = 1.5f64  * iqr as f64;
-		let rng = (val1 - r)..(val2 + r);
-
-		estimators.iter()
+		sorted.iter()
 			.filter_map(
 				|a|
-					if rng.contains(&(a.1 as f64)) { None }
-					else { Some(a.0.clone()) }
+					if rng.contains(&(a.1 as f64)) { None } else { Some(a.0.clone()) }
+			)
+			.chain(
+				est_zero.iter().map(|a| a.0.clone()).into_iter()
 			)
 			.collect::<Vec<_>>()
 			.try_into()
