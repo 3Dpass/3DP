@@ -125,7 +125,7 @@ pub mod pallet {
 		Estimating(Block),
 		Estimated(Block, u64),
 		NotApproved(Block),
-		Approved,
+		Approved(Block),
 	}
 
 	#[derive(Clone, Encode, Decode, TypeInfo, MaxEncodedLen, RuntimeDebug, PartialEq)]
@@ -372,13 +372,8 @@ pub mod pallet {
 				log::debug!(target: LOG_TARGET, "{:#?}", a);
 			}
 
-			for (_idx, obj_data) in Objects::<T>::iter() {
-				if !matches!(obj_data.state, ObjectState::NotApproved(_)) {
-					let min_len = core::cmp::min(obj_data.hashes.len(), hashes.len());
-					if obj_data.hashes.iter().eq(hashes[0..min_len].iter()) {
-						return Err(Error::<T>::DuplicatedHashes.into());
-					}
-				}
+			if let Some(_) = Self::find_dup(None, &hashes) {
+				return Err(Error::<T>::DuplicatedHashes.into());
 			}
 
 			log::debug!(target: LOG_TARGET, "hashes len={}", hashes.len());
@@ -454,22 +449,17 @@ pub mod pallet {
 								}
 							};
 							if obj_data.approvers.len() >= obj_data.num_approvals as usize {
-
-								for (idx, obj) in Objects::<T>::iter() {
-									if !matches!(obj.state, ObjectState::NotApproved(_)) {
-										let min_len = core::cmp::min(obj_data.hashes.len(), obj.hashes.len());
-										if obj_data.hashes.iter().eq(obj.hashes[0..min_len].iter()) {
-											Self::deposit_event(Event::ObjNotApproved(
-												obj_idx,
-												NotApprovedReason::DuplicateFound(obj_idx, idx))
-											);
-											return;
-										}
-									}
+								if let Some(dup_idx) = Self::find_dup(Some(obj_idx), &obj_data.hashes) {
+									obj_data.state = ObjectState::NotApproved(current_block);
+									Self::deposit_event(Event::ObjNotApproved(
+										obj_idx,
+										NotApprovedReason::DuplicateFound(obj_idx, dup_idx))
+									);
+									return;
 								}
 
 								obj_data.when_approved = Some(current_block);
-								obj_data.state = ObjectState::Approved;
+								obj_data.state = ObjectState::Approved(current_block);
 								Self::deposit_event(Event::ObjApproved(obj_idx));
 								log::debug!(target: LOG_TARGET, "approve applyed for obj_idx={}", &obj_idx);
 
@@ -567,16 +557,10 @@ pub mod pallet {
 						if res {
 							log::debug!(target: LOG_TARGET, "check_inherent: hashes true");
 
-							for (idx, obj_data) in Objects::<T>::iter() {
-								if idx != *obj_idx {
-									let min_len = core::cmp::min(obj_data.hashes.len(), hashes.len());
-									if obj_data.hashes.iter().eq(hashes[0..min_len].iter()) {
-										log::error!(target: LOG_TARGET, "check_inherent: for obj_idx={} duplicated hashes found in obj_idx={}", obj_idx, &idx);
-										return Err(Self::Error::DuplicatedObjectHashes(*obj_idx, idx))
-									}
-								}
+							if let Some(dup_idx) = Self::find_dup(Some(*obj_idx), &hashes) {
+								log::error!(target: LOG_TARGET, "check_inherent: for obj_idx={} duplicated hashes found in obj_idx={}", obj_idx, &dup_idx);
+								return Err(Self::Error::DuplicatedObjectHashes(*obj_idx, dup_idx))
 							}
-
 							Ok(())
 						}
 						else {
@@ -729,6 +713,23 @@ impl<T: Config> Pallet<T> {
 				Err(Error::UnsupportedCategory)
 			}
 		}
+	}
+
+	fn find_dup(maybe_obj_idx: Option<ObjIdx>, hashes: &Vec<H256>) -> Option<ObjIdx> {
+		for (idx, obj) in Objects::<T>::iter() {
+			if let Some(obj_idx) = maybe_obj_idx {
+				if idx == obj_idx {
+					continue
+				}
+			}
+			if matches!(obj.state, ObjectState::Approved(_)) {
+				let min_len = core::cmp::min(hashes.len(), obj.hashes.len());
+				if hashes.iter().eq(obj.hashes[0..min_len].iter()) {
+					return Some(idx)
+				}
+			}
+		}
+		None
 	}
 
 	fn check_hashes(obj_data: &ObjData<T::AccountId, T::BlockNumber>, proof_num: u32) -> (bool, Option<H256>) {
