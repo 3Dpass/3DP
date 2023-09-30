@@ -35,7 +35,6 @@ use sp_core::H256;
 use sp_core::offchain::Duration;
 use sp_inherents::IsFatalError;
 
-use sp_consensus_poscan::POSCAN_ALGO_GRID2D_V3A;
 use poscan_api::PoscanApi;
 use validator_set_api::ValidatorSetApi;
 
@@ -48,12 +47,13 @@ use sp_consensus_poscan::{
 	Approval,
 	ObjData,
 	ObjIdx,
+	POSCAN_ALGO_GRID2D_V3A,
 	MAX_OBJECT_SIZE,
 	DEFAULT_OBJECT_HASHES,
 	MAX_OBJECT_HASHES,
 	DEFAULT_MAX_ALGO_TIME,
 	MAX_ESTIMATORS,
-
+	FEE_PER_BYTE,
 };
 
 pub mod inherents;
@@ -175,6 +175,10 @@ pub mod pallet {
 	#[pallet::getter(fn algo_time)]
 	pub type MaxAlgoTime<T> = StorageValue<_, u32, OptionQuery>;
 
+	#[pallet::storage]
+	#[pallet::getter(fn fee_per_byte)]
+	pub type FeePerByte<T> = StorageValue<_, u64, OptionQuery>;
+
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(super) fn deposit_event)]
 	pub enum Event<T: Config> {
@@ -271,7 +275,7 @@ pub mod pallet {
 	#[pallet::call]
 	impl<T: Config> Pallet<T> {
 		/// Put file to poscan storage
-		#[pallet::weight(10_000 * obj.len() as u64)]
+		#[pallet::weight(<Pallet::<T>>::fee_per_byte().unwrap_or(FEE_PER_BYTE) * obj.len() as u64)]
 		pub fn put_object(
 			origin: OriginFor<T>,
 			category: ObjectCategory,
@@ -428,6 +432,17 @@ pub mod pallet {
 			T::AdminOrigin::ensure_origin(origin)?;
 
 			MaxAlgoTime::<T>::put(algo_time);
+			Ok(().into())
+		}
+
+		#[pallet::weight(1_000_000)]
+		pub fn set_fee_per_byte(
+			origin: OriginFor<T>,
+			fee: u64,
+		) -> DispatchResultWithPostInfo {
+			T::AdminOrigin::ensure_origin(origin)?;
+
+			FeePerByte::<T>::put(fee);
 			Ok(().into())
 		}
 	}

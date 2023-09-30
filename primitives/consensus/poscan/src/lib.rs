@@ -119,6 +119,7 @@ pub const MAX_OBJECT_SIZE: u32 = 100_000;
 pub const DEFAULT_OBJECT_HASHES: u32 = 10;
 pub const MAX_OBJECT_HASHES: u32 = 256 + DEFAULT_OBJECT_HASHES;
 pub const DEFAULT_MAX_ALGO_TIME: u32 = 10;  // 10 sec
+pub const FEE_PER_BYTE: u64 = 10_000;
 pub const MAX_ESTIMATORS: u32 = 1000;
 
 
