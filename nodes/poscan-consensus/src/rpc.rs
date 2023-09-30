@@ -23,9 +23,10 @@ use pallet_contracts_rpc::{Contracts, ContractsApiServer};
 use pallet_transaction_payment_rpc::{TransactionPayment, TransactionPaymentApiServer};
 use substrate_frame_rpc_system::{System, SystemApiServer};
 use crate::mining_rpc::{MiningRpc, PoscanMiningRpcApiServer};
-use sp_consensus_poscan::MiningPoolApi;
+use sp_consensus_poscan::{MiningPoolApi, PoscanApi};
 use crate::pool::MiningPool;
 use crate::pool_rpc::{MiningPoolRpc, PoscanPoolRpcApiServer};
+use crate::poscan_rpc::{PoscanRpc, PoscanRpcApiServer};
 
 
 /// Dependencies for GRANDPA
@@ -74,6 +75,7 @@ where
 	C::Api: pallet_transaction_payment_rpc::TransactionPaymentRuntimeApi<Block, Balance>,
 	C::Api: BlockBuilder<Block>,
 	C::Api: MiningPoolApi<Block, AccountId>,
+	C::Api: PoscanApi<Block, AccountId, BlockNumber>,
 	P: TransactionPool + 'static,
 	B: sc_client_api::Backend<Block> + Send + Sync + 'static,
 {
@@ -105,6 +107,8 @@ where
 	if let Some(mining_pool) = mining_pool {
 	 	module.merge(MiningPoolRpc::<C, Block, B>::new(client.clone(), backend.clone(), mining_pool.clone()).into_rpc())?;
 	}
+
+	module.merge(PoscanRpc::<C, Block>::new(client.clone()).into_rpc())?;
 
 	// Add a silly RPC that returns constant values
 	// io.extend_with(crate::mining_rpc::PoscanMiningRpc::to_delegate(

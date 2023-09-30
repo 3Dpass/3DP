@@ -3846,7 +3846,7 @@ dependencies = [
 [[package]]
 name = "p3d"
 version = "0.3.4"
-source = "git+https://github.com/3Dpass/p3d?rev=914cf44#914cf4405503387e9b2915c531e01d2443be4be9"
+source = "git+https://github.com/3Dpass/p3d?rev=cfd70b0#cfd70b07ec3d6263ea30962a03b8c615b499f6ad"
 dependencies = [
  "base16ct",
  "cgmath",
@@ -7063,6 +7063,8 @@ dependencies = [
  "frame-system",
  "lzss",
  "parity-scale-codec",
+ "scale-info",
+ "serde",
  "sp-api",
  "sp-core",
  "sp-runtime",

@@ -1624,9 +1624,12 @@ impl_runtime_apis! {
 		}
 	}
 
-	impl sp_consensus_poscan::PoscanApi<Block> for Runtime {
+	impl sp_consensus_poscan::PoscanApi<Block, AccountId, BlockNumber> for Runtime {
 		fn uncompleted_objects() -> Option<Vec<(u32, Vec<u8>)>> {
-			<PoScan as PoscanApi>::uncompleted_objects()
+			<PoScan as PoscanApi<AccountId, BlockNumber>>::uncompleted_objects()
+		}
+		fn get_poscan_object(i: u32) -> Option<sp_consensus_poscan::ObjData<AccountId, BlockNumber>> {
+			<PoScan as PoscanApi<AccountId, BlockNumber>>::get_poscan_object(i)
 		}
 	}
 
