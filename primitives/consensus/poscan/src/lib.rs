@@ -24,8 +24,22 @@
 
 use sp_std::vec::Vec;
 use sp_runtime::{ConsensusEngineId, Percent};
-use codec::Decode;
+use codec::{Encode, Decode, MaxEncodedLen};
 use lzss::{Lzss, SliceReader, VecWriter};
+
+use sp_runtime::{
+	traits::{Member, ConstU32,},
+	BoundedVec,
+};
+
+use sp_core::{
+	H256, RuntimeDebug,
+};
+
+use scale_info::TypeInfo;
+
+#[cfg(feature = "std")]
+use serde::{Serialize, Deserialize};
 
 /// The `ConsensusEngineId` of PoScan.
 pub const POSCAN_ENGINE_ID: ConsensusEngineId = [b'p', b'o', b's', b'c'];
@@ -101,6 +115,12 @@ pub const HOURS: u32 = 60;
 /// Block number of one day.
 pub const DAYS: u32 = 24 * HOURS;
 
+pub const MAX_OBJECT_SIZE: u32 = 100_000;
+pub const DEFAULT_OBJECT_HASHES: u32 = 10;
+pub const MAX_OBJECT_HASHES: u32 = 256 + DEFAULT_OBJECT_HASHES;
+pub const DEFAULT_MAX_ALGO_TIME: u32 = 10;  // 10 sec
+pub const MAX_ESTIMATORS: u32 = 1000;
+
 
 #[derive(Eq, PartialEq, codec::Encode, codec::Decode)]
 pub enum CheckMemberError {
@@ -163,8 +183,13 @@ sp_api::decl_runtime_apis! {
 		fn identifier() -> [u8; 8];
 	}
 
-	pub trait PoscanApi {
+	pub trait PoscanApi<AccountId, BlockNum>
+	where
+		BlockNum: codec::Decode + codec::Encode + TypeInfo + Member,
+		AccountId: codec::Decode + codec::Encode + TypeInfo + Member,
+	{
 		fn uncompleted_objects() -> Option<Vec<(u32, Vec<u8>)>>;
+		fn get_poscan_object(i: u32) -> Option<ObjData<AccountId, BlockNum>>;
 	}
 }
 
@@ -186,4 +211,107 @@ pub fn decompress_obj(obj: &[u8]) -> Vec<u8> {
 	);
 
 	result.unwrap()
+}
+
+pub type ObjIdx = u32;
+
+#[derive(Clone, PartialEq, Encode, Decode, TypeInfo, MaxEncodedLen, RuntimeDebug)]
+#[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
+pub enum Algo3D {
+	Grid2dLow,
+	Grid2dHigh,
+}
+
+#[derive(Clone, PartialEq, Encode, Decode, TypeInfo, MaxEncodedLen, RuntimeDebug)]
+#[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
+pub enum ObjectCategory
+{
+	/// 3D objects
+	Objects3D(Algo3D),
+	/// 2D drawings
+	Drawings2D,
+	/// Music
+	Music,
+	/// Biometrics
+	Biometrics,
+	/// Movements
+	Movements,
+	/// Texts
+	Texts,
+}
+
+#[derive(Clone, PartialEq, Encode, Decode, TypeInfo, MaxEncodedLen, RuntimeDebug)]
+#[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
+pub enum ObjectState<Block>
+	where
+		Block: Encode + Decode + TypeInfo + Member,
+{
+	Created(Block),
+	Estimating(Block),
+	Estimated(Block, u64),
+	NotApproved(Block),
+	Approved(Block),
+}
+
+#[derive(Clone, PartialEq, Encode, Decode, TypeInfo, MaxEncodedLen, RuntimeDebug)]
+#[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
+pub enum NotApprovedReason
+{
+	Expired,
+	DuplicateFound(ObjIdx, ObjIdx),
+}
+
+#[derive(Copy, Clone, PartialEq, Encode, Decode, TypeInfo, MaxEncodedLen)]
+#[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
+pub enum CompressWith {
+	Lzss,
+}
+
+impl CompressWith {
+	pub fn compress(&self, data: Vec<u8>) -> Vec<u8> {
+		match self {
+			Self::Lzss => { compress_obj(&data) },
+		}
+	}
+
+	pub fn decompress(&self, data: &Vec<u8>) -> Vec<u8> {
+		match self {
+			Self::Lzss => { decompress_obj(&data) },
+		}
+	}
+}
+
+#[derive(Clone, PartialEq, Encode, Decode, TypeInfo, MaxEncodedLen)]
+#[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
+pub struct Approval<Account, Block>
+	where
+		Account: Encode + Decode + TypeInfo + Member,
+		Block: Encode + Decode + TypeInfo + Member,
+{
+	pub account_id: Account,
+	pub when: Block,
+	pub proof: Option<H256>,
+}
+
+#[derive(Clone, PartialEq, Encode, Decode, TypeInfo, MaxEncodedLen)]
+#[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
+pub struct ObjData<Account, Block>
+	where
+		Account: Encode + Decode + TypeInfo + Member,
+		Block: Encode + Decode + TypeInfo + Member,
+{
+	pub state: ObjectState<Block>,
+	pub obj: BoundedVec<u8, ConstU32<MAX_OBJECT_SIZE>>,
+	pub compressed_with: Option<CompressWith>,
+	pub category: ObjectCategory,
+	pub hashes: BoundedVec<H256, ConstU32<MAX_OBJECT_HASHES>>,
+	pub when_created: Block,
+	pub when_approved: Option<Block>,
+	pub owner: Account,
+	pub estimators: BoundedVec<(Account, u64), ConstU32<MAX_ESTIMATORS>>,
+	pub est_outliers: BoundedVec<Account, ConstU32<MAX_ESTIMATORS>>,
+	pub approvers: BoundedVec<Approval<Account, Block>, ConstU32<256>>,
+	pub num_approvals: u8,
+	pub est_rewards: u128,
+	pub author_rewards: u128,
 }

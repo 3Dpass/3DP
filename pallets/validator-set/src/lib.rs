@@ -307,7 +307,11 @@ pub mod pallet {
 						let algo_id = POSCAN_ALGO_GRID2D_V3A;
 						log::debug!(target: LOG_TARGET, "offchain_worker: estimate obj_idx {}", &obj.0);
 						let timeout = pallet_poscan::Pallet::<T>::max_algo_time();
-						let res = poscan_algo::hashable_object::estimate_obj(&algo_id, &obj.1.obj, timeout);
+						let raw_obj = match obj.1.compressed_with {
+							None => obj.1.obj.clone().into(),
+							Some(compress_mode) => compress_mode.decompress(&obj.1.obj),
+						};
+						let res = poscan_algo::hashable_object::estimate_obj(&algo_id, &raw_obj, timeout);
 
 						if let Some((t, hashes)) = res {
 							let t: u64 = if let Ok(t) = t.try_into() {

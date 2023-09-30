@@ -39,6 +39,23 @@ use sp_consensus_poscan::POSCAN_ALGO_GRID2D_V3A;
 use poscan_api::PoscanApi;
 use validator_set_api::ValidatorSetApi;
 
+use sp_consensus_poscan::{
+	Algo3D,
+	ObjectCategory,
+	ObjectState,
+	NotApprovedReason,
+	CompressWith,
+	Approval,
+	ObjData,
+	ObjIdx,
+	MAX_OBJECT_SIZE,
+	DEFAULT_OBJECT_HASHES,
+	MAX_OBJECT_HASHES,
+	DEFAULT_MAX_ALGO_TIME,
+	MAX_ESTIMATORS,
+
+};
+
 pub mod inherents;
 
 #[cfg(test)]
@@ -53,11 +70,6 @@ mod benchmarking;
 pub type BalanceOf<T> =
 <<T as Config>::Currency as Currency<<T as frame_system::Config>::AccountId>>::Balance;
 
-const MAX_OBJECT_SIZE: u32 = 100_000;
-const DEFAULT_OBJECT_HASHES: u32 = 10;
-const MAX_OBJECT_HASHES: u32 = 256 + DEFAULT_OBJECT_HASHES;
-const DEFAULT_MAX_ALGO_TIME: u32 = 10;  // 10 sec
-const MAX_ESTIMATORS: u32 = 1000;
 const LOCK_ID: LockIdentifier = *b"poscan  ";
 
 pub const LOG_TARGET: &str = "runtime::poscan";
@@ -98,76 +110,6 @@ pub mod pallet {
 		Grid2dLow,
 		Grid2dHigh,
 	}
-
-	#[derive(Clone, PartialEq, Encode, Decode, TypeInfo, MaxEncodedLen, RuntimeDebug)]
-	pub enum ObjectCategory
-	{
-		/// 3D objects
-		Objects3D(Algo3D),
-		/// 2D drawings
-		Drawings2D,
-		/// Music
-		Music,
-		/// Biometrics
-		Biometrics,
-		/// Movements
-		Movements,
-		/// Texts
-		Texts,
-	}
-
-	#[derive(Clone, Encode, Decode, TypeInfo, MaxEncodedLen, RuntimeDebug)]
-	pub enum ObjectState<Block>
-	where
-		Block: Encode + Decode + TypeInfo + Member,
-	{
-		Created(Block),
-		Estimating(Block),
-		Estimated(Block, u64),
-		NotApproved(Block),
-		Approved(Block),
-	}
-
-	#[derive(Clone, Encode, Decode, TypeInfo, MaxEncodedLen, RuntimeDebug, PartialEq)]
-	pub enum NotApprovedReason
-	{
-		Expired,
-		DuplicateFound(ObjIdx, ObjIdx),
-	}
-
-	#[derive(Clone, Encode, Decode, TypeInfo, MaxEncodedLen)]
-	pub struct Approval<Account, Block>
-		where
-			Account: Encode + Decode + TypeInfo + Member,
-			Block: Encode + Decode + TypeInfo + Member,
-	{
-		pub account_id: Account,
-		pub when: Block,
-		pub proof: Option<H256>,
-	}
-
-	#[derive(Clone, Encode, Decode, TypeInfo, MaxEncodedLen)]
-	pub struct ObjData<Account, Block>
-		where
-			Account: Encode + Decode + TypeInfo + Member,
-			Block: Encode + Decode + TypeInfo + Member,
-	{
-		pub state: ObjectState<Block>,
-		pub obj: BoundedVec<u8, ConstU32<MAX_OBJECT_SIZE>>,
-		pub category: ObjectCategory,
-		pub hashes: BoundedVec<H256, ConstU32<MAX_OBJECT_HASHES>>,
-		pub when_created: Block,
-		pub when_approved: Option<Block>,
-		pub owner: Account,
-		pub estimators: BoundedVec<(Account, u64), ConstU32<MAX_ESTIMATORS>>,
-		pub est_outliers: BoundedVec<Account, ConstU32<MAX_ESTIMATORS>>,
-		pub approvers: BoundedVec<Approval<Account, Block>, ConstU32<256>>,
-		pub num_approvals: u8,
-		pub est_rewards: u128,
-		pub author_rewards: u128,
-	}
-
-	pub type ObjIdx = u32;
 
 	/// Configure the pallet by specifying the parameters and types on which it depends.
 	#[pallet::config]
@@ -344,9 +286,19 @@ pub mod pallet {
 				return Err(Error::<T>::ZeroApprovalsRequested.into());
 			}
 
+			let compress_with = CompressWith::Lzss;
+			let compressed_obj: BoundedVec<u8, ConstU32<MAX_OBJECT_SIZE>> =
+				compress_with.compress(obj.to_vec()).try_into().unwrap();
+
 			for (_idx, obj_data) in Objects::<T>::iter() {
-				if obj_data.obj == obj {
-					return Err(Error::<T>::ObjectExists.into());
+				match obj_data.compressed_with {
+					None if obj_data.obj == obj => {
+						return Err(Error::<T>::ObjectExists.into());
+					},
+					Some(CompressWith::Lzss) if obj_data.obj == compressed_obj => {
+						return Err(Error::<T>::ObjectExists.into());
+					},
+					_ => {},
 				}
 			}
 
@@ -360,7 +312,7 @@ pub mod pallet {
 
 			let hashes = match hashes {
 				Some(hashes) => hashes,
-				None => Self::calc_hashes(&category, &obj, DEFAULT_OBJECT_HASHES)?,
+				None => Self::calc_hashes(&category, None, &obj, DEFAULT_OBJECT_HASHES)?,
 			};
 
 			if hashes.len() == 0 {
@@ -382,7 +334,8 @@ pub mod pallet {
 			let state =  ObjectState::Created(block_num);
 			let obj_data = ObjData::<T::AccountId, T::BlockNumber> {
 				state,
-				obj,
+				obj: compressed_obj,
+				compressed_with: Some(CompressWith::Lzss),
 				category,
 				hashes,
 				when_created: block_num,
@@ -401,15 +354,6 @@ pub mod pallet {
 
 			// TODO:
 			Self::deposit_event(Event::ObjCreated(acc));
-			Ok(().into())
-		}
-
-		#[pallet::weight(1_000_000_000)]
-		pub fn get_object_ext(
-			origin: OriginFor<T>,
-		) -> DispatchResultWithPostInfo {
-			ensure_signed(origin)?;
-			// TODO:
 			Ok(().into())
 		}
 
@@ -702,11 +646,22 @@ impl<T: Config> Pallet<T> {
 		}
 	}
 
-	fn calc_hashes(cat: &ObjectCategory, obj: &Vec<u8>, num_hashes: u32) -> Result<BoundedVec<H256, ConstU32<MAX_OBJECT_HASHES>>, Error::<T>> {
+	fn calc_hashes(
+		cat: &ObjectCategory,
+		compressed: Option<CompressWith>,
+		obj: &Vec<u8>,
+		num_hashes: u32,
+	)-> Result<BoundedVec<H256, ConstU32<MAX_OBJECT_HASHES>>, Error::<T>> {
 		match cat {
 			ObjectCategory::Objects3D(Algo3D::Grid2dLow) => {
+				let raw_obj = if let Some(compress_mode) = compressed {
+					compress_mode.decompress(obj)
+				}
+				else {
+					obj.clone()
+				};
 				Ok(poscan_algo::hashable_object::calc_obj_hashes_n(
-					&POSCAN_ALGO_GRID2D_V3A, &obj, &H256::default(), num_hashes,
+					&POSCAN_ALGO_GRID2D_V3A, &raw_obj, &H256::default(), num_hashes,
 				).try_into().unwrap())
 			},
 			_ => {
@@ -734,7 +689,7 @@ impl<T: Config> Pallet<T> {
 
 	fn check_hashes(obj_data: &ObjData<T::AccountId, T::BlockNumber>, proof_num: u32) -> (bool, Option<H256>) {
 		let res_hashes =
-			Self::calc_hashes(&obj_data.category, &obj_data.obj, proof_num.clone());
+			Self::calc_hashes(&obj_data.category, obj_data.compressed_with, &obj_data.obj, proof_num.clone());
 
 		if res_hashes.is_err() {
 			return (false, None)
@@ -830,8 +785,24 @@ impl<T: Config> Pallet<T> {
 }
 
 
-impl<T: Config> PoscanApi for Pallet<T> {
+impl<T: Config> PoscanApi<T::AccountId, T::BlockNumber> for Pallet<T> {
 	fn uncompleted_objects() -> Option<Vec<(u32, Vec<u8>)>> {
 		None
+	}
+	fn get_poscan_object(i: u32) -> Option<sp_consensus_poscan::ObjData<T::AccountId, T::BlockNumber>> {
+		match Objects::<T>::get(i) {
+			Some(mut obj_data) => {
+				if let Some(compressor) = obj_data.compressed_with {
+					let resp_obj = obj_data.clone();
+					obj_data.obj = compressor.decompress(&resp_obj.obj).try_into().unwrap();
+					obj_data.compressed_with = None;
+					Some(obj_data)
+				}
+				else {
+					Some(obj_data)
+				}
+			},
+			None => None,
+		}
 	}
 }
