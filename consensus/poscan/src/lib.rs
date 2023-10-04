@@ -306,10 +306,6 @@ impl<B, I, C, S, Algorithm, CAW, CIDP> PowBlockImport<B, I, C, S, Algorithm, CAW
 		create_inherent_data_providers: CIDP,
 		can_author_with: CAW,
 	) -> Self {
-
-		// let a = client.runtime_api()
-		// 	.uncompleted_objects();
-
 		Self {
 			inner,
 			client,

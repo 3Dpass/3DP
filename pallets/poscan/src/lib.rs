@@ -451,7 +451,6 @@ pub mod pallet {
 	impl<T: Config> ProvideInherent for Pallet<T> {
 		type Call = Call<T>;
 		type Error = super::InherentError;
-		// const INHERENT_IDENTIFIER: InherentIdentifier = INHERENT_IDENTIFIER;
 		const INHERENT_IDENTIFIER: InherentIdentifier = *b"p3d     ";
 
 		fn create_inherent(_data: &InherentData) -> Option<Self::Call> {
@@ -801,9 +800,6 @@ impl<T: Config> Pallet<T> {
 
 
 impl<T: Config> PoscanApi<T::AccountId, T::BlockNumber> for Pallet<T> {
-	fn uncompleted_objects() -> Option<Vec<(u32, Vec<u8>)>> {
-		None
-	}
 	fn get_poscan_object(i: u32) -> Option<sp_consensus_poscan::ObjData<T::AccountId, T::BlockNumber>> {
 		match Objects::<T>::get(i) {
 			Some(mut obj_data) => {
