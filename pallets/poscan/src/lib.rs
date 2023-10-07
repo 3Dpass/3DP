@@ -1,8 +1,23 @@
+//! # PoScan Pallet
+//!
+//! This file is a part of 3DPass (3dpass.org).
+//! Copyright (c) 2023 3DPass.
+//!
+//! The PoScan Pallet is a part of 3DPRC-2 the object tokenization standard implementation
+//! (https://github.com/3Dpass/whitepaper/blob/main/3DPRC-2.md),
+//! which allows for the user objects authentication and its protection
+//! from being copied within "The Ledger of Things" platform.
+//!
+//! Every object tokenized acquires its unique on-chain identity called HASH ID. By means of utilization of 
+//! recognition algorithms implemented (p3d recognition toolkit is being used: https://github.com/3Dpass/p3d),
+//! all the assets approved by the network, will be protected from being copied to the extent of the error 
+//! of the algorithm precision.
+//! 
+//! 
+//! 
+
 #![cfg_attr(not(feature = "std"), no_std)]
 
-/// Edit this file to define custom logic or remove it if it is not needed.
-/// Learn more about FRAME and the core library of Substrate FRAME pallets:
-/// <https://docs.substrate.io/v3/runtime/frame>
 pub use pallet::*;
 extern crate alloc;
 
