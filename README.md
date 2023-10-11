@@ -4,7 +4,7 @@
 
 # 3Dpass Node - mainnet
 
-"The Ledger of Things" is a revolutionary open source Layer 1 blockchain platform for the tokenization of objects. [White Paper](https://3dpass.org/coin#white-papper)
+"The Ledger of Things" is a revolutionary open source Layer 1 blockchain platform for the tokenization of objects. [White Paper](https://3dpass.org/coin#white-papper). Current list of the object categories is presented as follows: 3D objects, 2D drawings, Music, Biometrics, Radio signals, Movements, Texts.
 
 [Proof of Scan](https://3dpass.org/proof-of-scan) is a decentralized protocol, which is based on recognition technology. Every object, transformed by 3DPass, obtains its own unique and sustainable identity called HASH ID the object could be recognized by. This will prevent the copying of digital assets and thus open a door for the entire blockchain space to potentially trillions in deals all over the globe.
 
