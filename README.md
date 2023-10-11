@@ -12,7 +12,9 @@
 
 [3DPRC-2](https://github.com/3Dpass/whitepaper/blob/main/3DPRC-2.md) (3Dpass Request for Comments) is a standard p2p protocol for the tokenization of the User objects operating within “The Ledger of Things”, by which the most useful aspect of the "Proof of Scan" consensus is getting uncovered. 3DPRC-2 provides decentralized [PoScan API](https://github.com/3Dpass/3DP/wiki/3DPRC%E2%80%902-PoScan-API) available for customers.
 
-The scope of potential 3Dpass applications goes way beyond 3D object recognition and not limited to. Being naturally organized and still cultivating this community driven spirit, 3Dpass is here to encourage developers from all aroud the globe to upgrade the pass3d open source toolkit with new fascinating recognition algorithms and make it even more useful for human civilization. Learn more about the [algorithm requirements](http://localhost:3000/proof-of-scan#object).
+The scope of potential 3Dpass applications goes way beyond 3D object recognition and not limited to. Being naturally organized and still cultivating this community driven spirit, 3Dpass is here to encourage developers from all around the globe to upgrade the pass3d open source toolkit with new fascinating recognition algorithms and make it even more useful for human civilization. Learn more about the [algorithm requirements](http://localhost:3000/proof-of-scan#object).
+
+[3DPass Coin (P3D)](https://3dpass.org/coin) is a native utility token, operating on "The Ledger of Things", which serves to incentivize community members to maintain the network infrastructure. Such aspects as: Storage fee, Gas fee, The object authentication fee, Transaction fee, The validator collaterals, Penalties - are all being counted in P3D.
 
 [Contribution program](https://3dpass.org/coin#distribution-contribution)  |  [Contributing guidelines](https://github.com/3Dpass/3DP/blob/main/CONTRIBUTING.md)  |  [Discord](https://discord.gg/u24WkXcwug)
 
