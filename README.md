@@ -4,11 +4,15 @@
 
 # 3Dpass Node - mainnet
 
-3Dpass is an OpenSource decentralized WEB 3.0 P2P Layer 1 blockchain platform for tokenization of real physical and virtual objects and its transformation into digital assets. The main idea of 3Dpass is to make it possible for people to use real world objects in digital within smart-contracts and dApps and have full control over its copies (learn more about 3Dpass [features](https://3dpass.org/features) ). This allows to establish 1:1 correspondence between an object and its asset and define ownership as an additional property of the asset providing zero-knowledge proof. Follow the [White Paper](https://3dpass.org/3DPass_white_paper.pdf) for the details.
+"The Ledger of Things" is a revolutionary open source Layer 1 blockchain platform for the tokenization of objects. [White Paper](https://3dpass.org/coin#white-papper)
 
-Every object, transformed by 3Dpass, has its own unique and sustainable identity called [HASH ID](https://3dpass.org/features#3drecognition) the object might be recognized by. The algorithm is flexible enough to adjust the definition of error to certain level of scanning precision.
+[Proof of Scan](https://3dpass.org/proof-of-scan) is a decentralized protocol, which is based on recognition technology. Every object, transformed by 3DPass, obtains its own unique and sustainable identity called HASH ID the object could be recognized by. This will prevent the copying of digital assets and thus open a door for the entire blockchain space to potentially trillions in deals all over the globe.
 
-3DPass NODE is a Layer 1 blockchain based on [Substrate](https://www.substrate.io/) with brandnew consensus [Proof of Scan](https://3dpass.org/proof-of-scan) leveraging 3D object shape recognition algorithm called [Grid2d](https://3dpass.org/grid2d), which is implemented as [pass3d](https://github.com/3Dpass/pass3d) tool. 3Dpass NODEs are designed to provide object authenticity check. We call it "The Ledger of Unique Things". In order to encourage users to maintain the network and to solve issues there is a cryptocurrency 3Dpass Coin.
+[Grid2d](https://3dpass.org/grid2d) is the first 3D shape recognition algorithm, which is being utilized as the hash function in the Proof of Scan protocol. The implementations of the algorithm are the [pass3d](https://github.com/3Dpass/pass3d) recognition toolkit and its WASM analog [p3d](https://github.com/3Dpass/p3d). 
+
+[3DPRC-2](https://github.com/3Dpass/whitepaper/blob/main/3DPRC-2.md) (3Dpass Request for Comments) is a standard p2p protocol for the tokenization of the User objects operating within “The Ledger of Things”, by which the most useful aspect of the "Proof of Scan" consensus is getting uncovered. 3DPRC-2 provides decentralized [PoScan API](https://github.com/3Dpass/3DP/wiki/3DPRC%E2%80%902-PoScan-API) available for customers.
+
+The scope of potential 3Dpass applications goes way beyond 3D object recognition and not limited to. Being naturally organized and still cultivating this community driven spirit, 3Dpass is here to encourage developers from all aroud the globe to upgrade the pass3d open source toolkit with new fascinating recognition algorithms and make it even more useful for human civilization. Learn more about the [algorithm requirements](http://localhost:3000/proof-of-scan#object).
 
 [Contribution program](https://3dpass.org/coin#distribution-contribution)  |  [Contributing guidelines](https://github.com/3Dpass/3DP/blob/main/CONTRIBUTING.md)  |  [Discord](https://discord.gg/u24WkXcwug)
 
@@ -23,7 +27,7 @@ Every object, transformed by 3Dpass, has its own unique and sustainable identity
 - [3Dpass light wallet](https://github.com/3Dpass/wallet) - desktop users and 3D printing labs integration
 - [Pass3d mobile](https://github.com/3Dpass/threedpass) - smartphone and tablets users integration
 - Smart contracts toolkit - Substrate based smart contract tools using [ink](https://paritytech.github.io/ink-docs/), a Rust-based embedded domain specific language (eDSL) for writing WebAssembly smart contracts. Learn more about [how it compares to Solidity](https://paritytech.github.io/ink-docs/ink-vs-solidity). As well, it allows unmodified EVM code to be executed in the 3DPass blockchain. Some special Substrate features are designed to closely emulate the functionality of executing contracts on the Ethereum mainnet within the 3DPass network.
-- IPFS storage - embedded decentralized storage for assets
+- EIPFS storage - embedded decentralized storage for assets
 - RPC (remote procedure call) - the capabilities that allow blockchain users to interact with the network. The NODE provides HTTP and [WebSocket](https://github.com/3Dpass/3DP/wiki/Set-up-WSS-for-Remote-Connections) RPC servers.
 - Networking: we use the [`libp2p`](https://libp2p.io/) networking stack to allow for the
   nodes in the network to communicate with one another.
