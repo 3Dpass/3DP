@@ -95,6 +95,7 @@ pallet-contracts-rpc-runtime-api = { git = "https://github.com/paritytech/substr
 
 sp-consensus-poscan = { path = "../primitives/consensus/poscan", default-features = false }
 pallet-poscan = { path = "../pallets/poscan", default-features = false }
+pallet-poscan-assets = { path = "../pallets/poscan-assets", default-features = false }
 
 [build-dependencies]
 substrate-wasm-builder = { version = "10"} # { git = "https://github.com/paritytech/substrate", rev = "b0777b4c7f7", package = "substrate-wasm-builder" }
@@ -167,6 +168,7 @@ std = [
 	"pallet-validator-set/std",
 	"pallet-mining-pool/std",
 	"pallet-poscan/std",
+	"pallet-poscan-assets/std",
 	"difficulty/std",
 	"rewards/std",
 	# "lockdrop/std",
