@@ -4271,6 +4271,23 @@ dependencies = [
 ]
 
 [[package]]
+name = "pallet-poscan-assets"
+version = "4.0.0-dev"
+dependencies = [
+ "frame-benchmarking",
+ "frame-support",
+ "frame-system",
+ "pallet-balances",
+ "pallet-poscan",
+ "parity-scale-codec",
+ "scale-info",
+ "sp-core",
+ "sp-io",
+ "sp-runtime",
+ "sp-std",
+]
+
+[[package]]
 name = "pallet-preimage"
 version = "4.0.0-dev"
 source = "git+https://github.com/paritytech/substrate?rev=b0777b4c7f7#b0777b4c7f7d8d3c635319d0153953d0a22aa58e"
@@ -5087,6 +5104,7 @@ dependencies = [
  "pallet-mining-pool",
  "pallet-multisig",
  "pallet-poscan",
+ "pallet-poscan-assets",
  "pallet-preimage",
  "pallet-randomness-collective-flip",
  "pallet-ranked-collective",

@@ -1321,6 +1321,31 @@ impl pallet_poscan::Config for Runtime {
 	type Currency = Balances;
 }
 
+parameter_types! {
+	pub const PosAssetDeposit: Balance = 100 * DOLLARS;
+	pub const PosApprovalDeposit: Balance = 1 * DOLLARS;
+	pub const PosStringLimit: u32 = 50;
+	pub const PosMetadataDepositBase: Balance = 10 * DOLLARS;
+	pub const PosMetadataDepositPerByte: Balance = 1 * DOLLARS;
+}
+
+impl pallet_poscan_assets::Config for Runtime {
+	type Event = Event;
+	type Balance = u128;
+	type AssetId = u32;
+	type Currency = Balances;
+	type ForceOrigin = EnsureRoot<AccountId>;
+	type AssetDeposit = PosAssetDeposit;
+	type AssetAccountDeposit = ConstU128<DOLLARS>;
+	type MetadataDepositBase = PosMetadataDepositBase;
+	type MetadataDepositPerByte = PosMetadataDepositPerByte;
+	type ApprovalDeposit = PosApprovalDeposit;
+	type StringLimit = PosStringLimit;
+	type Freezer = ();
+	type Extra = ();
+	type WeightInfo = pallet_poscan_assets::weights::SubstrateWeight<Runtime>;
+}
+
 impl pallet_sudo::Config for Runtime {
 	type Event = Event;
 	type Call = Call;
@@ -1399,6 +1424,7 @@ construct_runtime!(
 		RankedCollective: pallet_ranked_collective,
 		AtomicSwap: pallet_atomic_swap,
 		PoScan: pallet_poscan, // ::{Pallet, Call, Storage, Event<T>, Inherent},
+		PoscanAssets: pallet_poscan_assets,
 		MiningPool: pallet_mining_pool,
 		Sudo: pallet_sudo,
 	}
@@ -1655,6 +1681,7 @@ mod benches {
 	define_benchmarks!(
 		[frame_benchmarking, BaselineBench::<Runtime>]
 		[pallet_assets, Assets]
+		[pallet_poscan_assets, PoscanAssets]
 		[pallet_balances, Balances]
 		[pallet_bounties, Bounties]
 		[pallet_child_bounties, ChildBounties]
