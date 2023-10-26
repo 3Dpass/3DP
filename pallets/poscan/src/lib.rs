@@ -831,4 +831,8 @@ impl<T: Config> PoscanApi<T::AccountId, T::BlockNumber> for Pallet<T> {
 			None => None,
 		}
 	}
+	fn is_owner_of(account_id: &T::AccountId, obj_idx: u32) -> bool {
+		let own_objects = Owners::<T>::get(&account_id);
+		own_objects.contains(&obj_idx)
+	}
 }

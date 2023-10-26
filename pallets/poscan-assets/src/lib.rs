@@ -156,13 +156,17 @@ use frame_support::{
 	traits::{
 		tokens::{fungibles, DepositConsequence, WithdrawConsequence},
 		BalanceStatus::Reserved,
-		Currency, ReservableCurrency, StoredMap,
+		Currency, ReservableCurrency, StoredMap, ContainsPair,
 	},
 };
 use frame_system::Config as SystemConfig;
 
+use poscan_api::PoscanApi;
+
 pub use pallet::*;
 pub use weights::WeightInfo;
+
+use poscan_api::AccountTouch;
 
 #[frame_support::pallet]
 pub mod pallet {
@@ -198,6 +202,7 @@ pub mod pallet {
 			+ HasCompact
 			+ MaybeSerializeDeserialize
 			+ MaxEncodedLen
+			+ Into<u32>
 			+ TypeInfo;
 
 		/// The currency mechanism.
@@ -206,6 +211,8 @@ pub mod pallet {
 		/// The origin which may forcibly create or destroy an asset or otherwise alter privileged
 		/// attributes.
 		type ForceOrigin: EnsureOrigin<Self::Origin>;
+
+		type Poscan: poscan_api::PoscanApi<Self::AccountId, Self::BlockNumber>;
 
 		/// The basic amount of funds that must be reserved for an asset.
 		#[pallet::constant]
@@ -474,6 +481,10 @@ pub mod pallet {
 		NoDeposit,
 		/// The operation would result in funds being burned.
 		WouldBurn,
+		/// Provided Account id is not the owner of object.
+		NotOwner,
+		/// Object id not found.
+		ObjectNotFound,
 	}
 
 	#[pallet::call]
@@ -502,6 +513,8 @@ pub mod pallet {
 			origin: OriginFor<T>,
 			#[pallet::compact] id: T::AssetId,
 			admin: <T::Lookup as StaticLookup>::Source,
+			beneficiary: <T::Lookup as StaticLookup>::Source,
+			#[pallet::compact] amount: T::Balance,
 			min_balance: T::Balance,
 		) -> DispatchResult {
 			let owner = ensure_signed(origin)?;
@@ -509,6 +522,9 @@ pub mod pallet {
 
 			ensure!(!Asset::<T, I>::contains_key(id), Error::<T, I>::InUse);
 			ensure!(!min_balance.is_zero(), Error::<T, I>::MinBalanceZero);
+			ensure!(T::Poscan::is_owner_of(&owner, id.into()), Error::<T, I>::InUse);
+
+			let beneficiary = T::Lookup::lookup(beneficiary)?;
 
 			let deposit = T::AssetDeposit::get();
 			T::Currency::reserve(&owner, deposit)?;
@@ -530,7 +546,10 @@ pub mod pallet {
 					is_frozen: false,
 				},
 			);
-			Self::deposit_event(Event::Created { asset_id: id, creator: owner, owner: admin });
+			Self::deposit_event(Event::Created { asset_id: id, creator: owner.clone(), owner: admin });
+
+			Self::do_mint(id, &beneficiary, amount, Some(owner))?;
+
 			Ok(())
 		}
 
@@ -559,11 +578,18 @@ pub mod pallet {
 			#[pallet::compact] id: T::AssetId,
 			owner: <T::Lookup as StaticLookup>::Source,
 			is_sufficient: bool,
+			beneficiary: <T::Lookup as StaticLookup>::Source,
+			#[pallet::compact] amount: T::Balance,
 			#[pallet::compact] min_balance: T::Balance,
 		) -> DispatchResult {
 			T::ForceOrigin::ensure_origin(origin)?;
 			let owner = T::Lookup::lookup(owner)?;
-			Self::do_force_create(id, owner, is_sufficient, min_balance)
+			let beneficiary = T::Lookup::lookup(beneficiary)?;
+			
+			Self::do_force_create(id, owner.clone(), is_sufficient, min_balance)?;
+			Self::do_mint(id, &beneficiary, amount, Some(owner))?;
+
+			Ok(())
 		}
 
 		/// Destroy a class of fungible assets.
@@ -607,60 +633,60 @@ pub mod pallet {
 			.into())
 		}
 
-		/// Mint assets of a particular class.
-		///
-		/// The origin must be Signed and the sender must be the Issuer of the asset `id`.
-		///
-		/// - `id`: The identifier of the asset to have some amount minted.
-		/// - `beneficiary`: The account to be credited with the minted assets.
-		/// - `amount`: The amount of the asset to be minted.
-		///
-		/// Emits `Issued` event when successful.
-		///
-		/// Weight: `O(1)`
-		/// Modes: Pre-existing balance of `beneficiary`; Account pre-existence of `beneficiary`.
-		#[pallet::weight(T::WeightInfo::mint())]
-		pub fn mint(
-			origin: OriginFor<T>,
-			#[pallet::compact] id: T::AssetId,
-			beneficiary: <T::Lookup as StaticLookup>::Source,
-			#[pallet::compact] amount: T::Balance,
-		) -> DispatchResult {
-			let origin = ensure_signed(origin)?;
-			let beneficiary = T::Lookup::lookup(beneficiary)?;
-			Self::do_mint(id, &beneficiary, amount, Some(origin))?;
-			Ok(())
-		}
+		// /// Mint assets of a particular class.
+		// ///
+		// /// The origin must be Signed and the sender must be the Issuer of the asset `id`.
+		// ///
+		// /// - `id`: The identifier of the asset to have some amount minted.
+		// /// - `beneficiary`: The account to be credited with the minted assets.
+		// /// - `amount`: The amount of the asset to be minted.
+		// ///
+		// /// Emits `Issued` event when successful.
+		// ///
+		// /// Weight: `O(1)`
+		// /// Modes: Pre-existing balance of `beneficiary`; Account pre-existence of `beneficiary`.
+		// #[pallet::weight(T::WeightInfo::mint())]
+		// pub fn mint(
+		// 	origin: OriginFor<T>,
+		// 	#[pallet::compact] id: T::AssetId,
+		// 	beneficiary: <T::Lookup as StaticLookup>::Source,
+		// 	#[pallet::compact] amount: T::Balance,
+		// ) -> DispatchResult {
+		// 	let origin = ensure_signed(origin)?;
+		// 	let beneficiary = T::Lookup::lookup(beneficiary)?;
+		// 	Self::do_mint(id, &beneficiary, amount, Some(origin))?;
+		// 	Ok(())
+		// }
 
-		/// Reduce the balance of `who` by as much as possible up to `amount` assets of `id`.
-		///
-		/// Origin must be Signed and the sender should be the Manager of the asset `id`.
-		///
-		/// Bails with `NoAccount` if the `who` is already dead.
-		///
-		/// - `id`: The identifier of the asset to have some amount burned.
-		/// - `who`: The account to be debited from.
-		/// - `amount`: The maximum amount by which `who`'s balance should be reduced.
-		///
-		/// Emits `Burned` with the actual amount burned. If this takes the balance to below the
-		/// minimum for the asset, then the amount burned is increased to take it to zero.
-		///
-		/// Weight: `O(1)`
-		/// Modes: Post-existence of `who`; Pre & post Zombie-status of `who`.
-		#[pallet::weight(T::WeightInfo::burn())]
-		pub fn burn(
-			origin: OriginFor<T>,
-			#[pallet::compact] id: T::AssetId,
-			who: <T::Lookup as StaticLookup>::Source,
-			#[pallet::compact] amount: T::Balance,
-		) -> DispatchResult {
-			let origin = ensure_signed(origin)?;
-			let who = T::Lookup::lookup(who)?;
-
-			let f = DebitFlags { keep_alive: false, best_effort: true };
-			let _ = Self::do_burn(id, &who, amount, Some(origin), f)?;
-			Ok(())
-		}
+		// /// Reduce the balance of `who` by as much as possible up to `amount` assets of `id`.
+		// ///
+		// /// Origin must be Signed and the sender should be the Manager of the asset `id`.
+		// ///
+		// /// Bails with `NoAccount` if the `who` is already dead.
+		// ///
+		// /// - `id`: The identifier of the asset to have some amount burned.
+		// /// - `who`: The account to be debited from.
+		// /// - `amount`: The maximum amount by which `who`'s balance should be reduced.
+		// ///
+		// /// Emits `Burned` with the actual amount burned. If this takes the balance to below the
+		// /// minimum for the asset, then the amount burned is increased to take it to zero.
+		// ///
+		// /// Weight: `O(1)`
+		// /// Modes: Post-existence of `who`; Pre & post Zombie-status of `who`.
+		// #[pallet::weight(T::WeightInfo::burn())]
+		// pub fn burn(
+		// 	origin: OriginFor<T>,
+		// 	#[pallet::compact] id: T::AssetId,
+		// 	who: <T::Lookup as StaticLookup>::Source,
+		// 	#[pallet::compact] amount: T::Balance,
+		// ) -> DispatchResult {
+		// 	let origin = ensure_signed(origin)?;
+		// 	let who = T::Lookup::lookup(who)?;
+		//
+		// 	let f = DebitFlags { keep_alive: false, best_effort: true };
+		// 	let _ = Self::do_burn(id, &who, amount, Some(origin), f)?;
+		// 	Ok(())
+		// }
 
 		/// Move some assets from the sender account to another.
 		///
@@ -1313,4 +1339,26 @@ pub mod pallet {
 			Self::do_refund(id, ensure_signed(origin)?, allow_burn)
 		}
 	}
+
+	impl<T: Config<I>, I: 'static> AccountTouch<T::AssetId, T::AccountId> for Pallet<T, I> {
+		type Balance = DepositBalanceOf<T, I>;
+
+		fn deposit_required(_: T::AssetId) -> Self::Balance {
+			T::AssetAccountDeposit::get()
+		}
+
+		fn touch(asset: T::AssetId, who: T::AccountId, _depositor: T::AccountId) -> DispatchResult {
+			Self::do_touch(asset, who) // , depositor, false)
+		}
+	}
+
+	/// Implements [`ContainsPair`] trait for a pair of asset and account IDs.
+	impl<T: Config<I>, I: 'static> ContainsPair<T::AssetId, T::AccountId> for Pallet<T, I> {
+		/// Check if an account with the given asset ID and account address exists.
+		fn contains(asset: &T::AssetId, who: &T::AccountId) -> bool {
+			Account::<T, I>::contains_key(asset, who)
+		}
+	}
+
+	
 }

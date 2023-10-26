@@ -52,7 +52,7 @@ use sp_runtime::{
 	traits::{
 		AccountIdLookup, BlakeTwo256, Block as BlockT, ConvertInto, IdentifyAccount,
 		Identity as IdentityTrait, NumberFor, OpaqueKeys, Verify,
-		Extrinsic, SaturatedConversion, StaticLookup,
+		Extrinsic, SaturatedConversion, StaticLookup, AccountIdConversion,
 	},
 	transaction_validity::{TransactionPriority, TransactionSource, TransactionValidity},
 	ApplyExtrinsicResult, MultiSignature,
@@ -66,6 +66,8 @@ pub use pallet_timestamp::Call as TimestampCall;
 use pallet_transaction_payment::CurrencyAdapter;
 // use pallet_mining_pool::crypto::PoolAuthorityId;
 use pallet_mining_pool::sr25519::PoolAuthorityId;
+
+use pallet_asset_conversion::{NativeOrAssetId, NativeOrAssetIdConverter};
 
 use sp_consensus_poscan::{
 	deposit, BLOCK_TIME, CENTS, DAYS, DOLLARS, HOURS, MICROCENTS, MILLICENTS, MINUTES,
@@ -1302,7 +1304,43 @@ impl pallet_atomic_swap::Config for Runtime {
 }
 
 parameter_types! {
-	pub const RewardsDefault: u128 = 1_000 * DOLLARS;
+	pub const AssetConversionPalletId: PalletId = PalletId(*b"py/ascon");
+	pub AllowMultiAssetPools: bool = true;
+	pub const PoolSetupFee: Balance = 1 * DOLLARS; // should be more or equal to the existential deposit
+	pub const MintMinLiquidity: Balance = 100;  // 100 is good enough when the main currency has 10-12 decimals.
+	pub const LiquidityWithdrawalFee: Permill = Permill::from_percent(0);  // should be non-zero if AllowMultiAssetPools is true, otherwise can be zero.
+	pub AssetConversionOrigin: AccountId = AccountIdConversion::<AccountId>::into_account_truncating(&AssetConversionPalletId::get());
+
+}
+
+
+impl pallet_asset_conversion::Config for Runtime {
+	type Event = Event;
+	type Currency = Balances;
+	type AssetBalance = <Self as pallet_balances::Config>::Balance;
+	type HigherPrecisionBalance = u128;
+	type Assets = PoscanAssets;
+	type Balance = u128;
+	type PoolAssets = PoscanAssets;
+	type AssetId = <Self as pallet_assets::Config>::AssetId;
+	type MultiAssetId = NativeOrAssetId<u32>;
+	type PoolAssetId = <Self as pallet_poscan_assets::Config>::AssetId;
+	type PalletId = AssetConversionPalletId;
+	type LPFee = ConstU32<3>; // means 0.3%
+	type PoolSetupFee = PoolSetupFee;
+	type PoolSetupFeeReceiver = AssetConversionOrigin;
+	type LiquidityWithdrawalFee = LiquidityWithdrawalFee;
+	type WeightInfo = pallet_asset_conversion::weights::SubstrateWeight<Runtime>;
+	type AllowMultiAssetPools = AllowMultiAssetPools;
+	type MaxSwapPathLength = ConstU32<4>;
+	type MintMinLiquidity = MintMinLiquidity;
+	type MultiAssetIdConverter = NativeOrAssetIdConverter<u32>;
+	#[cfg(feature = "runtime-benchmarks")]
+	type BenchmarkHelper = ();
+}
+
+parameter_types! {
+	pub const RewardsDefault: u128 = 500 * DOLLARS;
 	pub const AuthorPartDefault: Percent = Percent::from_percent(30);
 
 }
@@ -1335,6 +1373,7 @@ impl pallet_poscan_assets::Config for Runtime {
 	type AssetId = u32;
 	type Currency = Balances;
 	type ForceOrigin = EnsureRoot<AccountId>;
+	type Poscan = pallet_poscan::Pallet::<Self>;
 	type AssetDeposit = PosAssetDeposit;
 	type AssetAccountDeposit = ConstU128<DOLLARS>;
 	type MetadataDepositBase = PosMetadataDepositBase;
@@ -1422,6 +1461,7 @@ construct_runtime!(
 		Contracts: pallet_contracts,
 		RankedPolls: pallet_referenda::<Instance2>,
 		RankedCollective: pallet_ranked_collective,
+		AssetConversion: pallet_asset_conversion,
 		AtomicSwap: pallet_atomic_swap,
 		PoScan: pallet_poscan, // ::{Pallet, Call, Storage, Event<T>, Inherent},
 		PoscanAssets: pallet_poscan_assets,
@@ -1628,6 +1668,26 @@ impl_runtime_apis! {
 			key: Vec<u8>,
 		) -> pallet_contracts_primitives::GetStorageResult {
 			Contracts::get_storage(address, key)
+		}
+	}
+
+	impl pallet_asset_conversion::AssetConversionApi<
+		Block,
+		Balance,
+		u128,
+		NativeOrAssetId<u32>
+	> for Runtime
+	{
+		fn quote_price_exact_tokens_for_tokens(asset1: NativeOrAssetId<u32>, asset2: NativeOrAssetId<u32>, amount: u128, include_fee: bool) -> Option<Balance> {
+			AssetConversion::quote_price_exact_tokens_for_tokens(asset1, asset2, amount, include_fee)
+		}
+
+		fn quote_price_tokens_for_exact_tokens(asset1: NativeOrAssetId<u32>, asset2: NativeOrAssetId<u32>, amount: u128, include_fee: bool) -> Option<Balance> {
+			AssetConversion::quote_price_tokens_for_exact_tokens(asset1, asset2, amount, include_fee)
+		}
+
+		fn get_reserves(asset1: NativeOrAssetId<u32>, asset2: NativeOrAssetId<u32>) -> Option<(Balance, Balance)> {
+			AssetConversion::get_reserves(&asset1, &asset2).ok()
 		}
 	}
 

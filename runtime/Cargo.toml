@@ -93,6 +93,8 @@ pallet-contracts = { git = "https://github.com/paritytech/substrate", rev = "b07
 pallet-contracts-primitives = { git = "https://github.com/paritytech/substrate", rev = "b0777b4c7f7", package = "pallet-contracts-primitives", default-features = false }
 pallet-contracts-rpc-runtime-api = { git = "https://github.com/paritytech/substrate", rev = "b0777b4c7f7", package = "pallet-contracts-rpc-runtime-api", default-features = false }
 
+pallet-asset-conversion = { version = "4.0.0-dev", default-features = false, path = "../pallets/asset-conversion" }
+
 sp-consensus-poscan = { path = "../primitives/consensus/poscan", default-features = false }
 pallet-poscan = { path = "../pallets/poscan", default-features = false }
 pallet-poscan-assets = { path = "../pallets/poscan-assets", default-features = false }
@@ -157,6 +159,7 @@ std = [
 	"pallet-remark/std",
 	"pallet-assets/std",
 	"pallet-uniques/std",
+	"pallet-asset-conversion/std",
 	"pallet-session/std",
 	"pallet-im-online/std",
 	# "pallet-offences/std",

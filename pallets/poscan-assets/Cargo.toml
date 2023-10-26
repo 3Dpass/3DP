@@ -24,6 +24,8 @@ frame-support = { default-features = false, git = "https://github.com/paritytech
 frame-system = { default-features = false, git = "https://github.com/paritytech/substrate", rev = "b0777b4c7f7" }
 frame-benchmarking = { default-features = false, git = "https://github.com/paritytech/substrate", rev = "b0777b4c7f7", optional = true }
 pallet-poscan = { path = "../poscan", default-features = false }
+sp-consensus-poscan = { path = "../../primitives/consensus/poscan", default-features = false }
+poscan-api = { path = "../../traits/poscan", default-features = false }
 
 
 [dev-dependencies]
@@ -43,6 +45,8 @@ std = [
 	"frame-system/std",
 	"frame-benchmarking/std",
 	"pallet-poscan/std",
+	"poscan-api/std",
+	"sp-consensus-poscan/std",
 ]
 runtime-benchmarks = [
 	"frame-benchmarking/runtime-benchmarks",
