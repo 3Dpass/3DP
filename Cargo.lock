@@ -3859,6 +3859,24 @@ dependencies = [
 ]
 
 [[package]]
+name = "pallet-asset-conversion"
+version = "4.0.0-dev"
+dependencies = [
+ "frame-benchmarking",
+ "frame-support",
+ "frame-system",
+ "parity-scale-codec",
+ "poscan-api",
+ "scale-info",
+ "sp-api",
+ "sp-arithmetic",
+ "sp-core",
+ "sp-io",
+ "sp-runtime",
+ "sp-std",
+]
+
+[[package]]
 name = "pallet-assets"
 version = "4.0.0-dev"
 source = "git+https://github.com/paritytech/substrate?rev=b0777b4c7f7#b0777b4c7f7d8d3c635319d0153953d0a22aa58e"
@@ -4280,7 +4298,9 @@ dependencies = [
  "pallet-balances",
  "pallet-poscan",
  "parity-scale-codec",
+ "poscan-api",
  "scale-info",
+ "sp-consensus-poscan",
  "sp-core",
  "sp-io",
  "sp-runtime",
@@ -5082,6 +5102,7 @@ dependencies = [
  "hex-literal",
  "log",
  "mining-pool-stat-api",
+ "pallet-asset-conversion",
  "pallet-assets",
  "pallet-atomic-swap",
  "pallet-authorship",
@@ -8238,9 +8259,9 @@ checksum = "dcf81ac59edc17cc8697ff311e8f5ef2d99fcbd9817b34cec66f90b6c3dfd987"
 
 [[package]]
 name = "uint"
-version = "0.9.3"
+version = "0.9.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "12f03af7ccf01dd611cc450a0d10dbc9b745770d096473e2faf0ca6e2d66d1e0"
+checksum = "76f64bba2c53b04fcab63c01a7d7427eadc821e3bc48c34dc9ba29c501164b52"
 dependencies = [
  "byteorder",
  "crunchy",
