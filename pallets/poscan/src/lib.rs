@@ -61,14 +61,21 @@ use sp_consensus_poscan::{
 	CompressWith,
 	Approval,
 	ObjData,
+	OldObjData,
 	ObjIdx,
 	POSCAN_ALGO_GRID2D_V3A,
 	MAX_OBJECT_SIZE,
+	MAX_PROPERTIES,
+	PROP_NAME_LEN,
 	DEFAULT_OBJECT_HASHES,
 	MAX_OBJECT_HASHES,
 	DEFAULT_MAX_ALGO_TIME,
 	MAX_ESTIMATORS,
 	FEE_PER_BYTE,
+	PropIdx,
+	Property,
+	PropClass,
+	PropValue,
 };
 
 pub mod inherents;
@@ -158,8 +165,11 @@ pub mod pallet {
 		// #[pallet::constant]MAX_OBJECT_SIZE Get<u32>;
 	}
 
+	const STORAGE_VERSION: StorageVersion = StorageVersion::new(2);
+
 	#[pallet::pallet]
 	#[pallet::generate_store(pub(super) trait Store)]
+	#[pallet::storage_version(STORAGE_VERSION)]
 	pub struct Pallet<T>(_);
 
 	#[pallet::storage]
@@ -173,6 +183,14 @@ pub mod pallet {
 	#[pallet::storage]
 	#[pallet::getter(fn objects)]
 	pub type Objects<T: Config> = StorageMap<_, Twox64Concat, ObjIdx, ObjData<T::AccountId, T::BlockNumber>, OptionQuery>;
+
+	#[pallet::storage]
+	#[pallet::getter(fn prop_count)]
+	pub type PropCount<T> = StorageValue<_, PropIdx, ValueQuery>;
+
+	#[pallet::storage]
+	#[pallet::getter(fn properties)]
+	pub type Properties<T: Config> = StorageMap<_, Twox64Concat, PropIdx, Property, OptionQuery>;
 
 	#[pallet::storage]
 	#[pallet::getter(fn locks)]
@@ -220,6 +238,20 @@ pub mod pallet {
 		UnsupportedCategory,
 		/// No hashes provided.
 		NoHashes,
+		/// Object not found
+		ObjectNotFound,
+		/// Origin is not owner
+		NotOwner,
+		/// Unsufficent funds
+		UnsufficentFunds,
+		/// Too many properties
+		TooManyProperties,
+		/// Unknown property
+		UnknownProperty,
+		/// Property value too big
+		InvalidPropValue,
+		/// Share property must be multiple 10
+		InvalidSharePropValue,
 	}
 
 	#[pallet::hooks]
@@ -282,6 +314,55 @@ pub mod pallet {
 			// TODO:
 			0
 		}
+
+		fn on_runtime_upgrade() -> frame_support::weights::Weight {
+			let onchain_version =  Pallet::<T>::on_chain_storage_version();
+			log::info!(target: LOG_TARGET, "on_runtime_upgrade: onchain_version={:?}", &onchain_version);
+			if onchain_version < 2 {
+			let prop_idx = <Pallet::<T>>::prop_count();
+				log::info!(target: LOG_TARGET, "on_runtime_upgrade: prop_idx={}", &prop_idx);
+			if prop_idx == 0 {
+				let name: BoundedVec<u8, ConstU32<PROP_NAME_LEN>> = "Non-Fungible".as_bytes()
+					.to_vec().try_into().unwrap();
+					Properties::<T>::insert(0, Property { name, class: PropClass::Relative, max_value: 1 });
+
+				let name: BoundedVec<u8, ConstU32<PROP_NAME_LEN>> = "Share".as_bytes()
+					.to_vec().try_into().unwrap();
+					Properties::<T>::insert(1, Property { name, class: PropClass::Relative, max_value: 100_000_000 });
+				<PropCount<T>>::put(2);
+			}
+
+				Objects::<T>::translate::<OldObjData<T::AccountId, T::BlockNumber>, _>(|key, old_data| {
+					log::info!(target: LOG_TARGET, "on_runtime_upgrade: migrate object: {}", &key);
+
+				let mut properties = BoundedVec::default();
+					properties.try_push(PropValue { prop_idx: 0, max_value: 1 }).unwrap();
+
+				Some(ObjData::<T::AccountId, T::BlockNumber> {
+					state: old_data.state,
+					obj: old_data.obj,
+					compressed_with: old_data.compressed_with,
+					category: old_data.category,
+					hashes: old_data.hashes,
+					when_created: old_data.when_created,
+					when_approved: old_data.when_approved,
+					owner: old_data.owner,
+					estimators: old_data.estimators,
+					est_outliers: old_data.est_outliers,
+					approvers: old_data.approvers,
+					num_approvals: old_data.num_approvals,
+					est_rewards: old_data.est_rewards,
+					author_rewards: old_data.author_rewards,
+					prop: properties,
+				})
+			});
+				StorageVersion::new(2).put::<Pallet::<T>>();
+			}
+			else {
+				log::info!(target: LOG_TARGET, "on_runtime_upgrade: unused migration");
+			}
+			0
+		}
 	}
 
 	// Dispatchable functions allows users to interact with the pallet and invoke state changes.
@@ -297,6 +378,7 @@ pub mod pallet {
 			obj: BoundedVec<u8, ConstU32<MAX_OBJECT_SIZE>>,
 			num_approvals: u8,
 			hashes: Option<BoundedVec<H256, ConstU32<MAX_OBJECT_HASHES>>>,
+			properties: BoundedVec<PropValue, ConstU32<MAX_PROPERTIES>>
 		) -> DispatchResultWithPostInfo {
 			let acc = ensure_signed(origin)?;
 			let obj_idx = <Pallet::<T>>::obj_count();
@@ -347,7 +429,31 @@ pub mod pallet {
 				return Err(Error::<T>::DuplicatedHashes.into());
 			}
 
-			log::debug!(target: LOG_TARGET, "hashes len={}", hashes.len());
+			let mut properties = properties.clone();
+			let share_prop = properties.iter()
+				.find(|PropValue {prop_idx, ..}| *prop_idx == 0);
+			if share_prop.is_none() {
+				properties.try_insert(0, PropValue {prop_idx: 0, max_value: 1} ).map_err(|_| Error::<T>::TooManyProperties)?;
+			}
+
+			for prop in properties.iter_mut() {
+				match Properties::<T>::get(&prop.prop_idx) {
+					Some(ref p) => {
+						if prop.max_value > p.max_value {
+							return Err(Error::<T>::InvalidPropValue.into())
+						}
+						if p.class == PropClass::Relative {
+							let mut r = prop.max_value.clone();
+							while r >= 10 { r /= 10; }
+							if r > 1 {
+								return Err(Error::<T>::InvalidSharePropValue.into())
+							}
+						}
+					}
+					None =>
+						return Err(Error::<T>::UnknownProperty.into()),
+				}
+			}
 
 			let block_num = <frame_system::Pallet<T>>::block_number();
 			let state =  ObjectState::Created(block_num);
@@ -366,10 +472,11 @@ pub mod pallet {
 				num_approvals,
 				est_rewards: actual_rewords.0.saturated_into(),
 				author_rewards: actual_rewords.1.saturated_into(),
+				prop: properties,
 			};
 			<Objects<T>>::insert(obj_idx, obj_data);
 			<ObjCount<T>>::put(obj_idx + 1);
-			let _ = <Owners<T>>::mutate(acc.clone(), |v| v.try_push(1));
+			let _ = <Owners<T>>::mutate(acc.clone(), |v| v.try_push(obj_idx));
 
 			// TODO:
 			Self::deposit_event(Event::ObjCreated(acc));
@@ -458,6 +565,21 @@ pub mod pallet {
 			T::AdminOrigin::ensure_origin(origin)?;
 
 			FeePerByte::<T>::put(fee);
+			Ok(().into())
+		}
+
+		#[pallet::weight(1_000_000)]
+		pub fn add_property_type(
+			origin: OriginFor<T>,
+			name: BoundedVec<u8, ConstU32<64>>,
+			class: PropClass,
+			max_value: u128,
+		) -> DispatchResultWithPostInfo {
+			T::AdminOrigin::ensure_origin(origin)?;
+
+			let prop_idx = <Pallet::<T>>::prop_count();
+			Properties::<T>::insert(prop_idx, Property {name, class, max_value} );
+			<PropCount<T>>::put(prop_idx + 1);
 			Ok(().into())
 		}
 	}
@@ -834,5 +956,15 @@ impl<T: Config> PoscanApi<T::AccountId, T::BlockNumber> for Pallet<T> {
 	fn is_owner_of(account_id: &T::AccountId, obj_idx: u32) -> bool {
 		let own_objects = Owners::<T>::get(&account_id);
 		own_objects.contains(&obj_idx)
+	}
+	fn property(obj_idx: u32, prop_idx: u32) -> Option<PropValue> {
+		Objects::<T>::get(&obj_idx)
+			.map(
+					|obj_data|
+						obj_data.prop.iter()
+							.find(|p| p.prop_idx == prop_idx)
+							.cloned()
+			)
+			.flatten()
 	}
 }

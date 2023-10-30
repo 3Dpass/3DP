@@ -81,7 +81,6 @@ use frame_system::{
 	pallet_prelude::{BlockNumberFor, OriginFor},
 };
 pub use pallet::*;
-use sp_arithmetic::traits::Unsigned;
 use sp_runtime::{
 	traits::{
 		CheckedAdd, CheckedDiv, CheckedMul, CheckedSub,

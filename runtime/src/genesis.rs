@@ -106,8 +106,8 @@ pub fn testnet_genesis(
 		vesting: Default::default(),
 		transaction_payment: Default::default(),
 		transaction_storage: Default::default(),
-		assets: Default::default(),
 		poscan_assets: Default::default(),
+		poscan_pool_assets: Default::default(),
 		scored_pool: Default::default(),
 		validator_set: ValidatorSetConfig {
 			initial_validators: initial_authorities

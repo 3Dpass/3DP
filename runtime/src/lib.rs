@@ -29,7 +29,7 @@ pub use sp_runtime::BuildStorage;
 pub use sp_runtime::{Perbill, Permill, Percent};
 
 use frame_support::{
-	construct_runtime, parameter_types,
+	construct_runtime, parameter_types, ord_parameter_types,
 	traits::{
 		AsEnsureOriginWithArg, ChangeMembers, ConstU128, ConstU16, ConstU32, ConstU64, Currency,
 		EitherOfDiverse, EqualPrivilegeOnly, InitializeMembers, KeyOwnerProofSystem,
@@ -44,7 +44,7 @@ use frame_support::{
 
 use frame_system::{
 	limits::{BlockLength, BlockWeights},
-	EnsureRoot, EnsureRootWithSuccess, EnsureSigned,
+	EnsureRoot, EnsureRootWithSuccess, EnsureSigned, EnsureSignedBy,
 };
 
 use sp_runtime::{
@@ -1060,29 +1060,29 @@ impl pallet_bounties::Config for Runtime {
 }
 
 parameter_types! {
-	pub const AssetDeposit: Balance = 100 * DOLLARS;
-	pub const ApprovalDeposit: Balance = 1 * DOLLARS;
+	// pub const AssetDeposit: Balance = 100 * DOLLARS;
+	// pub const ApprovalDeposit: Balance = 1 * DOLLARS;
 	pub const StringLimit: u32 = 50;
 	pub const MetadataDepositBase: Balance = 10 * DOLLARS;
 	pub const MetadataDepositPerByte: Balance = 1 * DOLLARS;
 }
-
-impl pallet_assets::Config for Runtime {
-	type Event = Event;
-	type Balance = u128;
-	type AssetId = u32;
-	type Currency = Balances;
-	type ForceOrigin = EnsureRoot<AccountId>;
-	type AssetDeposit = AssetDeposit;
-	type AssetAccountDeposit = ConstU128<DOLLARS>;
-	type MetadataDepositBase = MetadataDepositBase;
-	type MetadataDepositPerByte = MetadataDepositPerByte;
-	type ApprovalDeposit = ApprovalDeposit;
-	type StringLimit = StringLimit;
-	type Freezer = ();
-	type Extra = ();
-	type WeightInfo = pallet_assets::weights::SubstrateWeight<Runtime>;
-}
+//
+// impl pallet_assets::Config for Runtime {
+// 	type Event = Event;
+// 	type Balance = u128;
+// 	type AssetId = u32;
+// 	type Currency = Balances;
+// 	type ForceOrigin = EnsureRoot<AccountId>;
+// 	type AssetDeposit = AssetDeposit;
+// 	type AssetAccountDeposit = ConstU128<DOLLARS>;
+// 	type MetadataDepositBase = MetadataDepositBase;
+// 	type MetadataDepositPerByte = MetadataDepositPerByte;
+// 	type ApprovalDeposit = ApprovalDeposit;
+// 	type StringLimit = StringLimit;
+// 	type Freezer = ();
+// 	type Extra = ();
+// 	type WeightInfo = pallet_assets::weights::SubstrateWeight<Runtime>;
+// }
 
 parameter_types! {
 	pub const CollectionDeposit: Balance = 100 * DOLLARS;
@@ -1251,6 +1251,7 @@ impl frame_system::offchain::SigningTypes for Runtime {
 }
 
 use codec::Encode;
+use frame_support::instances::{Instance1, Instance2};
 
 impl<LocalCall> frame_system::offchain::CreateSignedTransaction<LocalCall> for Runtime
 	where
@@ -1309,10 +1310,11 @@ parameter_types! {
 	pub const PoolSetupFee: Balance = 1 * DOLLARS; // should be more or equal to the existential deposit
 	pub const MintMinLiquidity: Balance = 100;  // 100 is good enough when the main currency has 10-12 decimals.
 	pub const LiquidityWithdrawalFee: Permill = Permill::from_percent(0);  // should be non-zero if AllowMultiAssetPools is true, otherwise can be zero.
-	pub AssetConversionOrigin: AccountId = AccountIdConversion::<AccountId>::into_account_truncating(&AssetConversionPalletId::get());
-
 }
 
+ord_parameter_types! {
+	pub const AssetConversionOrigin: AccountId = AccountIdConversion::<AccountId>::into_account_truncating(&AssetConversionPalletId::get());
+}
 
 impl pallet_asset_conversion::Config for Runtime {
 	type Event = Event;
@@ -1321,10 +1323,10 @@ impl pallet_asset_conversion::Config for Runtime {
 	type HigherPrecisionBalance = u128;
 	type Assets = PoscanAssets;
 	type Balance = u128;
-	type PoolAssets = PoscanAssets;
-	type AssetId = <Self as pallet_assets::Config>::AssetId;
+	type PoolAssets = PoscanPoolAssets;
+	type AssetId = <Self as pallet_poscan_assets::Config<Instance1>>::AssetId;
 	type MultiAssetId = NativeOrAssetId<u32>;
-	type PoolAssetId = <Self as pallet_poscan_assets::Config>::AssetId;
+	type PoolAssetId = <Self as pallet_poscan_assets::Config<Instance2>>::AssetId;
 	type PalletId = AssetConversionPalletId;
 	type LPFee = ConstU32<3>; // means 0.3%
 	type PoolSetupFee = PoolSetupFee;
@@ -1367,11 +1369,31 @@ parameter_types! {
 	pub const PosMetadataDepositPerByte: Balance = 1 * DOLLARS;
 }
 
-impl pallet_poscan_assets::Config for Runtime {
+impl pallet_poscan_assets::Config<Instance1> for Runtime {
 	type Event = Event;
 	type Balance = u128;
 	type AssetId = u32;
 	type Currency = Balances;
+	type CreateOrigin = AsEnsureOriginWithArg<EnsureSigned<AccountId>>;
+	type ForceOrigin = EnsureRoot<AccountId>;
+	type Poscan = pallet_poscan::Pallet::<Self>;
+	type AssetDeposit = PosAssetDeposit;
+	type AssetAccountDeposit = ConstU128<DOLLARS>;
+	type MetadataDepositBase = PosMetadataDepositBase;
+	type MetadataDepositPerByte = PosMetadataDepositPerByte;
+	type ApprovalDeposit = PosApprovalDeposit;
+	type StringLimit = PosStringLimit;
+	type Freezer = ();
+	type Extra = ();
+	type WeightInfo = pallet_poscan_assets::weights::SubstrateWeight<Runtime>;
+}
+
+impl pallet_poscan_assets::Config<Instance2> for Runtime {
+	type Event = Event;
+	type Balance = u128;
+	type AssetId = u32;
+	type Currency = Balances;
+	type CreateOrigin = AsEnsureOriginWithArg<EnsureSignedBy<AssetConversionOrigin, AccountId>>;
 	type ForceOrigin = EnsureRoot<AccountId>;
 	type Poscan = pallet_poscan::Pallet::<Self>;
 	type AssetDeposit = PosAssetDeposit;
@@ -1448,7 +1470,7 @@ construct_runtime!(
 		TransactionStorage: pallet_transaction_storage,
 		ScoredPool: pallet_scored_pool,
 		Uniques: pallet_uniques,
-		Assets: pallet_assets,
+		// Assets: pallet_assets,
 		ValidatorSet: pallet_validator_set,
 		Session: pallet_session,
 		Bounties: pallet_bounties,
@@ -1464,7 +1486,8 @@ construct_runtime!(
 		AssetConversion: pallet_asset_conversion,
 		AtomicSwap: pallet_atomic_swap,
 		PoScan: pallet_poscan, // ::{Pallet, Call, Storage, Event<T>, Inherent},
-		PoscanAssets: pallet_poscan_assets,
+		PoscanAssets: pallet_poscan_assets::<Instance1>,
+		PoscanPoolAssets: pallet_poscan_assets::<Instance2>,
 		MiningPool: pallet_mining_pool,
 		Sudo: pallet_sudo,
 	}
