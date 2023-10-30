@@ -116,6 +116,8 @@ pub const HOURS: u32 = 60;
 pub const DAYS: u32 = 24 * HOURS;
 
 pub const MAX_OBJECT_SIZE: u32 = 100_000;
+pub const MAX_PROPERTIES: u32 = 100;
+pub const PROP_NAME_LEN: u32 = 64;
 pub const DEFAULT_OBJECT_HASHES: u32 = 10;
 pub const MAX_OBJECT_HASHES: u32 = 256 + DEFAULT_OBJECT_HASHES;
 pub const DEFAULT_MAX_ALGO_TIME: u32 = 10;  // 10 sec
@@ -207,6 +209,7 @@ pub fn decompress_obj(obj: &[u8]) -> Vec<u8> {
 }
 
 pub type ObjIdx = u32;
+pub type PropIdx = u32;
 
 #[derive(Clone, PartialEq, Encode, Decode, TypeInfo, MaxEncodedLen, RuntimeDebug)]
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
@@ -286,9 +289,55 @@ pub struct Approval<Account, Block>
 	pub proof: Option<H256>,
 }
 
+#[derive(Clone, PartialEq, Debug, Encode, Decode, TypeInfo, MaxEncodedLen)]
+#[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
+pub struct PropValue {
+	pub prop_idx: u32,
+	pub max_value: u128,
+}
+
+#[derive(Clone, PartialEq, Debug, Encode, Decode, TypeInfo, MaxEncodedLen)]
+#[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
+pub enum PropClass {
+	Relative,
+	Absolute,
+}
+
+#[derive(Clone, PartialEq, Encode, Decode, TypeInfo, MaxEncodedLen)]
+#[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
+pub struct Property {
+	pub name: BoundedVec<u8, ConstU32<PROP_NAME_LEN>>,
+	pub class: PropClass,
+	pub max_value: u128,
+}
+
 #[derive(Clone, PartialEq, Encode, Decode, TypeInfo, MaxEncodedLen)]
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
 pub struct ObjData<Account, Block>
+	where
+		Account: Encode + Decode + TypeInfo + Member,
+		Block: Encode + Decode + TypeInfo + Member,
+{
+	pub state: ObjectState<Block>,
+	pub obj: BoundedVec<u8, ConstU32<MAX_OBJECT_SIZE>>,
+	pub compressed_with: Option<CompressWith>,
+	pub category: ObjectCategory,
+	pub hashes: BoundedVec<H256, ConstU32<MAX_OBJECT_HASHES>>,
+	pub when_created: Block,
+	pub when_approved: Option<Block>,
+	pub owner: Account,
+	pub estimators: BoundedVec<(Account, u64), ConstU32<MAX_ESTIMATORS>>,
+	pub est_outliers: BoundedVec<Account, ConstU32<MAX_ESTIMATORS>>,
+	pub approvers: BoundedVec<Approval<Account, Block>, ConstU32<256>>,
+	pub num_approvals: u8,
+	pub est_rewards: u128,
+	pub author_rewards: u128,
+	pub prop: BoundedVec<PropValue, ConstU32<MAX_PROPERTIES>>,
+}
+
+#[derive(Clone, PartialEq, Encode, Decode, TypeInfo, MaxEncodedLen)]
+#[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
+pub struct OldObjData<Account, Block>
 	where
 		Account: Encode + Decode + TypeInfo + Member,
 		Block: Encode + Decode + TypeInfo + Member,

@@ -145,9 +145,10 @@ use sp_runtime::{
 	traits::{
 		AtLeast32BitUnsigned, Bounded, CheckedAdd, CheckedSub, Saturating, StaticLookup, Zero,
 	},
+	SaturatedConversion,
 	ArithmeticError, TokenError,
 };
-use sp_std::{borrow::Borrow, prelude::*};
+use sp_std::prelude::*;
 
 use frame_support::{
 	dispatch::{DispatchError, DispatchResult},
@@ -156,7 +157,7 @@ use frame_support::{
 	traits::{
 		tokens::{fungibles, DepositConsequence, WithdrawConsequence},
 		BalanceStatus::Reserved,
-		Currency, ReservableCurrency, StoredMap, ContainsPair,
+		Currency, EnsureOriginWithArg, ReservableCurrency, StoredMap, ContainsPair,
 	},
 };
 use frame_system::Config as SystemConfig;
@@ -204,6 +205,14 @@ pub mod pallet {
 			+ MaxEncodedLen
 			+ Into<u32>
 			+ TypeInfo;
+
+		/// Standard asset class creation is only allowed if the origin attempting it and the
+		/// asset class are in this set.
+		type CreateOrigin: EnsureOriginWithArg<
+			Self::Origin,
+			Self::AssetId,
+			Success = Self::AccountId,
+		>;
 
 		/// The currency mechanism.
 		type Currency: ReservableCurrency<Self::AccountId>;
@@ -336,7 +345,8 @@ pub mod pallet {
 						accounts: 0,
 						sufficients: 0,
 						approvals: 0,
-						is_frozen: false,
+						status: AssetStatus::Live,
+						obj_details: None,
 					},
 				);
 			}
@@ -445,6 +455,12 @@ pub mod pallet {
 		},
 		/// An asset has had its attributes changed by the `Force` origin.
 		AssetStatusChanged { asset_id: T::AssetId },
+		/// The min_balance of an asset has been updated by the asset owner.
+		AssetMinBalanceChanged { asset_id: T::AssetId, new_min_balance: T::Balance },
+		/// Some account `who` was created with a deposit from `depositor`.
+		Touched { asset_id: T::AssetId, who: T::AccountId, depositor: T::AccountId },
+		/// Some account `who` was blocked.
+		Blocked { asset_id: T::AssetId, who: T::AccountId },
 	}
 
 	#[pallet::error]
@@ -468,7 +484,7 @@ pub mod pallet {
 		/// Unable to increment the consumer reference counters on the account. Either no provider
 		/// reference exists to allow a non-zero balance of a non-self-sufficient asset, or the
 		/// maximum number of consumers has been reached.
-		NoProvider,
+		UnavailableConsumer,
 		/// Invalid metadata given.
 		BadMetadata,
 		/// No approval exists that would allow the transfer.
@@ -481,10 +497,31 @@ pub mod pallet {
 		NoDeposit,
 		/// The operation would result in funds being burned.
 		WouldBurn,
-		/// Provided Account id is not the owner of object.
+		/// The asset is a live asset and is actively being used. Usually emit for operations such
+		/// as `start_destroy` which require the asset to be in a destroying state.
+		LiveAsset,
+		/// The asset is not live, and likely being destroyed.
+		AssetNotLive,
+		/// The asset status is not the expected status.
+		IncorrectStatus,
+		/// The asset should be frozen before the given operation.
+		NotFrozen,
+		/// Callback action resulted in error
+		CallbackFailed,
+		/// Provided asset id not found.
+		AssetNotFound,
+		/// Object id not found.
 		NotOwner,
 		/// Object id not found.
 		ObjectNotFound,
+		/// Token for object exists.
+		TokenForObjectExists,
+		/// Invalid object property.
+		InvalidObjectProperty,
+		/// Mint is upper max supply.
+		MintUpperMaxSupply,
+		/// Object is not approved.
+		ObjectNotApproved,
 	}
 
 	#[pallet::call]
@@ -513,18 +550,18 @@ pub mod pallet {
 			origin: OriginFor<T>,
 			#[pallet::compact] id: T::AssetId,
 			admin: <T::Lookup as StaticLookup>::Source,
-			beneficiary: <T::Lookup as StaticLookup>::Source,
-			#[pallet::compact] amount: T::Balance,
 			min_balance: T::Balance,
+			obj_details: Option<ObjDetails<T::Balance>>,
 		) -> DispatchResult {
-			let owner = ensure_signed(origin)?;
+			let owner = T::CreateOrigin::ensure_origin(origin, &id)?;
 			let admin = T::Lookup::lookup(admin)?;
 
 			ensure!(!Asset::<T, I>::contains_key(id), Error::<T, I>::InUse);
 			ensure!(!min_balance.is_zero(), Error::<T, I>::MinBalanceZero);
-			ensure!(T::Poscan::is_owner_of(&owner, id.into()), Error::<T, I>::InUse);
 
-			let beneficiary = T::Lookup::lookup(beneficiary)?;
+			if let Some(ref obj_details) = obj_details {
+				Self::check_obj(&obj_details)?;
+			}
 
 			let deposit = T::AssetDeposit::get();
 			T::Currency::reserve(&owner, deposit)?;
@@ -543,12 +580,11 @@ pub mod pallet {
 					accounts: 0,
 					sufficients: 0,
 					approvals: 0,
-					is_frozen: false,
+					status: AssetStatus::Live,
+					obj_details,
 				},
 			);
 			Self::deposit_event(Event::Created { asset_id: id, creator: owner.clone(), owner: admin });
-
-			Self::do_mint(id, &beneficiary, amount, Some(owner))?;
 
 			Ok(())
 		}
@@ -578,16 +614,17 @@ pub mod pallet {
 			#[pallet::compact] id: T::AssetId,
 			owner: <T::Lookup as StaticLookup>::Source,
 			is_sufficient: bool,
-			beneficiary: <T::Lookup as StaticLookup>::Source,
-			#[pallet::compact] amount: T::Balance,
 			#[pallet::compact] min_balance: T::Balance,
+			obj_details: Option<ObjDetails<T::Balance>>,
 		) -> DispatchResult {
 			T::ForceOrigin::ensure_origin(origin)?;
+
+			if let Some(ref obj_details) = obj_details {
+				Self::check_obj(&obj_details)?;
+			}
+
 			let owner = T::Lookup::lookup(owner)?;
-			let beneficiary = T::Lookup::lookup(beneficiary)?;
-			
-			Self::do_force_create(id, owner.clone(), is_sufficient, min_balance)?;
-			Self::do_mint(id, &beneficiary, amount, Some(owner))?;
+			Self::do_force_create(id, owner.clone(), is_sufficient, min_balance, obj_details)?;
 
 			Ok(())
 		}
@@ -633,30 +670,39 @@ pub mod pallet {
 			.into())
 		}
 
-		// /// Mint assets of a particular class.
-		// ///
-		// /// The origin must be Signed and the sender must be the Issuer of the asset `id`.
-		// ///
-		// /// - `id`: The identifier of the asset to have some amount minted.
-		// /// - `beneficiary`: The account to be credited with the minted assets.
-		// /// - `amount`: The amount of the asset to be minted.
-		// ///
-		// /// Emits `Issued` event when successful.
-		// ///
-		// /// Weight: `O(1)`
-		// /// Modes: Pre-existing balance of `beneficiary`; Account pre-existence of `beneficiary`.
-		// #[pallet::weight(T::WeightInfo::mint())]
-		// pub fn mint(
-		// 	origin: OriginFor<T>,
-		// 	#[pallet::compact] id: T::AssetId,
-		// 	beneficiary: <T::Lookup as StaticLookup>::Source,
-		// 	#[pallet::compact] amount: T::Balance,
-		// ) -> DispatchResult {
-		// 	let origin = ensure_signed(origin)?;
-		// 	let beneficiary = T::Lookup::lookup(beneficiary)?;
-		// 	Self::do_mint(id, &beneficiary, amount, Some(origin))?;
-		// 	Ok(())
-		// }
+		/// Mint assets of a particular class.
+		///
+		/// The origin must be Signed and the sender must be the Issuer of the asset `id`.
+		///
+		/// - `id`: The identifier of the asset to have some amount minted.
+		/// - `beneficiary`: The account to be credited with the minted assets.
+		/// - `amount`: The amount of the asset to be minted.
+		///
+		/// Emits `Issued` event when successful.
+		///
+		/// Weight: `O(1)`
+		/// Modes: Pre-existing balance of `beneficiary`; Account pre-existence of `beneficiary`.
+		#[pallet::weight(T::WeightInfo::mint())]
+		pub fn mint(
+			origin: OriginFor<T>,
+			#[pallet::compact] id: T::AssetId,
+			// beneficiary: <T::Lookup as StaticLookup>::Source,
+			#[pallet::compact] amount: T::Balance,
+		) -> DispatchResult {
+			let origin = ensure_signed(origin)?;
+			// let beneficiary = T::Lookup::lookup(beneficiary)?;
+
+			let asset = Asset::<T, I>::get(&id).ok_or(Error::<T, I>::AssetNotFound)?;
+
+			if let Some(obj_details) = asset.obj_details {
+				ensure!(T::Poscan::is_owner_of(&origin, obj_details.obj_idx.into()), Error::<T, I>::NotOwner);
+				let prop = T::Poscan::property(obj_details.obj_idx, obj_details.prop_idx).ok_or(Error::<T, I>::InvalidObjectProperty)?;
+				ensure!(asset.supply.saturating_add(amount).saturated_into::<u128>() <= prop.max_value, Error::<T, I>::MintUpperMaxSupply);
+			}
+			Self::do_mint(id, &origin, amount, Some(origin.clone()))?;
+
+			Ok(())
+		}
 
 		// /// Reduce the balance of `who` by as much as possible up to `amount` assets of `id`.
 		// ///
@@ -806,11 +852,15 @@ pub mod pallet {
 			let origin = ensure_signed(origin)?;
 
 			let d = Asset::<T, I>::get(id).ok_or(Error::<T, I>::Unknown)?;
+			ensure!(
+				d.status == AssetStatus::Live || d.status == AssetStatus::Frozen,
+				Error::<T, I>::AssetNotLive
+			);
 			ensure!(origin == d.freezer, Error::<T, I>::NoPermission);
 			let who = T::Lookup::lookup(who)?;
 
 			Account::<T, I>::try_mutate(id, &who, |maybe_account| -> DispatchResult {
-				maybe_account.as_mut().ok_or(Error::<T, I>::NoAccount)?.is_frozen = true;
+				maybe_account.as_mut().ok_or(Error::<T, I>::NoAccount)?.status = AccountStatus::Frozen;
 				Ok(())
 			})?;
 
@@ -837,11 +887,15 @@ pub mod pallet {
 			let origin = ensure_signed(origin)?;
 
 			let details = Asset::<T, I>::get(id).ok_or(Error::<T, I>::Unknown)?;
+			ensure!(
+				details.status == AssetStatus::Live || details.status == AssetStatus::Frozen,
+				Error::<T, I>::AssetNotLive
+			);
 			ensure!(origin == details.admin, Error::<T, I>::NoPermission);
 			let who = T::Lookup::lookup(who)?;
 
 			Account::<T, I>::try_mutate(id, &who, |maybe_account| -> DispatchResult {
-				maybe_account.as_mut().ok_or(Error::<T, I>::NoAccount)?.is_frozen = false;
+				maybe_account.as_mut().ok_or(Error::<T, I>::NoAccount)?.status = AccountStatus::Liquid;
 				Ok(())
 			})?;
 
@@ -869,7 +923,7 @@ pub mod pallet {
 				let d = maybe_details.as_mut().ok_or(Error::<T, I>::Unknown)?;
 				ensure!(origin == d.freezer, Error::<T, I>::NoPermission);
 
-				d.is_frozen = true;
+				d.status = AssetStatus::Frozen;
 
 				Self::deposit_event(Event::<T, I>::AssetFrozen { asset_id: id });
 				Ok(())
@@ -896,7 +950,7 @@ pub mod pallet {
 				let d = maybe_details.as_mut().ok_or(Error::<T, I>::Unknown)?;
 				ensure!(origin == d.admin, Error::<T, I>::NoPermission);
 
-				d.is_frozen = false;
+				d.status = AssetStatus::Live;
 
 				Self::deposit_event(Event::<T, I>::AssetThawed { asset_id: id });
 				Ok(())
@@ -1161,7 +1215,11 @@ pub mod pallet {
 				asset.freezer = T::Lookup::lookup(freezer)?;
 				asset.min_balance = min_balance;
 				asset.is_sufficient = is_sufficient;
-				asset.is_frozen = is_frozen;
+				if is_frozen {
+					asset.status = AssetStatus::Frozen;
+				} else {
+					asset.status = AssetStatus::Live;
+				}
 				*maybe_asset = Some(asset);
 
 				Self::deposit_event(Event::AssetStatusChanged { asset_id: id });
@@ -1319,7 +1377,8 @@ pub mod pallet {
 		/// Emits `Touched` event when successful.
 		#[pallet::weight(T::WeightInfo::mint())]
 		pub fn touch(origin: OriginFor<T>, #[pallet::compact] id: T::AssetId) -> DispatchResult {
-			Self::do_touch(id, ensure_signed(origin)?)
+			let who = ensure_signed(origin)?;
+			Self::do_touch(id, who.clone(), who, false)
 		}
 
 		/// Return the deposit (if any) of an asset account.
@@ -1347,8 +1406,8 @@ pub mod pallet {
 			T::AssetAccountDeposit::get()
 		}
 
-		fn touch(asset: T::AssetId, who: T::AccountId, _depositor: T::AccountId) -> DispatchResult {
-			Self::do_touch(asset, who) // , depositor, false)
+		fn touch(asset: T::AssetId, who: T::AccountId, depositor: T::AccountId) -> DispatchResult {
+			Self::do_touch(asset, who, depositor, false)
 		}
 	}
 

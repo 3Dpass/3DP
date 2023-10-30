@@ -23,11 +23,37 @@ use frame_support::{
 	traits::{fungible, tokens::BalanceConversion},
 };
 use sp_runtime::{traits::Convert, FixedPointNumber, FixedPointOperand, FixedU128};
+use sp_consensus_poscan::{ObjIdx, PropIdx};
 
 pub(super) type DepositBalanceOf<T, I = ()> =
-	<<T as Config<I>>::Currency as Currency<<T as SystemConfig>::AccountId>>::Balance;
-pub(super) type AssetAccountOf<T, I> =
-	AssetAccount<<T as Config<I>>::Balance, DepositBalanceOf<T, I>, <T as Config<I>>::Extra>;
+<<T as Config<I>>::Currency as Currency<<T as SystemConfig>::AccountId>>::Balance;
+pub(super) type AssetAccountOf<T, I> = AssetAccount<
+	<T as Config<I>>::Balance,
+	DepositBalanceOf<T, I>,
+	<T as Config<I>>::Extra,
+	<T as SystemConfig>::AccountId,
+>;
+pub(super) type ExistenceReasonOf<T, I> =
+ExistenceReason<DepositBalanceOf<T, I>, <T as SystemConfig>::AccountId>;
+
+#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
+pub struct ObjDetails<Balance> {
+	pub(super) obj_idx: ObjIdx,
+	pub(super) prop_idx: PropIdx,
+	pub(super) max_supply: Balance,
+	// pub(super) decimals: Balance,
+}
+
+#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
+pub(super) enum AssetStatus {
+	/// The asset is active and able to be used.
+	Live,
+	/// Whether the asset is frozen for non-admin transfers.
+	Frozen,
+	/// The asset is currently being destroyed, and all actions are no longer permitted on the
+	/// asset. Once set to `Destroying`, the asset can never transition back to a `Live` state.
+	Destroying,
+}
 
 #[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
 pub struct AssetDetails<Balance, AccountId, DepositBalance> {
@@ -54,8 +80,10 @@ pub struct AssetDetails<Balance, AccountId, DepositBalance> {
 	pub(super) sufficients: u32,
 	/// The total number of approvals.
 	pub(super) approvals: u32,
-	/// Whether the asset is frozen for non-admin transfers.
-	pub(super) is_frozen: bool,
+	/// The status of the asset
+	pub(super) status: AssetStatus,
+	/// Poscan object idx if any
+	pub(super) obj_details: Option<ObjDetails<Balance>>
 }
 
 impl<Balance, AccountId, DepositBalance> AssetDetails<Balance, AccountId, DepositBalance> {
@@ -84,19 +112,31 @@ fn ensure_bool_decodes_to_consumer_or_sufficient() {
 	assert_eq!(true.encode(), ExistenceReason::<()>::Sufficient.encode());
 }
 
+/// The reason for an account's existence within an asset class.
 #[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
-pub enum ExistenceReason<Balance> {
+pub enum ExistenceReason<Balance, AccountId> {
+	/// A consumer reference was used to create this account.
 	#[codec(index = 0)]
 	Consumer,
+	/// The asset class is `sufficient` for account existence.
 	#[codec(index = 1)]
 	Sufficient,
+	/// The account holder has placed a deposit to exist within an asset class.
 	#[codec(index = 2)]
 	DepositHeld(Balance),
+	/// A deposit was placed for this account to exist, but it has been refunded.
 	#[codec(index = 3)]
 	DepositRefunded,
+	/// Some other `AccountId` has placed a deposit to make this account exist.
+	/// An account with such a reason might not be referenced in `system`.
+	#[codec(index = 4)]
+	DepositFrom(AccountId, Balance),
 }
 
-impl<Balance> ExistenceReason<Balance> {
+impl<Balance, AccountId> ExistenceReason<Balance, AccountId>
+	where
+		AccountId: Clone,
+{
 	pub(crate) fn take_deposit(&mut self) -> Option<Balance> {
 		if !matches!(self, ExistenceReason::DepositHeld(_)) {
 			return None
@@ -111,14 +151,31 @@ impl<Balance> ExistenceReason<Balance> {
 	}
 }
 
+/// The status of an asset account.
 #[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
-pub struct AssetAccount<Balance, DepositBalance, Extra> {
+pub enum AccountStatus {
+	/// Asset account can receive and transfer the assets.
+	Liquid,
+	/// Asset account cannot transfer the assets.
+	Frozen,
+	/// Asset account cannot receive and transfer the assets.
+	Blocked,
+}
+impl AccountStatus {
+	/// Returns `true` if frozen or blocked.
+	pub(crate) fn is_frozen(&self) -> bool {
+		matches!(self, AccountStatus::Frozen | AccountStatus::Blocked)
+	}
+}
+
+#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
+pub struct AssetAccount<Balance, DepositBalance, Extra, AccountId> {
 	/// The balance.
 	pub(super) balance: Balance,
-	/// Whether the account is frozen.
-	pub(super) is_frozen: bool,
+	/// The status of the account.
+	pub(super) status: AccountStatus,
 	/// The reason for the existence of the account.
-	pub(super) reason: ExistenceReason<DepositBalance>,
+	pub(super) reason: ExistenceReason<DepositBalance, AccountId>,
 	/// Additional "sidecar" data, in case some other pallet wants to use this storage item.
 	pub(super) extra: Extra,
 }
