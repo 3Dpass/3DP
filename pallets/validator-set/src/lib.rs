@@ -204,6 +204,10 @@ pub mod pallet {
 	#[pallet::getter(fn upgrades)]
 	pub type LastUpgrade<T: Config> = StorageValue<_, T::BlockNumber, ValueQuery>;
 
+	#[pallet::storage]
+	#[pallet::getter(fn penalty)]
+	pub type Penalty<T: Config> = StorageMap<_, Twox64Concat, T::AccountId, BalanceOf<T>, OptionQuery>;
+
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(super) fn deposit_event)]
 	pub enum Event<T: Config> {
@@ -218,6 +222,10 @@ pub mod pallet {
 		ValidatorLockBalance(T::AccountId, T::BlockNumber, BalanceOf<T>, Option<u32>),
 
 		ValidatorUnlockBalance(T::AccountId, BalanceOf<T>),
+
+		PenaltySet(T::AccountId, BalanceOf<T>),
+
+		PenaltyCanceled(T::AccountId, BalanceOf<T>),
 	}
 
 	// Errors inform users that something went wrong.
@@ -253,6 +261,8 @@ pub mod pallet {
 		UnlockAmountInvalid,
 		/// Validator not found
 		ValidatorNotFound,
+		/// Penalty found
+		PenaltyFound,
 	}
 
 	#[pallet::hooks]
@@ -281,7 +291,7 @@ pub mod pallet {
 				Authors::<T>::insert(n, Some(author));
 			}
 			else {
-				log::debug!(target: LOG_TARGET, "No authon");
+				log::debug!(target: LOG_TARGET, "No author");
 			}
 		}
 
@@ -438,6 +448,11 @@ pub mod pallet {
 
 			let approved_set: BTreeSet<_> = <ApprovedValidators<T>>::get().into_iter().collect();
 			ensure!(approved_set.contains(&validator_id), Error::<T>::ValidatorNotApproved);
+
+			if let Some(_amount) = Penalty::<T>::get(&validator_id) {
+				return Err(Error::<T>::PenaltyFound.into());
+			}
+
 			let current_number = frame_system::Pallet::<T>::block_number();
 
 			let suspend_period = T::SlashValidatorFor::get();
@@ -527,22 +542,19 @@ pub mod pallet {
 				return Err(Error::<T>::LockIsActive.into())
 			}
 
-			let remove_all;
-			let unlock_amount;
+			let mut unlock_amount = amount.unwrap_or(lock_item.1);
 
-			if let Some(amount) = amount {
-				if amount > lock_item.1 {
-					return Err(Error::<T>::UnlockAmountInvalid.into())
+			if unlock_amount > lock_item.1 {
+				return Err(Error::<T>::UnlockAmountInvalid.into())
+			}
+
+			if let Some(penalty) = Penalty::<T>::get(&validator_id) {
+				if unlock_amount > lock_item.1 - penalty {
+					unlock_amount = lock_item.1 - penalty;
 				}
-				unlock_amount = amount;
-				remove_all = amount == lock_item.1;
-			}
-			else {
-				unlock_amount = lock_item.1;
-				remove_all = true;
 			}
 
-			if remove_all {
+			if unlock_amount == lock_item.1 {
 				<T as pallet::Config>::Currency::remove_lock(
 					LOCK_ID,
 					&validator_id,
@@ -627,6 +639,55 @@ pub mod pallet {
 			pallet_poscan::Pallet::<T>::add_obj_estimation(&acc, est.obj_idx, est.t);
 
 			Ok(().into())
+		}
+
+		/// Pay penalty if it exists
+		#[pallet::weight(10_000_000)]
+		pub fn pay_penalty(
+			origin: OriginFor<T>,
+		) -> DispatchResult {
+			let validator_id = ensure_signed(origin)?;
+
+			Penalty::<T>::get(&validator_id)
+				.map_or(Ok(()), |amount|
+					{
+						let pot_id = pallet_treasury::Pallet::<T>::account_id();
+						<T as pallet::Config>::Currency::transfer(
+							&validator_id, &pot_id, amount, ExistenceRequirement::KeepAlive,
+						)?;
+						Penalty::<T>::remove(&validator_id);
+						Ok(())
+					}
+				)
+		}
+
+		/// Cancel penalty if it exists
+		#[pallet::weight(1_000_000)]
+		pub fn cancel_penalty(
+			origin: OriginFor<T>,
+			validator_id: T::AccountId,
+		) -> DispatchResult {
+			T::AddRemoveOrigin::ensure_origin(origin)?;
+			if let Some(amount) = Penalty::<T>::get(&validator_id) {
+				Penalty::<T>::remove(&validator_id);
+				Self::deposit_event(Event::PenaltyCanceled(validator_id, amount));
+			}
+
+			Ok(())
+		}
+
+		/// Set penalty
+		#[pallet::weight(1_000_000)]
+		pub fn set_penalty(
+			origin: OriginFor<T>,
+			validator_id: T::AccountId,
+			amount: BalanceOf<T>,
+		) -> DispatchResult {
+			T::AddRemoveOrigin::ensure_origin(origin)?;
+			Penalty::<T>::insert(&validator_id, amount);
+			Self::deposit_event(Event::PenaltySet(validator_id, amount));
+
+			Ok(())
 		}
 	}
 
@@ -823,6 +884,11 @@ impl<T: Config> Pallet<T> {
 		}
 
 		log::debug!(target: LOG_TARGET, "Slash account {:?} by {:?}.", validator_id, &amount);
+
+		if amount < slash_amount {
+			Penalty::<T>::insert(validator_id, slash_amount - amount);
+		}
+
 		Self::deposit_event(make_evt(validator_id, amount));
 	}
 
