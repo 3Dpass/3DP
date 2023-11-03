@@ -90,7 +90,6 @@ pub trait WeightInfo {
 	fn on_initialize() -> Weight;
 	fn on_finalize() -> Weight;
 	fn unlock() -> Weight;
-	fn lock() -> Weight;
 	fn set_schedule() -> Weight;
 	fn set_lock_params() -> Weight;
 	fn set_miner_share() -> Weight;
@@ -312,32 +311,6 @@ decl_module! {
 			let locks = Self::reward_locks(&account_id);
 			let current_number = frame_system::Pallet::<T>::block_number();
 			Self::do_update_reward_locks(&account_id, locks, current_number, true);
-		}
-
-		/// Unlock any vested rewards for `target` account.
-		#[weight = <T as Config>::WeightInfo::lock()]
-		fn lock(origin, amount: BalanceOf<T>, when: T::BlockNumber)  {
-			let target = ensure_signed(origin)?;
-
-			let current_number = frame_system::Pallet::<T>::block_number();
-			let free = <T as Config>::Currency::free_balance(&target);
-
-			let total_locked = Self::total_locked(&target);
-			if amount > 0u32.into() && when > current_number {
-				let mut locks = Self::reward_locks(&target);
-				// let old_balance = *locks
-				// 	.get(&when)
-				// 	.unwrap_or(&BalanceOf::<T>::default());
-				// let new_locked_balance = old_balance.saturating_add(amount);
-
-				ensure!(free >= amount, Error::<T>::UnsufficientBalance);
-				ensure!(total_locked <= amount, Error::<T>::DecreaseLockAmountNotAllowed);
-
-				locks.insert(when, amount);
-
-				Self::do_update_reward_locks(&target, locks, current_number, false);
-				Self::deposit_event(RawEvent::Locked(target, amount));
-            }
 		}
 	}
 }
