@@ -1304,6 +1304,18 @@ impl pallet_atomic_swap::Config for Runtime {
 	type ProofLimit = ConstU32<1024>;
 }
 
+impl pallet_asset_rate::Config for Runtime {
+	type CreateOrigin = EnsureRoot<AccountId>;
+	type RemoveOrigin = EnsureRoot<AccountId>;
+	type UpdateOrigin = EnsureRoot<AccountId>;
+	type Currency = Balances;
+	type AssetKind = u32;
+	type Event = Event;
+	type WeightInfo = pallet_asset_rate::weights::SubstrateWeight<Runtime>;
+	#[cfg(feature = "runtime-benchmarks")]
+	type BenchmarkHelper = ();
+}
+
 parameter_types! {
 	pub const AssetConversionPalletId: PalletId = PalletId(*b"py/ascon");
 	pub AllowMultiAssetPools: bool = true;
@@ -1470,7 +1482,7 @@ construct_runtime!(
 		TransactionStorage: pallet_transaction_storage,
 		ScoredPool: pallet_scored_pool,
 		Uniques: pallet_uniques,
-		// Assets: pallet_assets,
+		AssetRate: pallet_asset_rate,
 		ValidatorSet: pallet_validator_set,
 		Session: pallet_session,
 		Bounties: pallet_bounties,

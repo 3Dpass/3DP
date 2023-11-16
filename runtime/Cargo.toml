@@ -77,7 +77,7 @@ poscan-api = { path = "../traits/poscan", default-features = false }
 difficulty = { package = "pallet-difficulty", path = "../pallets/difficulty", default-features = false }
 rewards = { package = "pallet-rewards", path = "../pallets/rewards", default-features = false }
 pallet-referenda = { default-features = false, path = "../pallets/referenda" }
-# pallet-assets = { default-features = false, path = "../pallets/assets" }
+pallet-asset-rate = { default-features = false, path = "../pallets/asset-rate" }
 
 # Used for the node's RPCs
 frame-system-rpc-runtime-api = { git = "https://github.com/paritytech/substrate", rev = "b0777b4c7f7", package = "frame-system-rpc-runtime-api", default-features = false }
@@ -164,6 +164,7 @@ std = [
 	"pallet-im-online/std",
 	# "pallet-offences/std",
 	"pallet-referenda/std",
+	"pallet-asset-rate/std",
 	"pallet-membership/std",
 	"pallet-conviction-voting/std",
 	"pallet-elections-phragmen/std",

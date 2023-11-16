@@ -33,3 +33,12 @@ pub trait AccountTouch<AssetId, AccountId> {
 	fn touch(asset: AssetId, who: AccountId, depositor: AccountId) -> DispatchResult;
 }
 
+/// Converts an asset balance value into balance.
+pub trait ConversionFromAssetBalance<AssetBalance, AssetId, OutBalance> {
+	type Error;
+	fn from_asset_balance(
+		balance: AssetBalance,
+		asset_id: AssetId,
+	) -> Result<OutBalance, Self::Error>;
+}
+
