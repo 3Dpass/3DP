@@ -370,16 +370,6 @@ decl_event! {
 const REWARDS_ID: LockIdentifier = *b"rewards ";
 
 impl<T: Config> Module<T> {
-	fn total_locked(author: &T::AccountId) -> BalanceOf<T> {
-		let mut total_locked: BalanceOf<T> = Zero::zero();
-		let locks = Self::reward_locks(&author);
-
-		for (_block_number, locked_balance) in &locks {
-			total_locked = total_locked.saturating_add(*locked_balance);
-		}
-		total_locked
-	}
-
 	fn do_reward(author: &T::AccountId, reward: BalanceOf<T>, when: T::BlockNumber) {
 		let miner_share = <Self as Store>::MinerShare::get()
 			.unwrap_or_else(|| T::MinerRewardsPercent::get());
@@ -408,17 +398,17 @@ impl<T: Config> Module<T> {
 				Self::deposit_event(Event::<T>::PoolExceedsLimit(author.clone(), slash_amount));
 			}
 			miner_total = miner_total.saturating_sub(slash_amount);
-			log::debug!(target: LOG_TARGET, "miner_total: {:?}", miner_total);
+			log::trace!(target: LOG_TARGET, "miner_total: {:?}", miner_total);
 
 			let pool_total = pool_stat.0 * miner_total;
-			log::debug!(target: LOG_TARGET, "pool_total: {:?}", pool_total);
+			log::trace!(target: LOG_TARGET, "pool_total: {:?}", pool_total);
 
 			let members_total = miner_total - pool_total;
 			let tot_weight: u32 = pool_stat.2.iter().map(|a| a.1).sum();
 			let mut sum_rewards: BalanceOf<T> = Zero::zero();
 			for (member_id, w) in pool_stat.2.iter() {
 				let rewards = Perbill::from_rational(*w, tot_weight) * members_total;
-				log::debug!(target: LOG_TARGET, "miner_member_reword: {:?}", rewards);
+				log::trace!(target: LOG_TARGET, "miner_member_reword: {:?}", rewards);
 				Self::do_reward_per_account(member_id, rewards, when);
 				sum_rewards = sum_rewards.saturating_add(rewards);
 			}
@@ -427,7 +417,7 @@ impl<T: Config> Module<T> {
 		Self::do_reward_per_account(author, miner_total, when);
 		let validator_total = reward - miner_total;
 
-		log::debug!(target: LOG_TARGET, "miner_reword: {:?}", miner_total);
+		log::trace!(target: LOG_TARGET, "miner_reword: {:?}", miner_total);
 
 		let validators = T::ValidatorSet::validators();
 
@@ -435,7 +425,7 @@ impl<T: Config> Module<T> {
 		let per_val = Perbill::from_rational(1, n_val as u32) * validator_total;
 
 		for val in validators.iter() {
-			log::debug!(target: LOG_TARGET, "validator_reword: {:?} for {:?}", per_val, val.encode());
+			log::trace!(target: LOG_TARGET, "validator_reword: {:?} for {:?}", per_val, val.encode());
 			Self::do_reward_per_account(val, per_val, when);
 		}
 	}
@@ -509,62 +499,6 @@ impl<T: Config> Module<T> {
 		<Self as Store>::RewardLocks::insert(author, locks);
 	}
 
-	pub fn unlock_upto(author: &T::AccountId, unlock_level: BalanceOf<T>) {
-		let mut locks = Self::reward_locks(&author);
-		let locked_amount = Self::total_locked(&author);
-
-		let mut last_block = None;
-		let mut last_amount = Zero::zero();
-		let mut blocks_to_unlock = Vec::new();
-
-		log::debug!(target: LOG_TARGET, "miner locked_amount: {:#?}", locked_amount);
-		log::debug!(target: LOG_TARGET, "unlock to level: {:#?}", unlock_level);
-
-		let mut sum_unlock = locked_amount;
-		for (block_number, locked_balance) in locks.iter() {
-			if sum_unlock >= *locked_balance {
-				blocks_to_unlock.push(*block_number);
-				sum_unlock = sum_unlock.saturating_sub(*locked_balance);
-				continue;
-			}
-
-			last_block = Some(*block_number);
-			last_amount = *locked_balance - sum_unlock;
-			sum_unlock = Zero::zero(); //locked_balance.saturating_sub(last_amount);
-
-			break
-		}
-		log::debug!(target: LOG_TARGET, "sum_unlocked: {:#?}", sum_unlock);
-
-		let new_locked = unlock_level.saturating_add(sum_unlock);
-		for block_number in blocks_to_unlock {
-			locks.remove(&block_number);
-		}
-
-		if let Some(last_block) = last_block {
-			if last_amount > Zero::zero() {
-				locks.insert(last_block, last_amount);
-			}
-		}
-		log::debug!(target: LOG_TARGET, "new_locked: {:#?}", new_locked);
-
-		if new_locked == Zero::zero()  {
-			<T as Config>::Currency::remove_lock(
-				REWARDS_ID,
-				&author,
-			);
-		}
-		else {
-			<T as Config>::Currency::set_lock(
-				REWARDS_ID,
-				&author,
-				new_locked,
-				WithdrawReasons::except(WithdrawReasons::TRANSACTION_PAYMENT),
-			);
-		}
-		<Self as Store>::RewardLocks::insert(author, locks);
-	}
-
 	fn do_mints(mints: &BTreeMap<T::AccountId, BalanceOf<T>>) {
 		for (destination, mint) in mints {
 			drop(<T as Config>::Currency::deposit_creating(&destination, *mint));
@@ -580,9 +514,5 @@ impl<T: Config> RewardLocksApi<T::AccountId, BalanceOf<T>> for Pallet<T> {
 				Zero::zero(),
 				|s, (_block_number, locked_balance)| s.saturating_add(*locked_balance)
 			)
-	}
-
-	fn unlock_upto(author: &T::AccountId, amount: BalanceOf<T>) {
-		Self::unlock_upto(author, amount);
 	}
 }
