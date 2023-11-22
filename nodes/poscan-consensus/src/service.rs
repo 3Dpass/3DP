@@ -20,12 +20,9 @@ use parking_lot::Mutex;
 use std::str::FromStr;
 use sp_keystore::{SyncCryptoStore, SyncCryptoStorePtr};
 use sp_runtime::traits::Block as BlockT;
-use sp_api::ProvideRuntimeApi;
-use sp_runtime::generic::BlockId;
 use sp_core::crypto::{Ss58Codec,UncheckedFrom, Ss58AddressFormat, set_default_ss58_version};
 use sp_core::Pair;
 use sp_consensus_poscan::{POSCAN_COIN_ID, POSCAN_ALGO_GRID2D_V3_1} ;
-use sp_consensus_poscan::PoscanApi;
 use poscan_algo::get_obj_hashes;
 use async_trait::async_trait;
 use sc_rpc::SubscriptionTaskExecutor;
@@ -427,14 +424,10 @@ pub fn new_full(
 			let worker = worker.clone();
 			let mining_pool = mining_pool.as_ref().map(|a| a.clone());
 			let pair = pair.clone();
-			let client = client.clone();
 
 			thread::spawn(move || loop {
 				let metadata = worker.metadata();
 				if let Some(metadata) = metadata {
-					let block_id = BlockId::hash(metadata.best_hash);
-					let _ = client.runtime_api().uncompleted_objects(&block_id);
-
 					let maybe_mining_prop =
 						mining_pool.clone()
 							.map(|mining_pool| {

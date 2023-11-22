@@ -1302,7 +1302,7 @@ impl pallet_atomic_swap::Config for Runtime {
 }
 
 parameter_types! {
-	pub const RewardsDefault: u128 = 100_000 * DOLLARS;
+	pub const RewardsDefault: u128 = 500 * DOLLARS;
 	pub const AuthorPartDefault: Percent = Percent::from_percent(30);
 
 }
@@ -1625,9 +1625,6 @@ impl_runtime_apis! {
 	}
 
 	impl sp_consensus_poscan::PoscanApi<Block, AccountId, BlockNumber> for Runtime {
-		fn uncompleted_objects() -> Option<Vec<(u32, Vec<u8>)>> {
-			<PoScan as PoscanApi<AccountId, BlockNumber>>::uncompleted_objects()
-		}
 		fn get_poscan_object(i: u32) -> Option<sp_consensus_poscan::ObjData<AccountId, BlockNumber>> {
 			<PoScan as PoscanApi<AccountId, BlockNumber>>::get_poscan_object(i)
 		}

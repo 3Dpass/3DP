@@ -30,7 +30,6 @@ pub trait PoscanRpcApi<BlockHash> {
 
 pub struct PoscanRpc<C, Block>
 where
-	// B: Backend<Block>,
 	Block: BlockT,
 {
 	client:   Arc<C>,
@@ -39,7 +38,6 @@ where
 
 impl<C, Block> PoscanRpc<C, Block>
 where
-	// B: Backend<Block>,
 	Block: BlockT,
 {
 	pub fn new(client: Arc<C>) -> Self {
@@ -53,18 +51,14 @@ where
 impl<C, Block> PoscanRpcApiServer<<Block as BlockT>::Hash> for PoscanRpc<C, Block>
 	where
 		Block: BlockT,
-		// Account: Send + Sync + codec::Decode + codec::Encode + 'static,
 		C: Send + Sync + 'static,
-		// C: ProvideRuntimeApi<Block>,
 		C::Api: PoscanApi<Block, AccountId, BlockNumber>,
 		C: ProvideRuntimeApi<Block> + Send + Sync + HeaderBackend<Block>,
-		// B: Backend<Block> + Send + Sync + 'static,
 {
 	fn get_poscan_object(
 		&self,
 		obj_idx: ObjIdx,
 	) -> RpcResult<Option<ObjData<AccountId, BlockNumber>>> {
-		// log::debug!(target: LOG_TARGET, "get_poscan_object called");
 		let block_id = BlockId::Hash(self.client.info().best_hash);
 		let resp = self.client.runtime_api().get_poscan_object(&block_id, obj_idx);
 		match resp {

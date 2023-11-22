@@ -1,6 +1,6 @@
 # PoScan pallet (3DPRC-2 implementation)
 
-3DPRC-2 (3Dpass Request for Comments), proposed by PaulS in September 2023, is a standard p2p protocol for the tokenization of objects operating within “The Ledger of Things” decentralized blockchain platform. Substrate based.
+[3DPRC-2](https://github.com/3Dpass/whitepaper/blob/main/3DPRC-2.md) (3Dpass Request for Comments), proposed by PaulS in September 2023, is a standard p2p protocol for the tokenization of objects operating within “The Ledger of Things” decentralized blockchain platform. Substrate based.
 
 The PoScan pallet is integrated into 3dpass network runtime providing the access to the network decentralized storage by means of the object tokenization API, which allows for:
 - the user object authentication and its protection from being copied to the extent for the recognition algorithm precision;
@@ -12,11 +12,11 @@ The PoScan pallet is integrated into 3dpass network runtime providing the access
 
 ### 1. poscan.putObject
 
-This method allows for users to put an object into the poScan storage. The object authentication procedure will be triggered, as well. Either, the object will be **Approved** or **NotApproved** as a result (see more THE OBJECT AUTHENTICATION PROTOCOL). 
+This method allows for users to put an object into the poScan storage. The object authentication procedure will be triggered, as well. Either, the object will be `Approved` or `NotApproved` as a result (see more THE OBJECT AUTHENTICATION PROTOCOL). 
 
-- If **“Approved**”, the object will be allowed for any further operation with the asset (property rights transfers, backed currency issuance, etc), and the copy protection will be applied. The object will be available on the network storage with all the authentication history data attached.
+- If `Approved`, the object will be allowed for any further operation with the asset (property rights transfers, backed currency issuance, etc), and the copy protection will be applied. The object will be available on the network storage with all the authentication history data attached.
 
-- **“NotApproved”** keeps the object and all the authentication history data available on the network storage, however, all further operations will be prohibited, and the copy protection will not be applied.
+- `NotApproved` keeps the object and all the authentication history data available on the network storage, however, all further operations will be prohibited, and the copy protection will not be applied.
 
 
 ```
@@ -60,7 +60,7 @@ curl -H "Content-Type: application/json" -d
 ```
 - Where the `"params": [0]` is the object index value
 
-The output provides “result” parameter containing the object itself and all the history related to:
+The output provides `result` parameter containing the object itself and all the history related to:
 
 ```
 {"jsonrpc":"2.0","result":
@@ -195,3 +195,8 @@ approve(
 - `author: P3D address` - block author
 - `objIdx: u32` - the object index on the poScan storage
 - `proof: Option<H256>` - zero-knowledge proof of work hash (see more THE OBJECT AUTHENTICATION PROTOCOL)
+
+### License
+License: Unlicense
+
+Copyright (C) 2023 - 3Dpass.org

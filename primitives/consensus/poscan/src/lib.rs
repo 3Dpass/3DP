@@ -130,13 +130,6 @@ pub enum CheckMemberError {
 	PoolSuspended,
 }
 
-// impl Into<CallError> for CheckMemberError {
-// 	fn into(self) -> CallError {
-// 		todo!()
-// 	}
-// }
-
-
 /// Define methods that total difficulty should implement.
 pub trait TotalDifficulty {
 	fn increment(&mut self, other: Self);
@@ -189,7 +182,6 @@ sp_api::decl_runtime_apis! {
 		BlockNum: codec::Decode + codec::Encode + TypeInfo + Member,
 		AccountId: codec::Decode + codec::Encode + TypeInfo + Member,
 	{
-		fn uncompleted_objects() -> Option<Vec<(u32, Vec<u8>)>>;
 		fn get_poscan_object(i: u32) -> Option<ObjData<AccountId, BlockNum>>;
 	}
 }
