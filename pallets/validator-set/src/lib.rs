@@ -64,6 +64,7 @@ use validator_set_api::ValidatorSetApi;
 
 const CUR_SPEC_VERSION: u32 = 101;
 const UPGRADE_SLASH_DELAY: u32 = 5 * 24 * HOURS;
+const THROW_WO_SLASH_WINDOW: u32 = 14 * 24 * HOURS;
 const LOCK_ID: LockIdentifier = *b"validatr";
 pub const LOG_TARGET: &str = "runtime::validator-set";
 const ESTIMATION_LOCK: &'static [u8] = b"validator-set::estimate";
@@ -207,6 +208,10 @@ pub mod pallet {
 	#[pallet::storage]
 	#[pallet::getter(fn penalty)]
 	pub type Penalty<T: Config> = StorageMap<_, Twox64Concat, T::AccountId, BalanceOf<T>, OptionQuery>;
+
+	#[pallet::storage]
+	#[pallet::getter(fn last_throw)]
+	pub type LastThrow<T: Config> = StorageMap<_, Twox64Concat, T::AccountId, T::BlockNumber, OptionQuery>;
 
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(super) fn deposit_event)]
@@ -1201,7 +1206,16 @@ impl<T: Config, O: Offence<(T::AccountId, T::AccountId)>>
 				continue
 			}
 
-			Self::slash(&v, val, |acc, amount| Event::<T>::ValidatorSlash(acc.clone(), amount));
+			let current_block = frame_system::Pallet::<T>::block_number();
+			let last_slash = <LastThrow<T>>::get(&v);
+			match last_slash {
+				Some(when) if current_block - when < THROW_WO_SLASH_WINDOW.into() =>
+					Self::slash(&v, val,
+						|acc, amount| Event::<T>::ValidatorSlash(acc.clone(), amount)
+					),
+				_ => {},
+			}
+			<LastThrow<T>>::insert(&v, current_block);
 			Self::mark_for_removal(v, RemoveReason::ImOnlineSlash);
 		}
 
