@@ -1232,7 +1232,9 @@ impl<T: Config, O: Offence<(T::AccountId, T::AccountId)>>
 
 impl<T: Config> ValidatorSetApi<T::AccountId, T::BlockNumber, BalanceOf::<T>> for Pallet<T> {
 	fn validators() -> Vec<T::AccountId> {
-		Self::validators()
+		pallet_session::Pallet::<T>::validators().iter()
+			.map(|v| T::AccountId::decode(&mut &v.encode()[..]).unwrap())
+			.collect()
 	}
 	fn author(block_num: T::BlockNumber) -> Option<T::AccountId> {
 		Authors::<T>::get(block_num)
