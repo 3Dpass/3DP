@@ -1,37 +1,32 @@
-# Assets Module
+# poscanAssets Module
 
-A simple, secure module for dealing with fungible assets.
+A module for dealing with fungible and non-fungible assets issued as either independent currencies (tokens) or backed tokens (currencies backed by the object, according to [3DPRC-2](https://github.com/3Dpass/whitepaper/blob/main/3DPRC-2.md) tokenization standard rules). For example, the tokenization of the object properties, such as: share (%), grams, kilograms, square meters, etc. 
+The module represents a modification of the [Assets](https://github.com/paritytech/substrate/tree/master/frame/assets) pallet provided by Substrate, so its API is quite similar. 
 
 ## Overview
 
-The Assets module provides functionality for asset management of fungible asset classes
-with a fixed supply, including:
+The poscanAssets module provides such options as:
 
 * Asset Issuance
 * Asset Transfer
 * Asset Destruction
 
-To use it in your runtime, you need to implement the assets [`assets::Config`](https://docs.rs/pallet-assets/latest/pallet_assets/pallet/trait.Config.html).
-
-The supported dispatchable functions are documented in the [`assets::Call`](https://docs.rs/pallet-assets/latest/pallet_assets/pallet/enum.Call.html) enum.
-
 ### Terminology
 
-* **Asset issuance:** The creation of a new asset, whose total supply will belong to the
+* **Asset issuance:** The creation of a new asset, which total supply will belong to the
   account that issues the asset.
 * **Asset transfer:** The action of transferring assets from one account to another.
 * **Asset destruction:** The process of an account removing its entire holding of an asset.
-* **Fungible asset:** An asset whose units are interchangeable.
-* **Non-fungible asset:** An asset for which each unit has unique characteristics.
+* **Fungible asset:** An asset, the units of which are interchangeable with one another.
+* **Non-fungible asset:** An asset representing one indivisible and unique unit. In th is particular module it stands for issuance an indivisible unit tethered to the object approved by the authentication protocol [3DPRC-2](https://github.com/3Dpass/whitepaper/blob/main/3DPRC-2.md). ERC-721 is not supported. 
 
-### Goals
+### Vision
 
-The assets system in Substrate is designed to make the following possible:
+The `poscanAssets` module allows for:
 
-* Issue a unique asset to its creator's account.
-* Move assets between accounts.
-* Remove an account's balance of an asset when requested by that account's owner and update
-  the asset's total supply.
+* Issuance of a unique asset and tether (or not to tether) it to the object previously approved by The Ledger of Things ([poScan](https://github.com/3Dpass/3DP/tree/main/pallets/poscan) module is being leveraged for the object authentication). The asset is possible to get tethered to one of the object properties like "non-fungible", "share", "grams", etc. And only one property must be chosen for the tokenization. It is prohibited to have the object tokenized twice simultaneously (ex. you cannot get tokenized both the object share and its weight, you have to pick up one). The object properties are managed by [poScan](https://github.com/3Dpass/3DP/tree/main/pallets/poscan) module, as well.
+* Moving assets among accounts.
+* The assets management - collective ownership, decision making process, etc. 
 
 ## Interface
 
@@ -52,74 +47,5 @@ Please refer to the [`Call`](https://docs.rs/pallet-assets/latest/pallet_assets/
 * `total_supply` - Get the total supply of an asset `id`.
 
 Please refer to the [`Pallet`](https://docs.rs/pallet-assets/latest/pallet_assets/pallet/struct.Pallet.html) struct for details on publicly available functions.
-
-## Usage
-
-The following example shows how to use the Assets module in your runtime by exposing public functions to:
-
-* Issue a new fungible asset for a token distribution event (airdrop).
-* Query the fungible asset holding balance of an account.
-* Query the total supply of a fungible asset that has been issued.
-
-### Prerequisites
-
-Import the Assets module and types and derive your runtime's configuration traits from the Assets module trait.
-
-### Simple Code Snippet
-
-```rust
-use pallet_assets as assets;
-use sp_runtime::ArithmeticError;
-
-#[frame_support::pallet]
-pub mod pallet {
-    use super::*;
-    use frame_support::pallet_prelude::*;
-    use frame_system::pallet_prelude::*;
-
-    #[pallet::pallet]
-    pub struct Pallet<T>(_);
-
-    #[pallet::config]
-    pub trait Config: frame_system::Config + assets::Config {}
-
-    #[pallet::call]
-    impl<T: Config> Pallet<T> {
-        pub fn issue_token_airdrop(origin: OriginFor<T>) -> DispatchResult {
-            let sender = ensure_signed(origin)?;
-
-            const ACCOUNT_ALICE: u64 = 1;
-            const ACCOUNT_BOB: u64 = 2;
-            const COUNT_AIRDROP_RECIPIENTS: u64 = 2;
-            const TOKENS_FIXED_SUPPLY: u64 = 100;
-
-            ensure!(!COUNT_AIRDROP_RECIPIENTS.is_zero(), ArithmeticError::DivisionByZero);
-
-            let asset_id = Self::next_asset_id();
-
-            <NextAssetId<T>>::mutate(|asset_id| *asset_id += 1);
-            <Balances<T>>::insert((asset_id, &ACCOUNT_ALICE), TOKENS_FIXED_SUPPLY / COUNT_AIRDROP_RECIPIENTS);
-            <Balances<T>>::insert((asset_id, &ACCOUNT_BOB), TOKENS_FIXED_SUPPLY / COUNT_AIRDROP_RECIPIENTS);
-            <TotalSupply<T>>::insert(asset_id, TOKENS_FIXED_SUPPLY);
-
-            Self::deposit_event(Event::Issued(asset_id, sender, TOKENS_FIXED_SUPPLY));
-            Ok(())
-        }
-    }
-}
-```
-
-## Assumptions
-
-Below are assumptions that must be held when using this module.  If any of
-them are violated, the behavior of this module is undefined.
-
-* The total count of assets should be less than
-  `Config::AssetId::max_value()`.
-
-## Related Modules
-
-* [`System`](https://docs.rs/frame-system/latest/frame_system/)
-* [`Support`](https://docs.rs/frame-support/latest/frame_support/)
 
 License: Apache-2.0
