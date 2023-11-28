@@ -1,5 +1,6 @@
-// This file is part of Substrate.
+// This file is part of 3Dpass.
 
+// Copyright (c) 2023 3DPass.
 // Copyright (C) 2017-2022 Parity Technologies (UK) Ltd.
 // SPDX-License-Identifier: Apache-2.0
 
@@ -15,7 +16,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-//! Various basic types for use in the assets pallet.
+//! Various basic types for use in the poscanAssets pallet.
 
 use super::*;
 use frame_support::{
