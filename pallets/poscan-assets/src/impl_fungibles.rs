@@ -1,4 +1,4 @@
-// This file is part of Substrate.
+// This file is part of 3DPass.
 
 // Copyright (c) 2023 3DPass.
 // Copyright (C) 2017-2022 Parity Technologies (UK) Ltd.
