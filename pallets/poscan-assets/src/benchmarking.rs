@@ -1,5 +1,6 @@
-// This file is part of Substrate.
+// This file is part of 3Dpass.
 
+// Copyright (c) 2023 3DPass.
 // Copyright (C) 2020-2022 Parity Technologies (UK) Ltd.
 // SPDX-License-Identifier: Apache-2.0
 
