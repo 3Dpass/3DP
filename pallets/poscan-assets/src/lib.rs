@@ -1,5 +1,6 @@
-// This file is part of Substrate.
+// This file is part of 3Dpass.
 
+// Copyright (c) 2023 3DPass.
 // Copyright (C) 2017-2022 Parity Technologies (UK) Ltd.
 // SPDX-License-Identifier: Apache-2.0
 
@@ -15,24 +16,23 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-//! # Assets Pallet
+//! # poscanAssets Pallet
 //!
-//! A simple, secure module for dealing with fungible assets.
+//! A module for dealing with fungible and non-fungible assets issued as either independent 
+//! currencies (tokens) or backed tokens (currencies backed by the object, according to 3DPRC-2 
+//! tokenization standard rules). For example, the tokenization of the object properties, such as: 
+//! share (%), grams, kilograms, square meters, etc. The module represents a modification of the 
+//! Assets pallet provided by Substrate, so its API is quite similar.
 //!
 //! ## Overview
 //!
-//! The Assets module provides functionality for asset management of fungible asset classes
-//! with a fixed supply, including:
+//! The poscanAssets module provides such options as:
 //!
 //! * Asset Issuance (Minting)
 //! * Asset Transferal
 //! * Asset Freezing
 //! * Asset Destruction (Burning)
 //! * Delegated Asset Transfers ("Approval API")
-//!
-//! To use it in your runtime, you need to implement the assets [`Config`].
-//!
-//! The supported dispatchable functions are documented in the [`Call`] enum.
 //!
 //! ### Terminology
 //!
@@ -59,17 +59,15 @@
 //! * **Sufficiency**: The idea of a minimum-balance of an asset being sufficient to allow the
 //!   account's existence on the system without requiring any other existential-deposit.
 //!
-//! ### Goals
+//! ### Vision
 //!
-//! The assets system in Substrate is designed to make the following possible:
-//!
-//! * Issue a new assets in a permissioned or permissionless way, if permissionless, then with a
-//!   deposit required.
-//! * Allow accounts to be delegated the ability to transfer assets without otherwise existing
-//!   on-chain (*approvals*).
-//! * Move assets between accounts.
-//! * Update the asset's total supply.
-//! * Allow administrative activities by specially privileged accounts including freezing account
+//! The poscanAssets module allows for:
+
+//! * Issuance of a unique asset and tether (or not to tether) it to the object previously approved by The Ledger of Things
+//! (poScan module is being leveraged for the object authentication). The asset is possible to get tethered to one of the object properties like "non-fungible", "share", "grams", etc. And only one property must be chosen for the tokenization. It is prohibited to have the object tokenized twice simultaneously (ex. you cannot get tokenized both the object share and its weight, you have to pick up one). The object properties are managed by poScan module, as well.
+//! * Moving assets among accounts.
+//! * The assets management - collective ownership, decision making process, etc.
+//! * Administrative activities by specially privileged accounts including freezing account
 //!   balances and minting/burning assets.
 //!
 //! ## Interface
@@ -112,13 +110,7 @@
 //!
 //! * `balance` - Get the asset `id` balance of `who`.
 //! * `total_supply` - Get the total supply of an asset `id`.
-//!
-//! Please refer to the [`Pallet`] struct for details on publicly available functions.
-//!
-//! ## Related Modules
-//!
-//! * [`System`](../frame_system/index.html)
-//! * [`Support`](../frame_support/index.html)
+
 
 // Ensure we're `no_std` when compiling for Wasm.
 #![cfg_attr(not(feature = "std"), no_std)]
