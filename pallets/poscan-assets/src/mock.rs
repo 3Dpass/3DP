@@ -1,5 +1,6 @@
 // This file is part of Substrate.
 
+// Copyright (c) 2023 3DPass.
 // Copyright (C) 2019-2022 Parity Technologies (UK) Ltd.
 // SPDX-License-Identifier: Apache-2.0
 
@@ -15,7 +16,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-//! Test environment for Assets pallet.
+//! Test environment for poscanAssets pallet.
 
 use super::*;
 use crate as pallet_assets;
