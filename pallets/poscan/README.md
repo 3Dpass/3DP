@@ -24,7 +24,8 @@ putObject(
        category, 
        obj, 
        numApprovals,
-       hashes
+       hashes,
+       properties
 )
 ```
 
@@ -34,7 +35,6 @@ putObject(
    - `Grid2dHigh` - Grid2d algorithm (high precision),
 - `Drawings2D`, 
 - `Music`, 
-- `Biometrics`,
 - `Biometrics`, 
 - `Movements`, 
 - `Texts`
@@ -45,6 +45,9 @@ putObject(
 
 `hashes: Option<Vec<H256>>`  - the hashes (10 at max) of the object HASH ID (ex. the top10 hashes Grid2D output)
 
+`properties: Vec<SpConsensusPoscanPropValue> (Vec<PropValue>)` - the list of the object properties, which might be used for its tokenization (Non-fungible, Share, Weight, Density, etc). Each property is defined by two parameters: 
+- `propIdx: u32` - the property index on the `poScan` module storage (ex, 0 - Non-fungible; 1 - Share)
+- `maxValue: u128` - Max Supply limit for tokens, backed by this property (might be issued afterwards, if having the object `Approved`). `maxValue: 1` is a must for the `propIdx: 0` (Non-fungible). A value in the format of `10^x` is a must for the `propIdx: 1`(Share). For example, `maxValue: 1000000` or `maxValue: 1000` are both correct, and the `maxValue: 2000000` or `maxValue: 1234567` are incorrect.   
 
 ### 2. poscan_getPoscanObject
 
@@ -136,6 +139,12 @@ The output provides `result` parameter containing the object itself and all the 
 "num_approvals":6,
 "est_rewards":70000000000000000,
 "author_rewards":30000000000000000
+"prop": [
+        {
+          "propIdx": 0,
+          "maxValue": 1
+        }
+      ]
 }
 ```
 
@@ -154,6 +163,9 @@ Whereas the following parameters supplied:
 - `numApprovals: N` - the number of confirmations ordered by user
 - `estRewards: 70,000,000,000,000,000` - the validator share of rewards in minimum indivisible units “Crumbs”, 1 Crumb = 0.0000000000001 P3D), which is to be distributed among the validators(estimators)
 - `authorRewards: 30,000,000,000,000,000` - the block author share of rewards in minimun indivisible units “Crumbs”, which is to be distributed among the the miners (approvers)
+- `prop: [{"propIdx": u32, "maxValue": u128}]` - the list of the object properties (inherent to the object).
+  - `propIdx: u32` - the property index on the `poScan` module storage (ex, `0` - Non-fungible; `1` - Share)
+  - `maxValue: u128` - Max Supply limit for tokens, backed by this property (might be issued, if having the object `Approved`).
 
 ### 3. poscan.setAlgoTime
 
