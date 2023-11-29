@@ -2,8 +2,8 @@
 
 ## A swap pallet
 
-This pallet allows assets to be converted from one type to another by means of a constant product formula.
-The pallet based is based on [Uniswap V2](https://github.com/Uniswap/v2-core) logic.
+This module allows assets to be converted from one type to another by means of a constant product formula.
+The pallet is based on [Uniswap V2](https://github.com/Uniswap/v2-core) logic.
 
 ### Overview
 
@@ -16,7 +16,7 @@ This pallet allows you to:
   - query for an exchange price via a new runtime call endpoint
   - query the size of a liquidity pool.
 
-Please see the rust module documentation for full details:
+Please see the [rust module documentation](https://docs.rs/pallet-asset-conversion/latest/pallet_asset_conversion/index.html) for full details:
 
 `cargo doc -p pallet-asset-conversion --open`
 
