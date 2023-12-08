@@ -1305,9 +1305,20 @@ impl<LocalCall> frame_system::offchain::CreateSignedTransaction<LocalCall> for R
 	}
 }
 
-impl pallet_atomic_swap::Config for Runtime {
+impl pallet_atomic_swap::Config<Instance1> for Runtime {
 	type Event = Event;
 	type SwapAction = pallet_atomic_swap::BalanceSwapAction<AccountId, Balances>;
+	type ProofLimit = ConstU32<1024>;
+}
+
+impl pallet_atomic_swap::Config<Instance2> for Runtime {
+	type Event = Event;
+	type SwapAction = pallet_poscan_assets::swap::TokenSwapAction<
+		Self,
+		Instance1,
+		AccountId,
+		<Self as pallet_poscan_assets::Config<Instance1>>::AssetId,
+	>;
 	type ProofLimit = ConstU32<1024>;
 }
 
@@ -1504,7 +1515,8 @@ construct_runtime!(
 		RankedPolls: pallet_referenda::<Instance2>,
 		RankedCollective: pallet_ranked_collective,
 		AssetConversion: pallet_asset_conversion,
-		AtomicSwap: pallet_atomic_swap,
+		AtomicSwap: pallet_atomic_swap::<Instance1>,
+		PoscanAtomicSwap: pallet_atomic_swap::<Instance2>,
 		PoScan: pallet_poscan, // ::{Pallet, Call, Storage, Event<T>, Inherent},
 		PoscanAssets: pallet_poscan_assets::<Instance1>,
 		PoscanPoolAssets: pallet_poscan_assets::<Instance2>,

@@ -84,7 +84,9 @@ pub struct AssetDetails<Balance, AccountId, DepositBalance> {
 	/// The status of the asset
 	pub(super) status: AssetStatus,
 	/// Poscan object idx if any
-	pub(super) obj_details: Option<ObjDetails<Balance>>
+	pub(super) obj_details: Option<ObjDetails<Balance>>,
+	/// Reserved amount
+	pub(super) reserved: Balance,
 }
 
 impl<Balance, AccountId, DepositBalance> AssetDetails<Balance, AccountId, DepositBalance> {

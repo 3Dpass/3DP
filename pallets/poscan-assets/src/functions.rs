@@ -684,6 +684,7 @@ impl<T: Config<I>, I: 'static> Pallet<T, I> {
 				approvals: 0,
 				status: AssetStatus::Live,
 				obj_details,
+				reserved: Zero::zero(),
 			},
 		);
 		Self::deposit_event(Event::ForceCreated { asset_id: id, owner });

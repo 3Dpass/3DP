@@ -3902,10 +3902,11 @@ dependencies = [
 [[package]]
 name = "pallet-atomic-swap"
 version = "4.0.0-dev"
-source = "git+https://github.com/paritytech/substrate?rev=b0777b4c7f7#b0777b4c7f7d8d3c635319d0153953d0a22aa58e"
 dependencies = [
  "frame-support",
  "frame-system",
+ "log",
+ "pallet-balances",
  "parity-scale-codec",
  "scale-info",
  "sp-core",
@@ -4304,6 +4305,8 @@ dependencies = [
  "frame-benchmarking",
  "frame-support",
  "frame-system",
+ "log",
+ "pallet-atomic-swap",
  "pallet-balances",
  "pallet-poscan",
  "parity-scale-codec",

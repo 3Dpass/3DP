@@ -122,13 +122,14 @@ pub mod mock;
 #[cfg(test)]
 mod tests;
 pub mod weights;
+pub mod swap;
 
 mod extra_mutator;
 pub use extra_mutator::*;
 mod functions;
 mod impl_fungibles;
 mod impl_stored_map;
-mod types;
+pub(crate) mod types;
 pub use types::*;
 
 use codec::HasCompact;
@@ -296,6 +297,17 @@ pub mod pallet {
 		ValueQuery,
 	>;
 
+	#[pallet::storage]
+	/// Reserved assets.
+	pub(super) type AccountReserved<T: Config<I>, I: 'static = ()> = StorageDoubleMap<
+		_,
+		Blake2_128Concat,
+		T::AssetId,
+		Blake2_128Concat,
+		T::AccountId,
+		T::Balance,
+	>;
+
 	#[pallet::genesis_config]
 	pub struct GenesisConfig<T: Config<I>, I: 'static = ()> {
 		/// Genesis assets: id, owner, is_sufficient, min_balance
@@ -339,6 +351,7 @@ pub mod pallet {
 						approvals: 0,
 						status: AssetStatus::Live,
 						obj_details: None,
+						reserved: Zero::zero(),
 					},
 				);
 			}
@@ -574,6 +587,7 @@ pub mod pallet {
 					approvals: 0,
 					status: AssetStatus::Live,
 					obj_details,
+					reserved: Zero::zero(),
 				},
 			);
 			Self::deposit_event(Event::Created { asset_id: id, creator: owner.clone(), owner: admin });
