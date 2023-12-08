@@ -130,6 +130,7 @@ pub mod mock;
 #[cfg(test)]
 mod tests;
 pub mod weights;
+pub mod swap;
 
 mod extra_mutator;
 pub use extra_mutator::*;
@@ -347,6 +348,7 @@ pub mod pallet {
 						approvals: 0,
 						status: AssetStatus::Live,
 						obj_details: None,
+						reserved: Zero::zero(),
 					},
 				);
 			}
@@ -582,6 +584,7 @@ pub mod pallet {
 					approvals: 0,
 					status: AssetStatus::Live,
 					obj_details,
+					reserved: Zero::zero(),
 				},
 			);
 			Self::deposit_event(Event::Created { asset_id: id, creator: owner.clone(), owner: admin });

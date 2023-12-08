@@ -22,6 +22,7 @@ sp-runtime = { default-features = false, git = "https://github.com/paritytech/su
 frame-support = { default-features = false, git = "https://github.com/paritytech/substrate", rev = "b0777b4c7f7" }
 # `system` module provides us with all sorts of useful stuff and macros depend on it being around.
 frame-system = { default-features = false, git = "https://github.com/paritytech/substrate", rev = "b0777b4c7f7" }
+pallet-atomic-swap = { path = "../atomic-swap", default-features = false }
 frame-benchmarking = { default-features = false, git = "https://github.com/paritytech/substrate", rev = "b0777b4c7f7", optional = true }
 pallet-poscan = { path = "../poscan", default-features = false }
 sp-consensus-poscan = { path = "../../primitives/consensus/poscan", default-features = false }
@@ -47,6 +48,7 @@ std = [
 	"pallet-poscan/std",
 	"poscan-api/std",
 	"sp-consensus-poscan/std",
+	"pallet-atomic-swap/std",
 ]
 runtime-benchmarks = [
 	"frame-benchmarking/runtime-benchmarks",
