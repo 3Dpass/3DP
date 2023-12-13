@@ -82,7 +82,7 @@ pub type HashedProof = [u8; 32];
 /// succeeds with best efforts.
 /// - **Claim**: claim any resources reserved in the first phrase.
 /// - **Cancel**: cancel any resources reserved in the first phrase.
-pub trait SwapAction<AccountId, T: Config<I>, I: 'static> {
+pub trait SwapAction<AccountId, T: frame_system::Config> {
 	/// Reserve the resources needed for the swap, from the given `source`. The reservation is
 	/// allowed to fail. If that is the case, the the full swap creation operation is cancelled.
 	fn reserve(&self, source: &AccountId) -> DispatchResult;
@@ -134,7 +134,7 @@ where
 	}
 }
 
-impl<T: Config<I>, AccountId, C, I: 'static> SwapAction<AccountId, T, I> for BalanceSwapAction<AccountId, C>
+impl<T: frame_system::Config, AccountId, C> SwapAction<AccountId, T> for BalanceSwapAction<AccountId, C>
 where
 	C: ReservableCurrency<AccountId>,
 {
@@ -169,7 +169,7 @@ pub mod pallet {
 		/// The overarching event type.
 		type Event: From<Event<Self, I>> + IsType<<Self as frame_system::Config>::Event>;
 		/// Swap action.
-		type SwapAction: SwapAction<Self::AccountId, Self, I> + Parameter + MaxEncodedLen;
+		type SwapAction: SwapAction<Self::AccountId, Self> + Parameter + MaxEncodedLen;
 		/// Limit of proof size.
 		///
 		/// Atomic swap is only atomic if once the proof is revealed, both parties can submit the

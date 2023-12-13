@@ -1313,10 +1313,11 @@ impl pallet_atomic_swap::Config<Instance1> for Runtime {
 
 impl pallet_atomic_swap::Config<Instance2> for Runtime {
 	type Event = Event;
-	type SwapAction = pallet_poscan_assets::swap::BalanceSwapAction<
+	type SwapAction = pallet_poscan_assets::swap::TokenSwapAction<
+		Self,
+		Instance1,
 		AccountId,
 		<Self as pallet_poscan_assets::Config<Instance1>>::AssetId,
-		<Self as pallet_poscan_assets::Config<Instance1>>::Balance,
 	>;
 	type ProofLimit = ConstU32<1024>;
 }

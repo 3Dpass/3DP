@@ -137,7 +137,7 @@ pub use extra_mutator::*;
 mod functions;
 mod impl_fungibles;
 mod impl_stored_map;
-mod types;
+pub(crate) mod types;
 pub use types::*;
 
 use codec::HasCompact;
@@ -303,6 +303,17 @@ pub mod pallet {
 		T::AssetId,
 		AssetMetadata<DepositBalanceOf<T, I>, BoundedVec<u8, T::StringLimit>>,
 		ValueQuery,
+	>;
+
+	#[pallet::storage]
+	/// Reserved assets.
+	pub(super) type AccountReserved<T: Config<I>, I: 'static = ()> = StorageDoubleMap<
+		_,
+		Blake2_128Concat,
+		T::AssetId,
+		Blake2_128Concat,
+		T::AccountId,
+		T::Balance,
 	>;
 
 	#[pallet::genesis_config]
