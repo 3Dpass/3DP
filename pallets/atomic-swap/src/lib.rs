@@ -296,6 +296,8 @@ pub mod pallet {
 			let target = ensure_signed(origin)?;
 			let hashed_proof = blake2_256(&proof);
 
+			log::debug!(target: "atomic-swap", "Hashed proof: {:#?}", &hashed_proof);
+
 			let swap =
 				PendingSwaps::<T, I>::get(&target, hashed_proof).ok_or(Error::<T, I>::InvalidProof)?;
 			ensure!(swap.action == action, Error::<T, I>::ClaimActionMismatch);
