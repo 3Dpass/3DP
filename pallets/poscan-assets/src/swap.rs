@@ -54,9 +54,9 @@ impl<T: pallet::Config<I>, I: 'static> SwapAction<T::AccountId, T> for TokenSwap
     fn reserve(&self, source: &T::AccountId) -> DispatchResult {
         // let _ = pallet::Asset::<T, I>::get(self.asset_id.clone());
 
-        if let Some(_) = pallet::AccountReserved::<T, I>::get(self.asset_id.clone(), (*source).clone()) {
-            return Err(Error::<T, I>::AlreadyExists.into())
-        }
+        // if let Some(_) = pallet::AccountReserved::<T, I>::get(self.asset_id.clone(), (*source).clone()) {
+        //     return Err(Error::<T, I>::AlreadyExists.into())
+        // }
 
         pallet::Account::<T, I>::try_mutate(self.asset_id.clone(), (*source).clone(), |maybe_account| -> DispatchResult {
             let asset_acc = maybe_account.as_mut().ok_or(Error::<T, I>::NoAccount)?;
