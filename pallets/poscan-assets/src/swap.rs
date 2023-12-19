@@ -93,7 +93,7 @@ impl<T: pallet::Config<I>, I: 'static> SwapAction<T::AccountId, T> for TokenSwap
             pallet::Account::<T, I>::insert(self.asset_id.clone(), (*source).clone(), &asset_acc);
 
             let f = super::types::TransferFlags { keep_alive: false, best_effort: false, burn_dust: false };
-            let transferred = pallet::Pallet::<T, I>::do_transfer(self.asset_id.clone(), source, target, self.value, Some((*target).clone()), f);
+            let transferred = pallet::Pallet::<T, I>::do_transfer(self.asset_id.clone(), source, target, self.value, Some((*source).clone()), f);
             log::debug!(target: "atomic-swap", "transferred: {:?}", &transferred);
             if transferred.is_ok() {
                 pallet::AccountReserved::<T, I>::remove(self.asset_id.clone(), (*source).clone());
