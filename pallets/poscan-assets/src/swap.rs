@@ -68,7 +68,7 @@ impl<T: pallet::Config<I>, I: 'static> SwapAction<T::AccountId, T> for TokenSwap
                 return Err(Error::<T, I>::BalanceLow.into())
             }
 
-            asset_acc.balance.saturating_sub(self.value);
+            asset_acc.balance.saturating_reduce(self.value);
             pallet::AccountReserved::<T, I>::insert(self.asset_id.clone(), (*source).clone(), self.value);
 
             Ok(())
@@ -79,19 +79,31 @@ impl<T: pallet::Config<I>, I: 'static> SwapAction<T::AccountId, T> for TokenSwap
 
     fn claim(&self, source: &T::AccountId, target: &T::AccountId) -> bool {
         if let Some(_reserved) = pallet::AccountReserved::<T, I>::get(self.asset_id.clone(), (*source).clone()) {
-            pallet::Account::<T, I>::try_mutate(self.asset_id.clone(), (*source).clone(), |maybe_account| -> DispatchResult {
-                ensure!(maybe_account.is_some(), Error::<T, I>::NoAccount);
-                self.cancel(source);
+            let maybe_account = pallet::Account::<T, I>::get(self.asset_id.clone(), (*source).clone());
 
-                pallet::Account::<T, I>::try_mutate(self.asset_id.clone(), (*target).clone(), |_maybe_account| -> DispatchResult {
-                    let f = super::types::TransferFlags { keep_alive: false, best_effort: false, burn_dust: false };
-                    pallet::Pallet::<T, I>::do_transfer(self.asset_id.clone(), source, target, self.value, Some((*target).clone()), f).map(|_| ())
-                })
-            }).map_or_else(|_| self.reserve(source).is_ok(), |_| true)
+            let mut asset_acc = match maybe_account {
+                Some(asset_acc) => asset_acc,
+                None => {
+                    log::debug!(target: "atomic-swap", "claim: no source account");
+                    return false
+                },
+            };
+
+            asset_acc.balance.saturating_accrue(self.value);
+            pallet::Account::<T, I>::insert(self.asset_id.clone(), (*source).clone(), &asset_acc);
+
+            let f = super::types::TransferFlags { keep_alive: false, best_effort: false, burn_dust: false };
+            let transferred = pallet::Pallet::<T, I>::do_transfer(self.asset_id.clone(), source, target, self.value, Some((*target).clone()), f);
+            log::debug!(target: "atomic-swap", "transferred: {:?}", &transferred);
+            if transferred.is_ok() {
+                pallet::AccountReserved::<T, I>::remove(self.asset_id.clone(), (*source).clone());
+                return true
+            }
+            asset_acc.balance.saturating_reduce(self.value);
+            pallet::Account::<T, I>::insert(self.asset_id.clone(), (*source).clone(), &asset_acc);
+            pallet::AccountReserved::<T, I>::insert(self.asset_id.clone(), (*source).clone(), self.value);
         }
-        else {
-            false
-        }
+        false
     }
 
     fn weight(&self) -> Weight {
@@ -102,7 +114,7 @@ impl<T: pallet::Config<I>, I: 'static> SwapAction<T::AccountId, T> for TokenSwap
         if let Some(_reserved) = pallet::AccountReserved::<T, I>::get(self.asset_id.clone(), (*source).clone()) {
             let _ = pallet::Account::<T, I>::try_mutate(self.asset_id.clone(), (*source).clone(), |maybe_account| -> DispatchResult {
                 let asset_acc = maybe_account.as_mut().ok_or(Error::<T, I>::NoAccount)?;
-                asset_acc.balance.saturating_add(asset_acc.balance);
+                asset_acc.balance.saturating_accrue(self.value);
                 pallet::AccountReserved::<T, I>::remove(self.asset_id.clone(), (*source).clone());
 
                 Ok(())
