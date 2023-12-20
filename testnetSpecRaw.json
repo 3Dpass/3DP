@@ -3,6 +3,7 @@
   "id": "3dpass-test",
   "chainType": "Live",
   "bootNodes": [
+    "/ip4/94.130.69.234/tcp/30355/p2p/12D3KooWSdfKXSwXxLB1DaBbCCmYHX7kkvP7cJWkwQoY7B2bWVSP"
   ],
   "telemetryEndpoints": [
     [
