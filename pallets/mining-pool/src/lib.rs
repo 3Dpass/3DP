@@ -529,6 +529,8 @@ pub mod pallet {
 		fn validate_unsigned(_source: TransactionSource, call: &Self::Call) -> TransactionValidity {
 			if let Call::submit_mining_stat { mining_stat, signature } = call {
 				let pool_id = &mining_stat.pool_id;
+				ensure!(<Pools<T>>::contains_key(&pool_id), InvalidTransaction::BadProof);
+
 				let authority_id = T::PoolAuthorityId::decode(&mut &pool_id.encode()[..]).unwrap();
 
 				log::debug!(target: LOG_TARGET, "validate_unsigned for pool");
@@ -539,6 +541,17 @@ pub mod pallet {
 
 				if !signature_valid {
 					log::debug!(target: LOG_TARGET, "validate_unsigned::InvalidTransaction::BadProof");
+					return InvalidTransaction::BadProof.into()
+				}
+
+				let stat_members: Vec<T::AccountId> = mining_stat.pow_stat.iter().map(|ps| ps.0.clone()).collect();
+				if (1..stat_members.len()).any(|i| stat_members[i..].contains(&stat_members[i - 1])) {
+					return InvalidTransaction::BadProof.into()
+				}
+
+				let pool_members = <Pools<T>>::get(&pool_id);
+
+				if !stat_members.iter().all(|sm| pool_members.contains(&sm)) {
 					return InvalidTransaction::BadProof.into()
 				}
 
