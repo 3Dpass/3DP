@@ -403,19 +403,22 @@ impl<T: Config> Module<T> {
 			let pool_total = pool_stat.0 * miner_total;
 			log::trace!(target: LOG_TARGET, "pool_total: {:?}", pool_total);
 
-			let members_total = miner_total - pool_total;
-			let tot_weight: u32 = pool_stat.2.iter().map(|a| a.1).sum();
-			let mut sum_rewards: BalanceOf<T> = Zero::zero();
+			let members_total = miner_total.saturating_sub(pool_total);
+			let sum_weight = pool_stat.2.iter().map(|a| a.1 as u64).sum();
+			let tot_weight = if sum_weight == 0 { pool_stat.2.iter().count() as u64 } else { sum_weight };
+
+			let mut payed_rewards: BalanceOf<T> = Zero::zero();
 			for (member_id, w) in pool_stat.2.iter() {
-				let rewards = Perbill::from_rational(*w, tot_weight) * members_total;
+				let w = if sum_weight == 0 { 1 } else { *w };
+				let rewards = Perbill::from_rational(w as u64, tot_weight) * members_total;
 				log::trace!(target: LOG_TARGET, "miner_member_reword: {:?}", rewards);
-				Self::do_reward_per_account(member_id, rewards, when);
-				sum_rewards = sum_rewards.saturating_add(rewards);
+				Self::do_reward_per_account(&member_id, rewards, when);
+				payed_rewards = payed_rewards.saturating_add(rewards);
 			}
-			miner_total = pool_total.saturating_add(members_total - sum_rewards);
+			miner_total = pool_total.saturating_add(members_total.saturating_sub(payed_rewards));
 		}
 		Self::do_reward_per_account(author, miner_total, when);
-		let validator_total = reward - miner_total;
+		let validator_total = reward.saturating_sub(miner_total);
 
 		log::trace!(target: LOG_TARGET, "miner_reword: {:?}", miner_total);
 
