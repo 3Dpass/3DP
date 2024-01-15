@@ -110,24 +110,21 @@ pub type AuthIndex = u32;
 // use crate::sr25519::PoolAuthorityId;
 
 #[derive(Encode, Decode, Clone, PartialEq, Eq, RuntimeDebug, TypeInfo)]
-pub struct MiningStat<AccountId>
+pub struct MiningStat<AccountId, BlockNumber>
 	where
-	 	//BlockNumber: PartialEq + Eq + Decode + Encode,
-	 	AccountId: PartialEq + Eq + Decode + Encode,
+		BlockNumber: PartialEq + Eq + Decode + Encode,
+		AccountId: PartialEq + Eq + Decode + Encode,
 {
-	/// Block number at the time heartbeat is created..
-	// pub block_number: BlockNumber,
+	/// Block number at the time statics transaction is created..
+	pub block_number: BlockNumber,
 	/// A state of local network (peer id and external addresses)
 	pub network_state: OpaqueNetworkState,
-	/// Index of the current session.
-	// pub session_index: SessionIndex,
-	/// An index of the authority on the list of validators.
+	/// An index of the authority
 	pub authority_index: AuthIndex,
-	/// The length of session validator set
-	// pub validators_len: u32,
+	/// Id of the pool
 	pub pool_id: AccountId,
+	/// Members statistics
 	pub pow_stat: Vec<(AccountId, u32)>,
-	// public: Public,
 }
 
 // #[derive(Encode, Decode, Clone, PartialEq, Eq, RuntimeDebug, TypeInfo)]
@@ -504,7 +501,7 @@ pub mod pallet {
 		#[pallet::weight(0)]
 		pub fn submit_mining_stat(
 			origin: OriginFor<T>,
-			mining_stat: MiningStat<T::AccountId>,
+			mining_stat: MiningStat<T::AccountId, T::BlockNumber>,
 			_signature: <T::PoolAuthorityId as RuntimeAppPublic>::Signature,
 		) -> DispatchResultWithPostInfo {
 			log::debug!(target: LOG_TARGET, "submit_mining_stat");
@@ -541,6 +538,12 @@ pub mod pallet {
 
 				if !signature_valid {
 					log::debug!(target: LOG_TARGET, "validate_unsigned::InvalidTransaction::BadProof");
+					return InvalidTransaction::BadProof.into()
+				}
+
+				let current_block = frame_system::Pallet::<T>::block_number();
+				if current_block > mining_stat.block_number + 3u32.into() {
+					log::debug!(target: LOG_TARGET, "validate_unsigned: transaction is too old");
 					return InvalidTransaction::BadProof.into()
 				}
 
@@ -842,7 +845,8 @@ impl<T: Config> Pallet<T> {
 				};
 			}
 
-			let mut mining_stat = MiningStat { authority_index: 0, network_state, pool_id, pow_stat };
+			let block_number = frame_system::Pallet::<T>::block_number();
+			let mut mining_stat = MiningStat { block_number, authority_index: 0, network_state, pool_id, pow_stat };
 
 			log::debug!(target: LOG_TARGET, "Sign mining_stat call");
 			let signature = pool_key.sign(&mining_stat.encode()).ok_or("OffchainErr::FailedSigning")?;
