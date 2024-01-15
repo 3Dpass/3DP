@@ -454,7 +454,7 @@ impl rewards::GenerateRewardLocks<Runtime> for GenerateRewardLocks {
 		lock_parameters: Option<rewards::LockParameters>,
 	) -> BTreeMap<BlockNumber, Balance> {
 		let mut locks = BTreeMap::new();
-		let locked_reward = total_reward.saturating_sub(1 * DOLLARS);
+		let locked_reward = total_reward.saturating_sub(1 * DOLLARS / 1000);
 
 		if locked_reward > 0 {
 			let total_lock_period: BlockNumber;
