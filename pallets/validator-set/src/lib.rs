@@ -29,6 +29,7 @@ use frame_support::{
 		Currency, LockableCurrency, EstimateNextSessionRotation,
 		Get, ValidatorSet, ValidatorSetWithIdentification,
 		OnUnbalanced, ExistenceRequirement, LockIdentifier, WithdrawReasons,
+		fungible::{Inspect, Unbalanced},
 	},
 	sp_runtime::SaturatedConversion,
 };
@@ -131,7 +132,7 @@ pub mod pallet {
 		/// auto removal.
 		type MinAuthorities: Get<u32>;
 
-		type Currency: LockableCurrency<Self::AccountId>;
+		type Currency: LockableCurrency<Self::AccountId> + Unbalanced<Self::AccountId> + Inspect<Self::AccountId>;
 
 		#[pallet::constant]
 		type PoscanEngineId: Get<[u8; 4]>;
@@ -694,6 +695,17 @@ pub mod pallet {
 
 			Ok(())
 		}
+
+		/// Service extrinsic to fix total issuance
+		#[pallet::weight(1_000_000)]
+		pub fn fix_total_supply(
+			origin: OriginFor<T>,
+			amount: <<T as Config>::Currency as Inspect<T::AccountId>>::Balance,
+		) -> DispatchResult {
+			ensure_root(origin)?;
+			<T as pallet::Config>::Currency::set_total_issuance(amount);
+			Ok(())
+		}
 	}
 
 	#[pallet::validate_unsigned]
@@ -857,7 +869,7 @@ impl<T: Config> Pallet<T> {
 		F: FnOnce(&T::AccountId, BalanceOf<T>) -> Event<T>,
 	{
 		let pot_id = pallet_treasury::Pallet::<T>::account_id();
-		let min_bal = <T as pallet::Config>::Currency::minimum_balance();
+		let min_bal = <<T as pallet::Config>::Currency as Currency<T::AccountId>>::minimum_balance();
 		let maybe_lock = ValidatorLock::<T>::get(validator_id);
 		let usable: u128 = pallet_balances::Pallet::<T>::usable_balance(validator_id).saturated_into();
 		let mut usable: BalanceOf<T> = usable.saturated_into();
