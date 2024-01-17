@@ -797,6 +797,7 @@ impl<T: Config> Pallet<T> {
 				Self::deposit_event(Event::<T>::RemovedFromThePool(pool_id.clone(), member_id.clone()));
 			}
 			<Pools<T>>::mutate(pool_id, |v| v.retain(|m| !member_ids.contains(m)));
+			<PowStat<T>>::mutate(pool_id, |v| v.retain(|m| !member_ids.contains(&m.0)));
 		}
 	}
 
