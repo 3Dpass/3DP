@@ -146,13 +146,19 @@ impl IdentInfo {
 
 impl PartialEq for IdentInfo {
 	fn eq(&self, other: &Self) -> bool {
-		if let (Some(a), Some(b)) = (self.email.as_ref(), other.email.as_ref()) { a == b }
-		else if let (Some(a), Some(b)) = (self.twitter.as_ref(), other.twitter.as_ref()) { a == b }
-		else if let (Some(a), Some(b)) = (self.discord.as_ref(), other.discord.as_ref()) { a == b }
-		else if let (Some(a), Some(b)) = (self.telegram.as_ref(), other.telegram.as_ref()) { a == b }
-		else {
-			false
-		}
+		macro_rules! cmp_eq_option {
+			($left:expr, $right:expr) => {{
+				match (&$left, &$right) {
+					(Some(left_val), Some(right_val)) => *left_val == *right_val,
+					_ => false,
+				}
+			}};
+		};
+
+		cmp_eq_option!(self.email, other.email) ||
+		cmp_eq_option!(self.twitter, other.twitter) ||
+		cmp_eq_option!(self.discord, other.discord) ||
+		cmp_eq_option!(self.telegram, other.telegram)
 	}
 }
 
