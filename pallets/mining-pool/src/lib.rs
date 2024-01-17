@@ -617,7 +617,7 @@ impl<T: Config> Pallet<T> {
 
 	fn allow_join(pool_id: &T::AccountId, account_id: &T::AccountId) -> DispatchResult {
 		let with_kyc = PoolMode::<T>::get(&pool_id);
-		let res = Self::check_identity(pool_id, with_kyc)
+		let res = Self::check_identity(account_id, with_kyc)
 			.and_then(|ident| Self::check_duplicates(account_id, ident))
 			.map_err(|e| Error::<T>::from(e).into());
 		res
