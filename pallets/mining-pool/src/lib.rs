@@ -510,6 +510,7 @@ pub mod pallet {
 			let pool_id = mining_stat.pool_id;
 
 			ensure!(<Pools<T>>::contains_key(&pool_id), Error::<T>::PoolNotFound);
+			ensure!(!<SuspendedPools<T>>::get().contains(&pool_id), Error::<T>::PoolSuspended);
 
 			let pool = <Pools<T>>::get(&pool_id);
 			let mut members: Vec<(T::AccountId, u32)> = mining_stat.pow_stat.into_iter().filter(|ms| pool.contains(&ms.0)).collect();
@@ -527,6 +528,7 @@ pub mod pallet {
 			if let Call::submit_mining_stat { mining_stat, signature } = call {
 				let pool_id = &mining_stat.pool_id;
 				ensure!(<Pools<T>>::contains_key(&pool_id), InvalidTransaction::BadProof);
+				ensure!(!<SuspendedPools<T>>::get().contains(&pool_id), InvalidTransaction::BadProof);
 
 				let authority_id = T::PoolAuthorityId::decode(&mut &pool_id.encode()[..]).unwrap();
 
@@ -819,6 +821,9 @@ impl<T: Config> Pallet<T> {
 
 		if member_ids.len() == 0 {
 			return Err("Pool is empty")
+		}
+		if <SuspendedPools<T>>::get().contains(&pool_id) {
+			return Err("Pool is suspended");
 		}
 
 		let mut pow_stat = Vec::new();
