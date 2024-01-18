@@ -278,6 +278,7 @@ pub mod pallet {
 									obj_data.state = ObjectState::NotApproved(now);
 									obj_data.est_outliers = Self::outliers(&obj_data.estimators);
 									Self::deposit_event(Event::ObjNotApproved(obj_idx, NotApprovedReason::Expired));
+
 								},
 								ObjectState::Created(_) => {
 									obj_data.state = ObjectState::Estimating(now);
@@ -409,7 +410,10 @@ pub mod pallet {
 			if free < lock_amount {
 				return Err(Error::<T>::UnsufficientBalance.into());
 			}
-			Self::set_lock(&acc, lock_amount);
+
+			let tot_locked= AccountLock::<T>::get(&acc);
+			let new_locked = tot_locked.saturating_add(lock_amount);
+			Self::set_lock(&acc, new_locked);
 
 			let hashes = match hashes {
 				Some(hashes) => hashes,
