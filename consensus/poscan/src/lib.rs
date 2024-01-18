@@ -79,7 +79,7 @@ use sp_consensus_poscan::{
 	DifficultyApi,
 	MAX_MINING_OBJ_LEN,
 	SUPPORTED_ALGORITHMS,
-	POSCAN_ALGO_GRID2D_V3_1,
+	POSCAN_ALGO_GRID2D_V3A,
 	REJECT_OLD_ALGO_SINCE,
 };
 
@@ -521,7 +521,7 @@ impl<B, I, C, S, Algorithm, CAW, CIDP> BlockImport<B> for PowBlockImport<B, I, C
 			return Err(Error::<B>::Other("Unknown algorithm".to_string()).into());
 		}
 		let block_num = *block.header.number();
-		if block_num > REJECT_OLD_ALGO_SINCE.into() && *alg_id != POSCAN_ALGO_GRID2D_V3_1 {
+		if block_num > REJECT_OLD_ALGO_SINCE.into() && *alg_id != POSCAN_ALGO_GRID2D_V3A {
 			return Err(Error::<B>::Other("Unsupported algorithm".to_string()).into());
 		}
 		let hs: Vec<H256> = pscan_hashes[16..].chunks(32).map(H256::from_slice).collect();
