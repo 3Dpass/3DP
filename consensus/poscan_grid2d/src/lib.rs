@@ -12,7 +12,7 @@ use sp_runtime::traits::Block as BlockT;
 // use frame_support::sp_runtime::print as prn;
 // use frame_support::runtime_print;
 use sc_consensus_poscan::app;
-use sp_consensus_poscan::POSCAN_ALGO_GRID2D_V3_1;
+use sp_consensus_poscan::{POSCAN_ALGO_GRID2D_V3_1, POSCAN_ALGO_GRID2D_V3A, REJECT_OLD_ALGO_SINCE};
 use poscan_algo::get_obj_hashes;
 use log::*;
 
@@ -222,8 +222,20 @@ where
 			return Ok(false)
 		}
 
-		let h = if poscan_data.alg_id == POSCAN_ALGO_GRID2D_V3_1 { pre_hash } else { parent };
-		let hashes = get_obj_hashes(&poscan_data.alg_id, &poscan_data.obj, h);
+		let h =
+			if poscan_data.alg_id == POSCAN_ALGO_GRID2D_V3_1
+				|| poscan_data.alg_id == POSCAN_ALGO_GRID2D_V3A {
+				pre_hash
+			}
+			else {
+				parent
+			};
+
+		let parent_id = BlockId::<B>::hash(*parent);
+		let parent_num = self.client.block_number_from_id(&parent_id).unwrap().unwrap();
+		let patch_rot = parent_num >= REJECT_OLD_ALGO_SINCE.into();
+
+		let hashes = get_obj_hashes(&poscan_data.alg_id, &poscan_data.obj, h, patch_rot);
 		if hashes != poscan_data.hashes {
 			info!(">>> verify: hashes != poscan_data.hashes");
 			return Ok(false)

@@ -22,7 +22,12 @@ use sp_keystore::{SyncCryptoStore, SyncCryptoStorePtr};
 use sp_runtime::traits::Block as BlockT;
 use sp_core::crypto::{Ss58Codec,UncheckedFrom, Ss58AddressFormat, set_default_ss58_version};
 use sp_core::Pair;
-use sp_consensus_poscan::{POSCAN_COIN_ID, POSCAN_ALGO_GRID2D_V3_1} ;
+use sp_consensus_poscan::{
+	POSCAN_COIN_ID,
+	POSCAN_ALGO_GRID2D_V3_1,
+	POSCAN_ALGO_GRID2D_V3A,
+	REJECT_OLD_ALGO_SINCE,
+};
 use poscan_algo::get_obj_hashes;
 use async_trait::async_trait;
 use sc_rpc::SubscriptionTaskExecutor;
@@ -424,6 +429,7 @@ pub fn new_full(
 			let worker = worker.clone();
 			let mining_pool = mining_pool.as_ref().map(|a| a.clone());
 			let pair = pair.clone();
+			let client = client.clone();
 
 			thread::spawn(move || loop {
 				let metadata = worker.metadata();
@@ -443,14 +449,21 @@ pub fn new_full(
 							});
 
 					if let Some(mp) = maybe_mining_prop {
-						let hashes = get_obj_hashes(&POSCAN_ALGO_GRID2D_V3_1, &mp.pre_obj, &metadata.pre_hash);
+						use sp_api::BlockId;
+						use sp_blockchain::HeaderBackend;
+						let parent_id = BlockId::<Block>::hash(metadata.best_hash);
+						let parent_num = client.block_number_from_id(&parent_id).unwrap().unwrap();
+						let patch_rot = parent_num >= REJECT_OLD_ALGO_SINCE.into();
+						let mining_algo = if patch_rot { &POSCAN_ALGO_GRID2D_V3A } else { &POSCAN_ALGO_GRID2D_V3_1 };
+
+						let hashes = get_obj_hashes(mining_algo, &mp.pre_obj, &metadata.pre_hash, patch_rot);
 						if hashes.len() > 0 {
 							let obj_hash = hashes[0];
 							let dh = DoubleHash { pre_hash: metadata.pre_hash, obj_hash };
 							let poscan_hash = dh.calc_hash();
 							let mut psdata = PoscanData {
-								alg_id: POSCAN_ALGO_GRID2D_V3_1,
-								hashes,
+								alg_id: mining_algo.clone(),
+								hashes: hashes.clone(),
 								obj:
 								mp.pre_obj.clone(),
 							};
@@ -465,7 +478,6 @@ pub fn new_full(
 							let seal = compute.seal(signature.clone());
 							if hash_meets_difficulty(&seal.work, seal.difficulty) {
 								info!(">>> hash_meets_difficulty: submit it: {}, {}, {}",  &seal.work, &seal.poscan_hash, &seal.difficulty);
-								let hashes = get_obj_hashes(&POSCAN_ALGO_GRID2D_V3_1, &mp.pre_obj, &metadata.pre_hash);
 								psdata.hashes = hashes;
 
 								let _ = futures::executor::block_on(worker.submit(seal.encode(), &psdata));

@@ -100,7 +100,7 @@ impl MiningPool {
         sp
     }
 
-    pub(crate) fn try_push(&mut self, sp: ShareProposal) -> PoolResult<()> {
+    pub(crate) fn try_push(&mut self, sp: ShareProposal, patch_rot: bool) -> PoolResult<()> {
         let member_set = self.hist_hashes.get_mut(&sp.member_id);
         if let Some(member_set) = member_set {
             if member_set.contains(&sp.hash) {
@@ -121,6 +121,7 @@ impl MiningPool {
             sp.pre_hash,
             sp.parent_hash,
             sp.share_dfclty,
+            patch_rot,
         )?;
 
         if should_submit {
@@ -143,6 +144,7 @@ impl MiningPool {
         parent_hash:
         H256,
         dfclty: U256,
+        patch_rot: bool,
     ) -> PoolResult<bool> {
         // type Signature = sp_core::sr25519::Signature;
         // type PublicKey = sp_core::sr25519::Public;
@@ -179,7 +181,7 @@ impl MiningPool {
             return Err(PoolError::NotAccepted);
         }
 
-        let hashes = get_obj_hashes(&alg_id, &Vec::from(obj), &pre_hash);
+        let hashes = get_obj_hashes(&alg_id, &Vec::from(obj), &pre_hash, patch_rot);
 
         if hashes.len() > 0 && hashes[0] != hash {
             log::info!(">>> pool verify: provided hashes are invalid");

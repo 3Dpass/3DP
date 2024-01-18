@@ -75,11 +75,11 @@ pub enum Error {
 #[runtime_interface]
 pub trait HashableObject {
 	fn calc_obj_hashes(ver: &[u8; 16], data: &[u8], pre: &H256) -> Vec<H256> {
-		get_obj_hashes(ver, data, pre)
+		get_obj_hashes(ver, data, pre, false)
 	}
 
 	fn calc_obj_hashes_n(ver: &[u8; 16], data: &[u8], pre: &H256, n: u32) -> Vec<H256> {
-		get_obj_hashes_n(ver, data, pre, n as usize)
+		get_obj_hashes_n(ver, data, pre, n as usize, false)
 	}
 
 	fn is_light() -> Result<bool, Error> {
@@ -153,7 +153,7 @@ pub trait HashableObject {
 		let d = Vec::from(data);
 		let handler = thread::spawn(move || {
 			let bgn = SystemTime::now();
-			let hashes = get_obj_hashes(&v, &d, &H256::default());
+			let hashes = get_obj_hashes(&v, &d, &H256::default(), false);
 			// *res.lock() = 1;
 			(SystemTime::now().duration_since(bgn).unwrap(), hashes)
 		});
@@ -171,12 +171,12 @@ pub trait HashableObject {
 }
 
 #[cfg(feature = "std")]
-pub fn get_obj_hashes(ver: &[u8; 16], data: &[u8], pre: &H256) -> Vec<H256> {
-	get_obj_hashes_n(ver, data, pre, 10)
+pub fn get_obj_hashes(ver: &[u8; 16], data: &[u8], pre: &H256, patch_rot: bool) -> Vec<H256> {
+	get_obj_hashes_n(ver, data, pre, 10, patch_rot)
 }
 
 #[cfg(feature = "std")]
-pub fn get_obj_hashes_n(ver: &[u8; 16], data: &[u8], pre: &H256, depth: usize) -> Vec<H256> {
+pub fn get_obj_hashes_n(ver: &[u8; 16], data: &[u8], pre: &H256, depth: usize, patch_rot: bool) -> Vec<H256> {
 	let mut buf: Vec<H256> = Vec::new();
 	let mut obj = data.to_vec();
 	if data[..4] == vec![b'l', b'z', b's', b's'] {
@@ -192,7 +192,20 @@ pub fn get_obj_hashes_n(ver: &[u8; 16], data: &[u8], pre: &H256, depth: usize) -
 			_ => (p3d::AlgoType::Grid2d, 66),
 		};
 
-	let rot = if *pre == H256::default() { None } else { pre.encode()[0..4].try_into().ok() };
+	let mut rot: Option<[u8; 4]> = None;
+	let mut maybe_rot: Option<[u8;32]> = if *pre == H256::default() { None } else { pre.encode()[0..32].try_into().ok() };
+	if let Some(r) = &mut maybe_rot {
+		if patch_rot {
+			for a in r[3..].iter() {
+				// exclude rotation less than 20
+				if *a > 20 {
+					r[3] = a.clone();
+					break;
+				}
+			}
+		}
+		rot = Some(r[0..4].try_into().unwrap());
+	}
 	let res = p3d::p3d_process_n(&obj, alg_type, depth, grid_size, n_sect, rot);
 
 	match res {

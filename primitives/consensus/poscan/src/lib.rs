@@ -51,15 +51,16 @@ pub const POSCAN_ALGO_GRID2D_V3: [u8; 16] = *b"grid2d-1.3      ";
 pub const POSCAN_ALGO_GRID2D_V3_1: [u8; 16] = *b"grid2d-1.3.1    ";
 pub const POSCAN_ALGO_GRID2D_V3A: [u8; 16] = *b"grid2d-1.3a     ";
 
-pub const SUPPORTED_ALGORITHMS: [[u8; 16];4] =
+pub const SUPPORTED_ALGORITHMS: [[u8; 16];5] =
 	[
 		POSCAN_ALGO_GRID2D,
 		POSCAN_ALGO_GRID2D_V2,
 		POSCAN_ALGO_GRID2D_V3,
 		POSCAN_ALGO_GRID2D_V3_1,
+		POSCAN_ALGO_GRID2D_V3A,
 	];
 
-pub const REJECT_OLD_ALGO_SINCE: u32 = 370_900;
+pub const REJECT_OLD_ALGO_SINCE: u32 = 500;  // TODO: for test only. Must be changed in main
 pub const SCALE_DIFF_SINCE: u32 = 370_898;
 pub const SCALE_DIFF_BY: u32 = 1_000_000;
 pub const MAX_MINING_OBJ_LEN: usize = 100 * 1024;

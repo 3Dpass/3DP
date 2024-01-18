@@ -27,7 +27,7 @@ use sp_core::offchain::OffchainStorage;
 use sp_api::ProvideRuntimeApi;
 use sp_blockchain::HeaderBackend;
 use sc_client_api::backend::Backend;
-use sp_consensus_poscan::{MiningPoolApi, CheckMemberError, POSCAN_ALGO_GRID2D_V3_1};
+use sp_consensus_poscan::{MiningPoolApi, CheckMemberError, POSCAN_ALGO_GRID2D_V3A, REJECT_OLD_ALGO_SINCE, POSCAN_ALGO_GRID2D_V3_1};
 
 use alloc::string::String;
 use crate::pool::{MiningPool, ShareProposal, LOG_TARGET};
@@ -124,20 +124,29 @@ where
 		obj: Vec<u8>,
 	) -> RpcResult<u64> {
 
-		if algo_type != "Grid2dV3.1" {
-			return Err(JsonRpseeError::Custom("Accept Grid2dV3.1 algorithm only".to_string()))
+		let parent_num= self.backend.blockchain().info().best_number;
+		let patch_rot = parent_num >= REJECT_OLD_ALGO_SINCE.into();
+
+		if patch_rot {
+			if algo_type != "Grid2dV3a" {
+				return Err(JsonRpseeError::Custom("Accept Grid2dV3a algorithm only".to_string()))
+			}
 		}
+		else if algo_type != "Grid2dV3.1" || algo_type != "Grid2dV3a" {
+			return Err(JsonRpseeError::Custom("Accept Grid2dV3.1 or Grid2dV3a algorithms".to_string()))
+		}
+		let algo = if algo_type == "Grid2dV3.1" { POSCAN_ALGO_GRID2D_V3_1 } else { POSCAN_ALGO_GRID2D_V3A };
 
 		let shp = ShareProposal {
 			member_id: member_id.clone(),
-			algo_type: POSCAN_ALGO_GRID2D_V3_1,
+			algo_type: algo,
 			hash,
 			pre_hash,
 			parent_hash,
 			share_dfclty,
 			pre_obj: obj,
 		};
-		let res = (*self.pool.lock()).try_push(shp);
+		let res = (*self.pool.lock()).try_push(shp, patch_rot);
 
 		match res {
 			Ok(_) => {
