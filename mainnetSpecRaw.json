@@ -9,7 +9,8 @@
     "/ip4/65.108.130.174/tcp/30333/p2p/12D3KooWMC1iPZ7ngoq5umf7RapLjwGkiQFYApUZXXqr2AbvK9VW",
     "/ip4/65.108.130.175/tcp/30333/p2p/12D3KooWJPMeEsiXUSRuue3CzPpkBkoquiJz85HU2SwW4uSVVFYh",
     "/ip4/65.108.133.126/tcp/30333/p2p/12D3KooWQJt9Pj91kCbWL46tceCudE1NpSjXotAYvrGufVewghoX",
-    "/ip4/43.163.242.241/tcp/30333/ws/p2p/12D3KooWQfXS8tEiLtMjwcHgarMQRGa8tZXoo4j1GzvFSxGaR7bw"
+    "/ip4/43.163.242.241/tcp/30333/ws/p2p/12D3KooWQfXS8tEiLtMjwcHgarMQRGa8tZXoo4j1GzvFSxGaR7bw",
+    "/ip4/146.19.215.217/tcp/30333/p2p/12D3KooWChGra2xyms8HYjyHQ573fDy7J2P3DLCwQSZKFzsSZ2wN"
   ],
   "telemetryEndpoints": [
     [
