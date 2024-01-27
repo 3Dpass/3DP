@@ -173,15 +173,19 @@ where
 			},
 		};
 
-		if poscan_data.hashes.len() == 0 {
-			info!(">>> verify: no poscan hashes");
-			return Ok(false);
-		}
+		let parent_id = BlockId::<B>::hash(*parent);
+		let parent_num = self.client.block_number_from_id(&parent_id).unwrap().unwrap();
+		if parent_num >= REJECT_OLD_ALGO_SINCE.into() {
+			if poscan_data.hashes.len() == 0 {
+				info!(">>> verify: no poscan hashes");
+				return Ok(false);
+			}
 
-		let dh = DoubleHash { pre_hash: *pre_hash, obj_hash: poscan_data.hashes[0] };
-		if dh.calc_hash() != seal.poscan_hash {
-			info!(">>> verify: poscan hash doesnt equal to seal one");
-			return Ok(false);
+			let dh = DoubleHash { pre_hash: *pre_hash, obj_hash: poscan_data.hashes[0] };
+			if dh.calc_hash() != seal.poscan_hash {
+				info!(">>> verify: poscan hash doesnt equal to seal one");
+				return Ok(false);
+			}
 		}
 
 		// See whether the hash meets the difficulty requirement. If not, fail fast.
