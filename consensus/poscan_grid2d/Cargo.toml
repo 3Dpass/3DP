@@ -22,7 +22,7 @@ sp-blockchain = { default-features = false, git = "https://github.com/paritytech
 poscan-algo = { default-features = false, path = "../../consensus/poscan_algo", optional = true }
 log = "0.4"
 
-p3d = { version="0.7.0", git="https://github.com/3Dpass/p3d", rev="b69e641f" }
+p3d = { version="0.7.0", git="https://github.com/3Dpass/p3d", rev="5eed8192" }
 
 [features]
 default = ["std"]
