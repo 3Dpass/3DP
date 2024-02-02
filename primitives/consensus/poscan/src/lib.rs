@@ -60,9 +60,11 @@ pub const SUPPORTED_ALGORITHMS: [[u8; 16];5] =
 		POSCAN_ALGO_GRID2D_V3A,
 	];
 
-pub const REJECT_OLD_ALGO_SINCE: u32 = 500;  // TODO: for test only. Must be changed in main
+pub const REJECT_OLD_ALGO_SINCE: u32 = 50000;  // TODO: for test only. Must be changed in main
 pub const SCALE_DIFF_SINCE: u32 = 370_898;
 pub const SCALE_DIFF_BY: u32 = 1_000_000;
+pub const SCALE_DIFF_SINCE_2: u32 = REJECT_OLD_ALGO_SINCE - 6;
+pub const SCALE_DIFF_BY_2: u32 = 1_000;
 pub const MAX_MINING_OBJ_LEN: usize = 100 * 1024;
 
 /// Type of seal.
