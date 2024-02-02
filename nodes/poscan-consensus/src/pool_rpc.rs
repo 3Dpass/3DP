@@ -132,8 +132,8 @@ where
 				return Err(JsonRpseeError::Custom("Accept Grid2dV3a algorithm only".to_string()))
 			}
 		}
-		else if algo_type != "Grid2dV3.1" && algo_type != "Grid2dV3a" {
-			return Err(JsonRpseeError::Custom("Accept Grid2dV3.1 or Grid2dV3a algorithms".to_string()))
+		else if algo_type != "Grid2dV3.1" {
+			return Err(JsonRpseeError::Custom("Accept Grid2dV3.1 algorithm only".to_string()))
 		}
 		let algo = if algo_type == "Grid2dV3.1" { POSCAN_ALGO_GRID2D_V3_1 } else { POSCAN_ALGO_GRID2D_V3A };
 
