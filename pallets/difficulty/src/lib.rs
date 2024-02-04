@@ -70,6 +70,8 @@ decl_storage! {
 		}): Difficulty;
 		/// Initial difficulty.
 		pub InitialDifficulty config(initial_difficulty): Difficulty;
+		pub PalletVersion: u32 = 0;
+		pub Scale get(fn scale): u64 = 1;
 	}
 }
 
@@ -77,6 +79,21 @@ decl_module! {
 	pub struct Module<T: Config> for enum Call where origin: T::Origin {
 		/// Target block time in milliseconds.
 		const TargetBlockTime: T::Moment = T::TargetBlockTime::get();
+		fn on_runtime_upgrade() -> frame_support::weights::Weight {
+			use sp_runtime::runtime_logger::RuntimeLogger;
+			use log;
+			RuntimeLogger::init();
+
+			if PalletVersion::get() == 0 {
+				Scale::put(1_000_000);
+				PalletVersion::put(1);
+				T::DbWeight::get().reads_writes(1, 1)
+			}
+			else {
+				log::info!(" >>> Unused migration!");
+				0
+			}
+		}
 	}
 }
 

@@ -1748,7 +1748,7 @@ impl_runtime_apis! {
 
 	impl sp_consensus_poscan::DifficultyApi<Block, sp_consensus_poscan::Difficulty> for Runtime {
 		fn difficulty() -> sp_consensus_poscan::Difficulty {
-			difficulty::Module::<Runtime>::difficulty()
+			difficulty::Module::<Runtime>::difficulty() / difficulty::Module::<Runtime>::scale()
 		}
 	}
 

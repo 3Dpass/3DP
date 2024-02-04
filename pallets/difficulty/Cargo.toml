@@ -7,6 +7,7 @@ edition = "2018"
 description = "Difficulty adjustment module for Kulupu."
 
 [dependencies]
+log = { default-features = false, version = '0.4.17'}
 serde = { version = "1.0.101", optional = true }
 codec = { package = "parity-scale-codec", version = "3.1", default-features = false, features = ["derive"] }
 scale-info = { version = "2.0", default-features = false, features = ["derive"] }
