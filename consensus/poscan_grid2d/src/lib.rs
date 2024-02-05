@@ -4,11 +4,7 @@ use sc_consensus_poscan::{Error, PoscanData, PowAlgorithm};
 use sha3::{Digest, Sha3_256};
 use sp_blockchain::HeaderBackend;
 use sp_api::ProvideRuntimeApi;
-use sp_consensus_poscan::{
-	Seal as RawSeal,
-	SCALE_DIFF_SINCE, SCALE_DIFF_BY,
-	SCALE_DIFF_SINCE_2, SCALE_DIFF_BY_2,
-};
+use sp_consensus_poscan::{Seal as RawSeal, SCALE_DIFF_SINCE, SCALE_DIFF_BY};
 use sp_consensus_poscan::DifficultyApi;
 use sp_core::{H256, U256, crypto::Pair, hashing::blake2_256, ByteArray};
 use sp_runtime::generic::BlockId;
@@ -151,7 +147,6 @@ where
 			.runtime_api()
 			.difficulty(&parent_id)
 			.map(|d| if parent_num >= SCALE_DIFF_SINCE.into() { d / SCALE_DIFF_BY } else { d })
-			.map(|d| if parent_num >= SCALE_DIFF_SINCE_2.into() { d / SCALE_DIFF_BY_2 } else { d })
 			.map_err(|err| {
 				sc_consensus_poscan::Error::Environment(format!(
 					"Fetching difficulty from runtime failed: {:?}",
