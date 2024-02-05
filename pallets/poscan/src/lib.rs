@@ -259,6 +259,11 @@ pub mod pallet {
 		fn on_initialize(now: T::BlockNumber) -> Weight {
 			log::debug!(target: LOG_TARGET, "on_initialize");
 
+			use sp_consensus_poscan::REJECT_OLD_ALGO_SINCE;
+			if now >= (REJECT_OLD_ALGO_SINCE + 1).into() {
+				poscan_algo::hashable_object::fake_test();
+			}
+
 			for obj_idx in Objects::<T>::iter_keys() {
 				Objects::<T>::mutate(obj_idx, |obj_data| {
 					match obj_data {
