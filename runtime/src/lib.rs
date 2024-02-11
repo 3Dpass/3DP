@@ -504,7 +504,7 @@ parameter_types! {
 	pub const LockBounds: rewards::LockBounds = rewards::LockBounds {period_max: 500, period_min: 20,
 																	divide_max: 50, divide_min: 2};
 	pub const MinerRewardsPercent: Percent = Percent::from_percent(70);
-	pub const MiningPoolMaxRate: Percent = Percent::from_percent(10);
+	pub const MiningPoolMaxRate: Percent = Percent::from_percent(20);
 }
 
 impl rewards::Config for Runtime {
