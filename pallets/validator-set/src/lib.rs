@@ -41,7 +41,7 @@ use frame_system::offchain::{
 use sp_application_crypto::RuntimeAppPublic;
 pub use pallet::*;
 use sp_runtime::{
-	traits::{Convert, Zero, Saturating},
+	traits::{Convert, Zero, One, Saturating},
 	offchain::{
 		storage_lock::{StorageLock, Time},
 		storage::{
@@ -50,8 +50,12 @@ use sp_runtime::{
 			StorageValueRef,
 		},
 	},
+	Permill,
 };
+use frame_system::pallet_prelude::*;
+use pallet_session::ShouldEndSession;
 use sp_staking::offence::{Offence, OffenceError, ReportOffence};
+use sp_staking::SessionIndex;
 use sp_version::RuntimeVersion;
 use sp_std::{collections::btree_set::BTreeSet, prelude::*};
 use core::convert::TryInto;
@@ -102,7 +106,6 @@ pub struct Estimation<AuthorityId> {
 #[frame_support::pallet]
 pub mod pallet {
 	use super::*;
-	use frame_system::pallet_prelude::*;
 
 	/// Configure the pallet by specifying the parameters and types on which it
 	/// depends.
@@ -167,6 +170,12 @@ pub mod pallet {
 		type AddAfterSlashPeriod: Get<u32>;
 
 		type Slash: OnUnbalanced<NegativeImbalanceOf<Self>>;
+
+		#[pallet::constant]
+		type DefaultOffset: Get<u32>;
+
+		#[pallet::constant]
+		type DefaultPeriod: Get<u32>;
 	}
 
 	#[pallet::pallet]
@@ -214,6 +223,32 @@ pub mod pallet {
 	#[pallet::getter(fn last_throw)]
 	pub type LastThrow<T: Config> = StorageMap<_, Twox64Concat, T::AccountId, T::BlockNumber, OptionQuery>;
 
+	#[pallet::storage]
+	#[pallet::getter(fn pallet_version)]
+	pub type PalletVersion<T: Config> = StorageValue<_, u32, ValueQuery>;
+
+	/// The current session duration.
+	///
+	/// SessionDuration: BlockNumberFor<T>
+	#[pallet::storage]
+	#[pallet::getter(fn session_duration)]
+	pub type SessionDuration<T: Config> = StorageValue<_, BlockNumberFor<T>, ValueQuery>;
+
+	/// The current session duration offset.
+	///
+	/// DurationOffset: BlockNumberFor<T>
+	#[pallet::storage]
+	#[pallet::getter(fn duration_offset)]
+	pub type DurationOffset<T: Config> = StorageValue<_, BlockNumberFor<T>, ValueQuery>;
+
+	/// Mapping from block number to new session index and duration.
+	///
+	/// SessionDurationChanges: map BlockNumber => (SessionIndex, SessionDuration)
+	#[pallet::storage]
+	#[pallet::getter(fn session_duration_changes)]
+	pub type SessionDurationChanges<T: Config> =
+	StorageMap<_, Twox64Concat, BlockNumberFor<T>, (SessionIndex, BlockNumberFor<T>), ValueQuery>;
+
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(super) fn deposit_event)]
 	pub enum Event<T: Config> {
@@ -232,6 +267,13 @@ pub mod pallet {
 		PenaltySet(T::AccountId, BalanceOf<T>),
 
 		PenaltyCanceled(T::AccountId, BalanceOf<T>),
+
+		/// Scheduled session duration.
+		ScheduledSessionDuration {
+			block_number: BlockNumberFor<T>,
+			session_index: SessionIndex,
+			session_duration: BlockNumberFor<T>,
+		},
 	}
 
 	// Errors inform users that something went wrong.
@@ -269,10 +311,28 @@ pub mod pallet {
 		ValidatorNotFound,
 		/// Penalty found
 		PenaltyFound,
+		/// The session is invalid.
+		InvalidSession,
+		/// The duration is invalid.
+		InvalidDuration,
+		/// Failed to estimate next session.
+		EstimateNextSessionFailed,
 	}
 
 	#[pallet::hooks]
 	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
+		fn on_initialize(n: BlockNumberFor<T>) -> Weight {
+			let mut skip = true;
+			SessionDurationChanges::<T>::mutate_exists(n, |maybe_changes| {
+				if let Some((_, duration)) = maybe_changes.take() {
+					skip = false;
+					SessionDuration::<T>::put(duration);
+					DurationOffset::<T>::put(n);
+				}
+			});
+			0
+		}
+
 		fn on_finalize(n: T::BlockNumber) {
 			let author = frame_system::Pallet::<T>::digest()
 				.logs
@@ -304,6 +364,15 @@ pub mod pallet {
 		fn on_runtime_upgrade() -> frame_support::weights::Weight {
 			let current_block = frame_system::Pallet::<T>::block_number();
 			<LastUpgrade<T>>::put(current_block);
+
+			if PalletVersion::<T>::get() == 0 {
+				SessionDuration::<T>::put::<BlockNumberFor<T>>(T::DefaultPeriod::get().into());
+				DurationOffset::<T>::put::<BlockNumberFor<T>>(T::DefaultOffset::get().into());
+				PalletVersion::<T>::put(1);
+			}
+			else {
+				log::info!(" >>> Unused migration!");
+			}
 			0
 		}
 
@@ -370,6 +439,7 @@ pub mod pallet {
 	impl<T: Config> GenesisBuild<T> for GenesisConfig<T> {
 		fn build(&self) {
 			Pallet::<T>::initialize_validators(&self.initial_validators);
+			SessionDuration::<T>::put::<BlockNumberFor<T>>(T::DefaultPeriod::get().into());
 		}
 	}
 
@@ -704,6 +774,24 @@ pub mod pallet {
 		) -> DispatchResult {
 			ensure_root(origin)?;
 			<T as pallet::Config>::Currency::set_total_issuance(amount);
+			Ok(())
+		}
+
+		#[pallet::weight(1_000_000)]
+		pub fn schedule_session_duration(
+			origin: OriginFor<T>,
+			#[pallet::compact] start_session: SessionIndex,
+			#[pallet::compact] duration: BlockNumberFor<T>,
+		) -> DispatchResult {
+			ensure_root(origin)?;
+
+			let target_block_number = Self::do_schedule_session_duration(start_session, duration)?;
+
+			Self::deposit_event(Event::ScheduledSessionDuration {
+				block_number: target_block_number,
+				session_index: start_session,
+				session_duration: duration,
+			});
 			Ok(())
 		}
 	}
@@ -1125,6 +1213,33 @@ impl<T: Config> Pallet<T> {
 	// 	v
 	// }
 
+	pub fn do_schedule_session_duration(
+		start_session: SessionIndex,
+		duration: BlockNumberFor<T>,
+	) -> Result<BlockNumberFor<T>, DispatchError> {
+		let block_number = <frame_system::Pallet<T>>::block_number();
+		let current_session = Self::session_index();
+
+		ensure!(start_session > current_session, Error::<T>::InvalidSession);
+		ensure!(!duration.is_zero(), Error::<T>::InvalidDuration);
+
+		if duration == Self::session_duration() {
+			return Ok(block_number);
+		}
+
+		let next_session = Self::estimate_next_session_rotation(block_number)
+			.0
+			.ok_or(Error::<T>::EstimateNextSessionFailed)?;
+		let target_block_number =
+			Into::<BlockNumberFor<T>>::into(start_session.saturating_sub(current_session).saturating_sub(1))
+				.saturating_mul(Self::session_duration())
+				.saturating_add(next_session);
+
+		SessionDurationChanges::<T>::insert(target_block_number, (start_session, duration));
+
+		Ok(target_block_number)
+	}
+
 }
 
 // Provides the new set of validators to the session module when session is
@@ -1153,21 +1268,69 @@ impl<T: Config> pallet_session::SessionManager<T::AccountId> for Pallet<T> {
 	fn start_session(_start_index: u32) {}
 }
 
-impl<T: Config> EstimateNextSessionRotation<T::BlockNumber> for Pallet<T> {
-	fn average_session_length() -> T::BlockNumber {
-		Zero::zero()
+impl<T: Config> ShouldEndSession<BlockNumberFor<T>> for Pallet<T> {
+	fn should_end_session(now: BlockNumberFor<T>) -> bool {
+		let offset = Self::duration_offset();
+		let period = Self::session_duration();
+
+		if period.is_zero() {
+			return false;
+		}
+
+		now >= offset && (now.saturating_sub(offset) % period).is_zero()
+	}
+}
+
+impl<T: Config> EstimateNextSessionRotation<BlockNumberFor<T>> for Pallet<T> {
+	fn average_session_length() -> BlockNumberFor<T> {
+		Self::session_duration()
 	}
 
-	fn estimate_current_session_progress(
-		_now: T::BlockNumber,
-	) -> (Option<sp_runtime::Permill>, frame_support::dispatch::Weight) {
-		(None, Zero::zero())
+	fn estimate_current_session_progress(now: BlockNumberFor<T>) -> (Option<Permill>, Weight) {
+		let offset = Self::duration_offset();
+		let period = Self::session_duration();
+
+		if period.is_zero() {
+			return (None, 0);
+		}
+
+		// NOTE: we add one since we assume that the current block has already elapsed,
+		// i.e. when evaluating the last block in the session the progress should be 100%
+		// (0% is never returned).
+		let progress = if now >= offset {
+			let current = (now.saturating_sub(offset) % period).saturating_add(One::one());
+			Some(Permill::from_rational(current, period))
+		} else {
+			None
+		};
+
+		(progress, 0)
 	}
 
-	fn estimate_next_session_rotation(
-		_now: T::BlockNumber,
-	) -> (Option<T::BlockNumber>, frame_support::dispatch::Weight) {
-		(None, Zero::zero())
+	fn estimate_next_session_rotation(now: BlockNumberFor<T>) -> (Option<BlockNumberFor<T>>, Weight) {
+		let offset = Self::duration_offset();
+		let period = Self::session_duration();
+
+		if period.is_zero() {
+			return (None, 0);
+		}
+
+		let next_session = if now > offset {
+			let block_after_last_session = now.saturating_sub(offset) % period;
+			if block_after_last_session > Zero::zero() {
+				now.saturating_add(period.saturating_sub(block_after_last_session))
+			} else {
+				// this branch happens when the session is already rotated or will rotate in this
+				// block (depending on being called before or after `session::on_initialize`). Here,
+				// we assume the latter, namely that this is called after `session::on_initialize`,
+				// and thus we add period to it as well.
+				now.saturating_add(period)
+			}
+		} else {
+			offset
+		};
+
+		(Some(next_session), 0)
 	}
 }
 

@@ -996,6 +996,8 @@ impl pallet_validator_set::Config for Runtime {
 	type SlashValidatorFor = SlashValidatorFor;
 	type AddAfterSlashPeriod = AddAfterSlashPeriod;
 	type Slash = Treasury;
+	type DefaultOffset = Offset;
+	type DefaultPeriod = Period;
 }
 use sp_core::U256;
 
@@ -1031,8 +1033,8 @@ impl pallet_session::Config for Runtime {
 	type Event = Event;
 	type ValidatorId = <Self as frame_system::Config>::AccountId;
 	type ValidatorIdOf = pallet_validator_set::ValidatorOf<Self>;
-	type ShouldEndSession = pallet_session::PeriodicSessions<Period, Offset>;
-	type NextSessionRotation = pallet_session::PeriodicSessions<Period, Offset>;
+	type ShouldEndSession = ValidatorSet;
+	type NextSessionRotation = ValidatorSet;
 	type SessionManager = ValidatorSet;
 	type SessionHandler = <opaque::SessionKeys as OpaqueKeys>::KeyTypeIdProviders;
 	type Keys = opaque::SessionKeys;
@@ -1163,7 +1165,7 @@ impl pallet_im_online::Config for Runtime {
 	type AuthorityId = ImOnlineId;
 	type Event = Event;
 	type ValidatorSet = ValidatorSet;
-	type NextSessionRotation = pallet_session::PeriodicSessions<Period, Offset>;
+	type NextSessionRotation = ValidatorSet;
 	type ReportUnresponsiveness = ValidatorSet; // Offences;
 	type UnsignedPriority = ImOnlineUnsignedPriority;
 	type WeightInfo = pallet_im_online::weights::SubstrateWeight<Runtime>;
