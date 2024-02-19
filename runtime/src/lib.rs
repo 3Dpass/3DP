@@ -705,11 +705,11 @@ impl pallet_referenda::TracksInfo<Balance, BlockNumber> for TracksInfo {
 			pallet_referenda::TrackInfo {
 				name: "root",
 				max_deciding: 1,
-				decision_deposit: 10,
-				prepare_period: 4,
-				decision_period: 4,
-				confirm_period: 2,
-				min_enactment_period: 4,
+				decision_deposit: 100 * 1000 * DOLLARS,
+				prepare_period: 2 * HOURS,
+				decision_period: 28 * DAYS,
+				confirm_period: 24 * HOURS,
+				min_enactment_period: 24 * HOURS,
 				min_approval: pallet_referenda::Curve::LinearDecreasing {
 					length: Perbill::from_percent(100),
 					floor: Perbill::from_percent(50),
