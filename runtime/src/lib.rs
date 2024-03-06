@@ -533,7 +533,7 @@ impl OnUnbalanced<NegativeImbalance> for Author {
 }
 
 parameter_types! {
-	// Minimum 100 bytes/KSM deposited (1 CENT/byte)
+	// Minimum 100 bytes/P3D deposited (1 CENT/byte)
 	pub const BasicDeposit: Balance = 1000 * CENTS;       // 258 bytes on-chain
 	pub const FieldDeposit: Balance = 250 * CENTS;        // 66 bytes on-chain
 	pub const SubAccountDeposit: Balance = 200 * CENTS;   // 53 bytes on-chain
