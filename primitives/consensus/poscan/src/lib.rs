@@ -1,4 +1,4 @@
-// This file is part of 3DPass.
+// This file is a part of 3DPass.
 
 // Copyright (C) 2017-2021 Parity Technologies (UK) Ltd.
 // Copyright (C) 2022 3DPass
@@ -16,7 +16,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-//! Primitives for Substrate Proof-of-Scan (PoScan) consensus.
+//! Primitives for Proof-of-Scan (PoScan) consensus.
 
 #![cfg_attr(not(feature = "std"), no_std)]
 // #![no_std]
@@ -96,13 +96,13 @@ pub const MIN_DIFFICULTY: u128 = DIFFICULTY_DAMP_FACTOR;
 /// Maximum difficulty.
 pub const MAX_DIFFICULTY: u128 = u128::max_value();
 
-/// Value of 1 3DP.
+/// Value of 1 P3D.
 pub const DOLLARS: u128 = 1_000_000_000_000;
-/// Value of cents relative to 3DP.
+/// Value of cents relative to P3D.
 pub const CENTS: u128 = DOLLARS / 100;
-/// Value of millicents relative to 3DP.
+/// Value of millicents relative to P3D.
 pub const MILLICENTS: u128 = CENTS / 1_000;
-/// Value of microcents relative to 3DP.
+/// Value of microcents relative to P3D.
 pub const MICROCENTS: u128 = MILLICENTS / 1_000;
 
 pub const fn deposit(items: u32, bytes: u32) -> u128 {
