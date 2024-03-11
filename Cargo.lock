@@ -5008,6 +5008,8 @@ dependencies = [
  "lazy_static",
  "log",
  "lzss",
+ "ndarray",
+ "obj-rs",
  "p3d",
  "parity-scale-codec",
  "parking_lot 0.12.1",
@@ -5018,6 +5020,7 @@ dependencies = [
  "sp-runtime",
  "sp-runtime-interface",
  "sp-std",
+ "tri-mesh",
 ]
 
 [[package]]

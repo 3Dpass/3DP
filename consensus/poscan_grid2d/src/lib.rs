@@ -1,14 +1,17 @@
+use std::marker::PhantomData;
+use std::fmt::Debug;
 use std::sync::Arc;
 use parity_scale_codec::{Decode, Encode};
 use sc_consensus_poscan::{Error, PoscanData, PowAlgorithm};
 use sha3::{Digest, Sha3_256};
 use sp_blockchain::HeaderBackend;
-use sp_api::ProvideRuntimeApi;
+use sp_api::{ProvideRuntimeApi, Core};
 use sp_consensus_poscan::{Seal as RawSeal, SCALE_DIFF_SINCE, SCALE_DIFF_BY};
-use sp_consensus_poscan::DifficultyApi;
+use sp_consensus_poscan::{DifficultyApi, PoscanApi};
 use sp_core::{H256, U256, crypto::Pair, hashing::blake2_256, ByteArray};
 use sp_runtime::generic::BlockId;
-use sp_runtime::traits::Block as BlockT;
+use sp_runtime::traits::{Block as BlockT, Member};
+use sp_runtime::scale_info::TypeInfo;
 // use frame_support::sp_runtime::print as prn;
 // use frame_support::runtime_print;
 use sc_consensus_poscan::app;
@@ -117,26 +120,32 @@ impl DoubleHash {
 	}
 }
 
-pub struct PoscanAlgorithm<C> {
+pub struct PoscanAlgorithm<C, AccountId, BlockNumber> {
 	client: Arc<C>,
+	_phantom: PhantomData<AccountId>,
+	_phantom2: PhantomData<BlockNumber>,
 }
 
-impl<C> PoscanAlgorithm<C> {
+impl<C, AccountId, BlockNumber> PoscanAlgorithm<C, AccountId, BlockNumber> {
 	pub fn new(client: Arc<C>) -> Self {
-		Self { client }
+		Self { client, _phantom: PhantomData, _phantom2: PhantomData }
 	}
 }
 
-impl<C> Clone for PoscanAlgorithm<C> {
+impl<C, AccountId, BlockNumber> Clone for PoscanAlgorithm<C, AccountId, BlockNumber> {
 	fn clone(&self) -> Self {
 		Self::new(self.client.clone())
 	}
 }
 
-impl<B: BlockT<Hash = H256>, C> PowAlgorithm<B> for PoscanAlgorithm<C>
+impl<B: BlockT<Hash = H256>, C, AccountId, BlockNumber> PowAlgorithm<B> for PoscanAlgorithm<C, AccountId, BlockNumber>
 where
 	C: ProvideRuntimeApi<B> + HeaderBackend<B>,
 	C::Api: DifficultyApi<B, U256>,
+	C::Api: PoscanApi<B, AccountId, BlockNumber>,
+	C::Api: Core<B>,
+	AccountId: Clone + Eq + Sync + Send + Debug + Encode + Decode + TypeInfo + Member,
+	BlockNumber: Clone + Eq + Sync + Send + Debug + Encode + Decode + TypeInfo + Member,
 {
 	type Difficulty = U256;
 
@@ -185,6 +194,53 @@ where
 			if dh.calc_hash() != seal.poscan_hash {
 				info!(">>> verify: poscan hash doesnt equal to seal one");
 				return Ok(false);
+			}
+		}
+
+		let algo_id = poscan_data.alg_id.clone();
+		let obj = poscan_data.obj.clone().to_vec();
+		let hashes = poscan_data.hashes.clone();
+
+		let ver = self.client
+			.runtime_api()
+			.version(&parent_id)
+			// .map(|d| if parent_num >= SCALE_DIFF_SINCE.into() { d / SCALE_DIFF_BY } else { d })
+			.map_err(|err| {
+				sc_consensus_poscan::Error::<B>::Environment(format!(
+					">>> get version call failed: {:?}",
+					err
+				))
+			})?;
+
+		if ver.spec_version >= 123 {
+			info!("poscan: start validate");
+
+			let is_valid = self.client
+				.runtime_api()
+				.check_object(&parent_id, &algo_id, &obj, &hashes)
+				.map_err(|err| {
+					sc_consensus_poscan::Error::<B>::Environment(format!(
+						">>> check_object call failed: {:?}",
+						err
+					))
+				})?;
+
+			if !is_valid {
+				info!(">>> object is not valid (runtime)");
+				return Ok(false)
+			}
+			else {
+				info!(">>> object is valid (runtime)");
+			}
+
+			let is_valid = poscan_algo::check_obj(&algo_id, &obj, &hashes);
+			info!(">>> poscan: end validate");
+
+			if !is_valid {
+				info!(">>> object is not valid");
+				return Ok(false)
+			} else {
+				info!(">>> object is valid");
 			}
 		}
 

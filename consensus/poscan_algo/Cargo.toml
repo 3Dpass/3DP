@@ -25,6 +25,10 @@ log = "0.4"
 
 p3d = { version="0.7.0", git="https://github.com/3Dpass/p3d", rev="5eed8192" }
 
+tri-mesh = { version = "0.5.0", git = "https://github.com/3Dpass/tri-mesh", branch = "dev", default-features = false }
+obj-rs = { version = "0.7", git = "https://github.com/3Dpass/obj-rs", branch = "dev", default-features = false }
+ndarray = { version = "0.15", git = "https://github.com/3Dpass/ndarray", branch = "dev", default-features = false }
+
 [features]
 default = ["std"]
 std = [

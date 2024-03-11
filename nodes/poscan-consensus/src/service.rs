@@ -1,6 +1,6 @@
 //! Service and ServiceFactory implementation. Specialized wrapper over substrate service.
 #![allow(clippy::needless_borrow)]
-use runtime::{self, opaque::Block, RuntimeApi};
+use runtime::{self, opaque::Block, RuntimeApi, AccountId, BlockNumber};
 use sc_client_api::{ExecutorProvider, BlockBackend};
 use sc_executor::NativeElseWasmExecutor;
 use sc_consensus::DefaultImportQueue;
@@ -155,9 +155,11 @@ pub fn new_partial(
 				GrandpaBlockImport<FullBackend, Block, FullClient, FullSelectChain>,
 				FullClient,
 				FullSelectChain,
-				PoscanAlgorithm<FullClient>,
+				PoscanAlgorithm<FullClient, AccountId, BlockNumber>,
 				impl sp_consensus::CanAuthorWith<Block>,
 				CreateInherentDataProviders,
+				AccountId,
+				BlockNumber,
 			>,
 			sc_finality_grandpa::LinkHalf<Block, FullClient, FullSelectChain>,
 			sc_finality_grandpa::SharedVoterState,

@@ -257,7 +257,7 @@ pub trait PowAlgorithm<B: BlockT> {
 }
 
 /// A block importer for PoW.
-pub struct PowBlockImport<B: BlockT, I, C, S, Algorithm, CAW, CIDP> {
+pub struct PowBlockImport<B: BlockT, I, C, S, Algorithm, CAW, CIDP, AccountId, BlockNumber> {
 	algorithm: Algorithm,
 	inner: I,
 	select_chain: S,
@@ -266,10 +266,12 @@ pub struct PowBlockImport<B: BlockT, I, C, S, Algorithm, CAW, CIDP> {
 	check_inherents_after: <<B as BlockT>::Header as HeaderT>::Number,
 	can_author_with: CAW,
 	last_cached: u32,
+	_phantom: PhantomData<AccountId>,
+	_phantom2: PhantomData<BlockNumber>,
 }
 
-impl<B: BlockT, I: Clone, C, S: Clone, Algorithm: Clone, CAW: Clone, CIDP> Clone
-	for PowBlockImport<B, I, C, S, Algorithm, CAW, CIDP>
+impl<B: BlockT, I: Clone, C, S: Clone, Algorithm: Clone, CAW: Clone, CIDP, AccountId, BlockNumber> Clone
+	for PowBlockImport<B, I, C, S, Algorithm, CAW, CIDP, AccountId, BlockNumber>
 {
 	fn clone(&self) -> Self {
 		Self {
@@ -281,17 +283,24 @@ impl<B: BlockT, I: Clone, C, S: Clone, Algorithm: Clone, CAW: Clone, CIDP> Clone
 			check_inherents_after: self.check_inherents_after,
 			can_author_with: self.can_author_with.clone(),
 			last_cached: self.last_cached,
+			_phantom: self._phantom,
+			_phantom2: self._phantom2,
 		}
 	}
 }
 
-impl<B, I, C, S, Algorithm, CAW, CIDP> PowBlockImport<B, I, C, S, Algorithm, CAW, CIDP>
+use sp_consensus_poscan::PoscanApi;
+
+impl<B, I, C, S, Algorithm, CAW, CIDP, AccountId, BlockNumber> PowBlockImport<B, I, C, S, Algorithm, CAW, CIDP, AccountId, BlockNumber>
 	where
 		B: BlockT,
 		I: BlockImport<B, Transaction = sp_api::TransactionFor<C, B>> + Send + Sync,
 		I::Error: Into<ConsensusError>,
 		C: ProvideRuntimeApi<B> + Send + Sync + HeaderBackend<B> + AuxStore + BlockOf,
 		C::Api: BlockBuilderApi<B>,
+		C::Api: PoscanApi<B, AccountId, BlockNumber>,
+		BlockNumber: Clone + Eq + Debug + Sync + Send + codec::Decode + codec::Encode + TypeInfo + Member,
+		AccountId: Clone + Eq + Debug + Sync + Send + codec::Decode + codec::Encode + TypeInfo + Member,
 		Algorithm: PowAlgorithm<B>,
 		CAW: CanAuthorWith<B>,
 		CIDP: CreateInherentDataProviders<B, ()>,
@@ -315,6 +324,8 @@ impl<B, I, C, S, Algorithm, CAW, CIDP> PowBlockImport<B, I, C, S, Algorithm, CAW
 			create_inherent_data_providers: Arc::new(create_inherent_data_providers),
 			can_author_with,
 			last_cached: 0,
+			_phantom: PhantomData,
+			_phantom2: PhantomData,
 		}
 	}
 
@@ -443,8 +454,12 @@ impl<B, I, C, S, Algorithm, CAW, CIDP> PowBlockImport<B, I, C, S, Algorithm, CAW
 	}
 }
 
+use sp_runtime::traits::Member;
+use sp_std::fmt::Debug;
+use scale_info::TypeInfo;
+
 #[async_trait::async_trait]
-impl<B, I, C, S, Algorithm, CAW, CIDP> BlockImport<B> for PowBlockImport<B, I, C, S, Algorithm, CAW, CIDP> where
+impl<B, I, C, S, Algorithm, CAW, CIDP, AccountId, BlockNumber> BlockImport<B> for PowBlockImport<B, I, C, S, Algorithm, CAW, CIDP, AccountId, BlockNumber> where
 	B: BlockT,
 	I: BlockImport<B, Transaction = sp_api::TransactionFor<C, B>> + Send + Sync,
 	I::Error: Into<ConsensusError>,
@@ -452,6 +467,9 @@ impl<B, I, C, S, Algorithm, CAW, CIDP> BlockImport<B> for PowBlockImport<B, I, C
 	C: ProvideRuntimeApi<B> + Send + Sync + HeaderBackend<B> + AuxStore + BlockOf + BlockBackend<B>,
 	C::Api: BlockBuilderApi<B>,
 	C::Api: DifficultyApi<B, Difficulty>,
+	C::Api: PoscanApi<B, AccountId, BlockNumber>,
+	AccountId: Clone + Eq + Sync + Send + Debug + Encode + Decode + TypeInfo + Member,
+	BlockNumber: Clone + Eq + Sync + Send + Debug + Encode + Decode + TypeInfo + Member,
 	Algorithm: PowAlgorithm<B> + Send + Sync,
 	Algorithm::Difficulty: From<U256> + Send + 'static,
 	CAW: CanAuthorWith<B> + Send + Sync,
