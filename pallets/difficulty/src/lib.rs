@@ -26,6 +26,7 @@ use frame_support::{
 	decl_module, decl_storage,
 	traits::{Get, OnTimestampSet},
 };
+use frame_system::ensure_root;
 use sp_consensus_poscan::{
 	Difficulty, CLAMP_FACTOR, DIFFICULTY_ADJUST_WINDOW, DIFFICULTY_DAMP_FACTOR, MAX_DIFFICULTY,
 	MIN_DIFFICULTY,
@@ -93,6 +94,28 @@ decl_module! {
 				log::info!(" >>> Unused migration!");
 				0
 			}
+		}
+
+		#[weight = 1000]
+		fn scale_diff(
+			origin,
+			scale: u32,
+		) {
+			ensure_root(origin)?;
+			if scale == 0 {
+				return Ok(());
+			}
+
+			let mut data = PastDifficultiesAndTimestamps::<T>::get();
+			for d in data.iter_mut() {
+				if let Some(ref mut d) = d {
+					d.difficulty /= scale;
+				}
+			}
+
+			<PastDifficultiesAndTimestamps<T>>::put(data);
+			let diff = <CurrentDifficulty>::get();
+			<CurrentDifficulty>::put(diff / scale);
 		}
 	}
 }
