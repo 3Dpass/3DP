@@ -23,6 +23,7 @@
 
 
 use sp_std::vec::Vec;
+use sp_std::fmt::Debug;
 use sp_runtime::{ConsensusEngineId, Percent};
 use codec::{Encode, Decode, MaxEncodedLen};
 use lzss::{Lzss, SliceReader, VecWriter};
@@ -182,10 +183,11 @@ sp_api::decl_runtime_apis! {
 
 	pub trait PoscanApi<AccountId, BlockNum>
 	where
-		BlockNum: codec::Decode + codec::Encode + TypeInfo + Member,
-		AccountId: codec::Decode + codec::Encode + TypeInfo + Member,
+		BlockNum: Clone + Eq + Debug + Sync + Send + codec::Decode + codec::Encode + TypeInfo + Member,
+		AccountId: Clone + Eq + Debug + Sync + Send + codec::Decode + codec::Encode + TypeInfo + Member,
 	{
 		fn get_poscan_object(i: u32) -> Option<ObjData<AccountId, BlockNum>>;
+		fn check_object(alg_id: &[u8;16], obj: &Vec<u8>, hashes: &Vec<H256>) -> bool;
 	}
 }
 

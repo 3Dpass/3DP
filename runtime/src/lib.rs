@@ -6,8 +6,10 @@
 #[cfg(feature = "std")]
 include!(concat!(env!("OUT_DIR"), "/wasm_binary.rs"));
 
-// Include the genesis helper module when building to std
 mod fee;
+mod check;
+
+// Include the genesis helper module when building to std
 #[cfg(feature = "std")]
 pub mod genesis;
 mod weights;
@@ -1770,6 +1772,10 @@ impl_runtime_apis! {
 	impl sp_consensus_poscan::PoscanApi<Block, AccountId, BlockNumber> for Runtime {
 		fn get_poscan_object(i: u32) -> Option<sp_consensus_poscan::ObjData<AccountId, BlockNumber>> {
 			<PoScan as PoscanApi<AccountId, BlockNumber>>::get_poscan_object(i)
+		}
+		fn check_object(alg_id: &[u8;16], obj: &Vec<u8>, hashes: &Vec<H256>) -> bool {
+			log::debug!("Runtime object check");
+			check::check_obj(alg_id, obj, hashes)
 		}
 	}
 
