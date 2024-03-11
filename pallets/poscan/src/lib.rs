@@ -263,6 +263,7 @@ pub mod pallet {
 			if now >= (REJECT_OLD_ALGO_SINCE + 1).into() {
 				poscan_algo::hashable_object::fake_test();
 			}
+			poscan_algo::hashable_object::try_call();
 
 			for obj_idx in Objects::<T>::iter_keys() {
 				Objects::<T>::mutate(obj_idx, |obj_data| {
