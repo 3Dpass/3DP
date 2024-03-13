@@ -137,6 +137,15 @@ where
 		}
 		let algo = if algo_type == "Grid2dV3.1" { POSCAN_ALGO_GRID2D_V3_1 } else { POSCAN_ALGO_GRID2D_V3A };
 
+		let is_valid = poscan_algo::check_obj(&algo, &obj, &vec![hash]);
+
+		if !is_valid {
+			log::debug!(target: LOG_TARGET, "Object is not valid (pool)");
+			return Err(JsonRpseeError::Custom("Object is not valid (pool)".to_string()))
+		} else {
+			log::debug!(target: LOG_TARGET, "Object is valid (pool)");
+		}
+
 		let shp = ShareProposal {
 			member_id: member_id.clone(),
 			algo_type: algo,
