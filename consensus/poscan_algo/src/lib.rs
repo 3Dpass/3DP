@@ -176,6 +176,10 @@ pub trait HashableObject {
 		}
 		None
 	}
+
+	fn check_object(alg_id: &[u8;16], obj: &Vec<u8>, hashes: &Vec<H256>) -> bool {
+		self::check_obj(alg_id, obj, hashes)
+	}
 }
 
 #[cfg(feature = "std")]
