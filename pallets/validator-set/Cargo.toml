@@ -10,6 +10,7 @@ repository = 'https://github.com/gautamdhameja/substrate-validator-set'
 serde = { features = ['derive'], version = '1.0.126' }
 
 [dependencies]
+hex = { version = "0.4", default-features = false, features = ["alloc"] }
 log = { default-features = false, version = '0.4.17'}
 lazy_static = { version = "1.4.0", features = ['spin_no_std'] }
 codec = { default-features = false, features = ['derive'], package = 'parity-scale-codec', version = '3.1' }
@@ -20,7 +21,9 @@ sp-runtime = { default-features = false, git = "https://github.com/paritytech/su
 sp-std = { default-features = false, git = "https://github.com/paritytech/substrate", rev = "b0777b4c7f7" }
 sp-staking = { default-features = false, git = "https://github.com/paritytech/substrate", rev = "b0777b4c7f7" }
 sp-version = { default-features = false, git = "https://github.com/paritytech/substrate", rev = "b0777b4c7f7" }
+sp-session = { default-features = false, git = "https://github.com/paritytech/substrate", rev = "b0777b4c7f7" }
 sp-application-crypto = { default-features = false, git = "https://github.com/paritytech/substrate", rev = "b0777b4c7f7" }
+sp-finality-grandpa = { default-features = false, git = "https://github.com/paritytech/substrate", rev = "b0777b4c7f7" }
 frame-benchmarking = { default-features = false, git = "tps://github.com/paritytech/substrate", rev = "b0777b4c7f7", optional = true }
 frame-support = { default-features = false, git = "https://github.com/paritytech/substrate", rev = "b0777b4c7f7" }
 frame-system = { default-features = false, git = "https://github.com/paritytech/substrate", rev = "b0777b4c7f7" }
@@ -52,6 +55,7 @@ std = [
     'pallet-session/std',
     'rewards-api/std',
     'sp-application-crypto/std',
+    'sp-finality-grandpa/std',
     'pallet-poscan/std',
     'poscan-algo/std',
 ]

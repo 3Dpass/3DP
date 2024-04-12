@@ -42,6 +42,7 @@ use frame_support::{
 		ConstantMultiplier, DispatchClass, Weight,
 	},
 	PalletId,
+	ConsensusEngineId,
 };
 
 use frame_system::{
@@ -279,8 +280,24 @@ parameter_types! {
 	pub const UncleGenerations: u32 = 0;
 }
 
+pub struct FindBlockAuthor;
+impl FindAuthor<AccountId> for FindBlockAuthor {
+	fn find_author<'a, I>(digests: I) -> Option<AccountId>
+	where I: 'a + IntoIterator<Item=(ConsensusEngineId, &'a [u8])> {
+		digests.into_iter().filter_map(|(id, mut data)| {
+			use codec::Decode;
+			if id == POSCAN_ENGINE_ID {
+				AccountId::decode(&mut data).ok()
+			} else {
+				None
+			}
+		})
+		.next()
+	}
+}
+
 impl pallet_authorship::Config for Runtime {
-	type FindAuthor = ();
+	type FindAuthor = FindBlockAuthor;
 	type UncleGenerations = UncleGenerations;
 	type FilterUncle = ();
 	type EventHandler = ();
@@ -1138,21 +1155,35 @@ impl pallet_child_bounties::Config for Runtime {
 parameter_types! {
 	pub const MaxApprovals: u32 = 100;
 	pub const MaxAuthorities: u32 = 100_000;
+	pub const ReportLongevity: u64 = 120;
 }
 
 impl pallet_grandpa::Config for Runtime {
 	type Event = Event;
 	type Call = Call;
-	type KeyOwnerProofSystem = ();
+	type KeyOwnerProofSystem = ValidatorSet;
 	type KeyOwnerProof =
 		<Self::KeyOwnerProofSystem as KeyOwnerProofSystem<(KeyTypeId, GrandpaId)>>::Proof;
+
 	type KeyOwnerIdentification = <Self::KeyOwnerProofSystem as KeyOwnerProofSystem<(
 		KeyTypeId,
 		GrandpaId,
 	)>>::IdentificationTuple;
-	type HandleEquivocation = ();
+
+	type HandleEquivocation = pallet_grandpa::EquivocationHandler<
+		Self::KeyOwnerIdentification,
+		Offences,
+		ReportLongevity,
+	>;
 	type WeightInfo = ();
 	type MaxAuthorities = MaxAuthorities;
+}
+
+
+impl pallet_offences::Config for Runtime {
+	type Event = Event;
+	type IdentificationTuple = pallet_validator_set::IdentificationTuple::<Runtime>;
+	type OnOffenceHandler = ValidatorSet;
 }
 
 parameter_types! {
@@ -1263,6 +1294,7 @@ impl frame_system::offchain::SigningTypes for Runtime {
 
 use codec::Encode;
 use frame_support::instances::{Instance1, Instance2};
+use frame_support::traits::FindAuthor;
 
 impl<LocalCall> frame_system::offchain::CreateSignedTransaction<LocalCall> for Runtime
 	where
@@ -1507,6 +1539,8 @@ construct_runtime!(
 		Uniques: pallet_uniques,
 		AssetRate: pallet_asset_rate,
 		ValidatorSet: pallet_validator_set,
+		Offences: pallet_offences,
+		// Historical: pallet_session_historical::{Pallet},
 		Session: pallet_session,
 		Bounties: pallet_bounties,
 		ChildBounties: pallet_child_bounties,
@@ -1637,19 +1671,32 @@ impl_runtime_apis! {
 			>,
 			key_owner_proof: sp_finality_grandpa::OpaqueKeyOwnershipProof,
 		) -> Option<()> {
-			let key_owner_proof = key_owner_proof.decode()?;
+			log::debug!("submit_report_equivocation_unsigned_extrinsic 1");
+
+			// let decode::pallet_validator_set::ValidatorProof2::decode();
+			use pallet_validator_set::ValidatorProof;
+			let key_owner_proof_maybe: Option<ValidatorProof> = key_owner_proof.decode();
+
+			let proof = key_owner_proof_maybe?;
+
+			log::debug!("submit_report_equivocation_unsigned_extrinsic 2: {:#?}", &proof);
+
+			let proof = ValidatorSet::prove((sp_finality_grandpa::KEY_TYPE, proof.authority_id)).unwrap();
 
 			Grandpa::submit_unsigned_equivocation_report(
 				equivocation_proof,
-				key_owner_proof,
+				proof,
 			)
 		}
 
 		fn generate_key_ownership_proof(
 			_set_id: sp_finality_grandpa::SetId,
-			_authority_id: GrandpaId,
+			authority_id: GrandpaId,
 		) -> Option<sp_finality_grandpa::OpaqueKeyOwnershipProof> {
-			None
+			log::debug!("generate_key_ownership_proof: {:#?}", &authority_id);
+			Some(sp_finality_grandpa::OpaqueKeyOwnershipProof::new(
+				ValidatorSet::prove((sp_finality_grandpa::KEY_TYPE, authority_id)).unwrap().encode()
+			))
 		}
 	}
 
@@ -1798,6 +1845,7 @@ impl_runtime_apis! {
 #[cfg(feature = "runtime-benchmarks")]
 #[macro_use]
 extern crate frame_benchmarking;
+extern crate core;
 
 #[cfg(feature = "runtime-benchmarks")]
 mod benches {

@@ -41,6 +41,7 @@ sp-transaction-pool = { git = "https://github.com/paritytech/substrate", rev = "
 sp-version = { git = "https://github.com/paritytech/substrate", rev = "b0777b4c7f7", package = "sp-version", default-features = false }
 
 sp-finality-grandpa = { default-features = false, git = "https://github.com/paritytech/substrate", rev = "b0777b4c7f7" }
+sp-application-crypto = { default-features = false, git = "https://github.com/paritytech/substrate", rev = "b0777b4c7f7" }
 
 pallet-treasury = { default-features = false, git = "https://github.com/paritytech/substrate", rev = "b0777b4c7f7" }
 pallet-collective = { default-features = false, git = "https://github.com/paritytech/substrate", rev = "b0777b4c7f7" }
@@ -69,6 +70,7 @@ pallet-conviction-voting = { default-features = false, git = "https://github.com
 pallet-elections-phragmen = { default-features = false, git = "https://github.com/paritytech/substrate", rev = "b0777b4c7f7" }
 pallet-ranked-collective = { default-features = false, git = "https://github.com/paritytech/substrate", rev = "b0777b4c7f7" }
 pallet-utility = { default-features = false, git = "https://github.com/paritytech/substrate", rev = "b0777b4c7f7" }
+pallet-offences = { default-features = false, git = "https://github.com/paritytech/substrate", rev = "b0777b4c7f7" }
 
 pallet-validator-set = { path = "../pallets/validator-set", default-features = false }
 pallet-atomic-swap = { path = "../pallets/atomic-swap", default-features = false }

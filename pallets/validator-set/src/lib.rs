@@ -16,6 +16,8 @@
 
 #![cfg_attr(not(feature = "std"), no_std)]
 
+extern crate core;
+
 mod mock;
 mod tests;
 
@@ -30,6 +32,7 @@ use frame_support::{
 		Get, ValidatorSet, ValidatorSetWithIdentification,
 		OnUnbalanced, ExistenceRequirement, LockIdentifier, WithdrawReasons,
 		fungible::{Inspect, Unbalanced},
+		KeyOwnerProofSystem,
 	},
 	sp_runtime::SaturatedConversion,
 };
@@ -51,10 +54,14 @@ use sp_runtime::{
 		},
 	},
 	Permill,
+	Perbill,
+	KeyTypeId,
 };
+use sp_finality_grandpa::AuthorityId as GrandpaId;
+use sp_session::ValidatorCount;
 use frame_system::pallet_prelude::*;
 use pallet_session::ShouldEndSession;
-use sp_staking::offence::{Offence, OffenceError, ReportOffence};
+use sp_staking::offence::{Offence, OffenceError, ReportOffence, OnOffenceHandler};
 use sp_staking::SessionIndex;
 use sp_version::RuntimeVersion;
 use sp_std::{collections::btree_set::BTreeSet, prelude::*};
@@ -94,6 +101,7 @@ pub enum RemoveReason {
 	DepositBelowLimit,
 	ImOnlineSlash,
 	CouncilSlash,
+	Equivocation,
 }
 
 #[derive(Encode, Decode, Clone, PartialEq, Eq, RuntimeDebug, TypeInfo)]
@@ -542,6 +550,7 @@ pub mod pallet {
 					RemoveReason::Normal => { },
 					RemoveReason::DepositBelowLimit |
 					RemoveReason::CouncilSlash |
+					RemoveReason::Equivocation |
 					RemoveReason::ImOnlineSlash => {
 						let t1 = remove_data.0 + suspend_period.into();
 						let t2 = t1 + allow_period.into();
@@ -1413,5 +1422,125 @@ impl<T: Config> ValidatorSetApi<T::AccountId, T::BlockNumber, BalanceOf::<T>> fo
 	}
 	fn author(block_num: T::BlockNumber) -> Option<T::AccountId> {
 		Authors::<T>::get(block_num)
+	}
+}
+
+pub type IdentificationTuple<T> = (
+	<T as pallet_session::Config>::ValidatorId,
+	<Pallet::<T> as ValidatorSetWithIdentification<
+		<T as frame_system::Config>::AccountId,
+	>>::Identification,
+);
+
+#[derive(Encode, Decode, Clone, Eq, PartialEq, RuntimeDebug, scale_info::TypeInfo)]
+pub struct ValidatorProof {
+	/// Authority Id
+	pub authority_id: GrandpaId,
+	/// The session index on which the specific key is a member.
+	pub session: SessionIndex,
+	/// The validator count of the session on which the specific key is a member.
+	pub validator_count: ValidatorCount,
+}
+
+use sp_session::{GetSessionNumber, GetValidatorCount};
+
+impl GetSessionNumber for ValidatorProof {
+	fn session(&self) -> SessionIndex {
+		self.session
+	}
+}
+
+impl GetValidatorCount for ValidatorProof {
+	fn validator_count(&self) -> ValidatorCount {
+		self.validator_count
+	}
+}
+
+impl<T: Config + pallet_session::Config> KeyOwnerProofSystem<(KeyTypeId, GrandpaId)> for Pallet<T> {
+	type Proof = ValidatorProof;
+	type IdentificationTuple = IdentificationTuple<T>;
+
+	fn prove(key: (KeyTypeId, GrandpaId)) -> Option<Self::Proof> {
+		let session = Self::session_index();
+		let validators = Self::validators();
+		let validator_count = validators.len() as ValidatorCount;
+
+		log::debug!(target: LOG_TARGET, "create_prove: {:#?}", &key.1.encode());
+
+		let vp = ValidatorProof {authority_id: key.1, session, validator_count};
+
+		Some(vp)
+	}
+
+	fn check_proof(key: (KeyTypeId, GrandpaId), _proof: Self::Proof) -> Option<IdentificationTuple<T>>
+	{
+		log::debug!(target: LOG_TARGET, "check_proof");
+		let maybe_val_id = pallet_session::KeyOwner::<T>::get((key.0, key.1.encode()));
+		match maybe_val_id {
+			Some(val_id) => {
+				log::debug!(target: LOG_TARGET, "check_proof: {:#?}", &val_id);
+				Some((val_id.clone(), val_id))
+			},
+			None => None,
+		}
+	}
+}
+
+impl<
+	T: Config,
+	Offender: Clone + Into<(<T as frame_system::Config>::AccountId, <T as pallet_session::Config>::ValidatorId)>,
+	Res: Default
+>
+OnOffenceHandler<T::AccountId, Offender, Res> for Pallet<T> {
+	fn on_offence(
+		offenders: &[sp_staking::offence::OffenceDetails<T::AccountId, Offender>],
+		slash_fraction: &[Perbill],
+		_session: SessionIndex,
+		_disable_strategy: sp_staking::offence::DisableStrategy,
+	) -> Res {
+
+		let n_off = offenders.len();
+		log::debug!(target: LOG_TARGET, "Equivocation OffenceDetails size: {}", &n_off);
+		for sf in slash_fraction {
+			log::debug!(target: LOG_TARGET, "Equivocation slash_fraction: {:#?}", sf);
+		}
+
+		for off_det in offenders {
+			let acc_id = off_det.offender.clone().into().0;
+			let val_id = off_det.offender.clone().into().1;
+
+			log::debug!(target: LOG_TARGET, "Equivocation offender: {:#?}", hex::encode(acc_id.encode()));
+			let n_rep = off_det.reporters.len();
+			log::debug!(target: LOG_TARGET, "Equivocation offender size: {}", &n_rep);
+			for rep_id in off_det.reporters.iter() {
+				let acc = hex::encode(rep_id.encode());
+				log::debug!(target: LOG_TARGET, "Reporter:: {:#?}", &acc);
+			}
+
+			if !Self::validators().contains(&acc_id) {
+				continue
+			}
+
+			let penalty: u128 = 2 * T::PenaltyOffline::get();
+			let val: BalanceOf<T> = penalty.saturated_into();
+
+			Self::slash(
+				&acc_id,
+				val,
+				|acc, amount|
+					Event::<T>::ValidatorSlash(acc.clone(), amount)
+			);
+
+			if <Validators<T>>::get().len() > T::MinAuthorities::get() as usize {
+				let _ = pallet_session::Pallet::<T>::disable(&val_id);
+				pallet_session::NextKeys::<T>::remove(&val_id);
+				let mut session_keys = pallet_session::QueuedKeys::<T>::get();
+				session_keys.retain(|v| (*v).0 != val_id);
+				pallet_session::QueuedKeys::<T>::put(session_keys);
+			}
+			Self::mark_for_removal(acc_id, RemoveReason::Equivocation);
+		}
+
+		Default::default()
 	}
 }
