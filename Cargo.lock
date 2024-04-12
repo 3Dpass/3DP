@@ -4277,6 +4277,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "pallet-offences"
+version = "4.0.0-dev"
+source = "git+https://github.com/paritytech/substrate?rev=b0777b4c7f7#b0777b4c7f7d8d3c635319d0153953d0a22aa58e"
+dependencies = [
+ "frame-support",
+ "frame-system",
+ "log",
+ "pallet-balances",
+ "parity-scale-codec",
+ "scale-info",
+ "sp-runtime",
+ "sp-staking",
+ "sp-std",
+]
+
+[[package]]
 name = "pallet-poscan"
 version = "0.0.1"
 dependencies = [
@@ -4643,6 +4659,7 @@ dependencies = [
  "frame-benchmarking",
  "frame-support",
  "frame-system",
+ "hex",
  "lazy_static",
  "log",
  "pallet-balances",
@@ -4657,8 +4674,10 @@ dependencies = [
  "sp-application-crypto",
  "sp-consensus-poscan",
  "sp-core",
+ "sp-finality-grandpa",
  "sp-io",
  "sp-runtime",
+ "sp-session",
  "sp-staking",
  "sp-std",
  "sp-version",
@@ -5155,6 +5174,7 @@ dependencies = [
  "pallet-membership",
  "pallet-mining-pool",
  "pallet-multisig",
+ "pallet-offences",
  "pallet-poscan",
  "pallet-poscan-assets",
  "pallet-preimage",
@@ -5183,6 +5203,7 @@ dependencies = [
  "scale-info",
  "smallvec",
  "sp-api",
+ "sp-application-crypto",
  "sp-arithmetic",
  "sp-block-builder",
  "sp-consensus-poscan",
