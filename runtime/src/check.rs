@@ -19,7 +19,7 @@ pub(crate) fn check_obj(_alg_id: &[u8;16], _obj: &Vec<u8>, _hashes: &Vec<H256>) 
 
 fn check_simply_connected(obj: &Vec<u8>) -> bool {
     if let Ok(text) = from_utf8(&obj) {
-        let mut vs_list = btree_set::BTreeSet::new();//::with_capacity(6000);
+        let mut vs_list = btree_set::BTreeSet::new();
         for line in text.lines() {
             let words: Vec<&str> = line.split_whitespace().collect();
             if words.len() > 0 {
@@ -32,8 +32,12 @@ fn check_simply_connected(obj: &Vec<u8>) -> bool {
                                 if swords.len() == 3 {
                                     if let Ok(i) = swords[0].parse() {
                                         vs[idx-1] = i;
-                                    }
-                                }
+                                    } else {
+										return false;
+									}
+                                } else {
+									return false;
+								}
                             }
                             if vs_list.is_empty()
                             || vs_list.contains(&vs[0])
@@ -45,7 +49,9 @@ fn check_simply_connected(obj: &Vec<u8>) -> bool {
                             } else {
                                 return false;
                             }
-                        }
+                        } else {
+							return false;
+						}
                     },
                     _=>{},
                 }
