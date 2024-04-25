@@ -184,6 +184,9 @@ pub mod pallet {
 
 		#[pallet::constant]
 		type DefaultPeriod: Get<u32>;
+
+		#[pallet::constant]
+		type MaxVal: Get<u32>;
 	}
 
 	#[pallet::pallet]
@@ -325,6 +328,8 @@ pub mod pallet {
 		InvalidDuration,
 		/// Failed to estimate next session.
 		EstimateNextSessionFailed,
+		/// Too many validators.
+		TooManyValidators,
 	}
 
 	#[pallet::hooks]
@@ -853,6 +858,8 @@ impl<T: Config> Pallet<T> {
 
 	fn do_add_validator(validator_id: T::AccountId, check_block_num: bool) -> DispatchResult {
 		let cur_block_number = <frame_system::Pallet<T>>::block_number();
+
+		ensure!(<Validators<T>>::get().len() < T::MaxVal::get() as usize, Error::<T>::TooManyValidators);
 
 		let item_lock = ValidatorLock::<T>::get(&validator_id).ok_or(Error::<T>::AmountLockedBelowLimit)?;
 		let deposit =
