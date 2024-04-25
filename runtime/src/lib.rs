@@ -994,6 +994,7 @@ parameter_types! {
 	pub const MinLockPeriod: u32 = 30 * 24 * HOURS;
 	pub const SlashValidatorFor: u32 = 2 * HOURS;
 	pub const AddAfterSlashPeriod: u32 = 7 * 24 * HOURS;
+	pub const MaxVal: u32 = 1000;
 }
 
 impl pallet_validator_set::Config for Runtime {
@@ -1017,6 +1018,7 @@ impl pallet_validator_set::Config for Runtime {
 	type Slash = Treasury;
 	type DefaultOffset = Offset;
 	type DefaultPeriod = Period;
+	type MaxVal = MaxVal;
 }
 use sp_core::U256;
 
