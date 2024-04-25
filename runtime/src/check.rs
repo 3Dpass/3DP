@@ -24,7 +24,7 @@ fn check_simply_connected(obj: &Vec<u8>) -> bool {
             let words: Vec<&str> = line.split_whitespace().collect();
             if words.len() > 0 {
                 match words[0] {
-                    "f" => {
+                    "fo" | "f" => {
                         if words.len() == 4 {
                             let mut vs = [0,0,0];
                             for idx in 1..=3 {
