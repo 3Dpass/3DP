@@ -26,55 +26,37 @@ jobs:
             os: macos-latest
             name: macos
             suffix: ''
-#          - target: x86_64-pc-windows-msvc
-#            os: windows-latest
-#            name: windows
-#            suffix: .exe
 
     runs-on: ${{ matrix.os }}
 
     steps:
-      - uses: actions/checkout@v3.5.3
+      - uses: actions/checkout@v4.1.3
 
-      - uses: Vampire/setup-wsl@v2.0.1
-        with:
-          additional-packages:
-            git
-            clang
-            curl
-            libssl-dev
-            llvm
-            libudev-dev
-            make
-            protobuf-compile
-        if: matrix.os == 'windows-latest'
-
-      - uses: actions-rs/toolchain@v1.0.6
+      - uses: actions-rs/toolchain@v1.0.7
         with:
           profile: minimal
           toolchain: nightly-2023-05-20
           override: true
 
       - name: Add WASM target
-        run: |
-          rustup target add wasm32-unknown-unknown
+        run: rustup target add wasm32-unknown-unknown
 
-      - uses: actions/cache@v3.3.1
+      - uses: actions/cache@v4.0.2
         with:
           path: ~/.cargo/registry
           key: ${{ runner.os }}-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
 
-      - uses: actions/cache@v3.3.1
+      - uses: actions/cache@v4.0.2
         with:
           path: ~/.cargo/git
           key: ${{ runner.os }}-cargo-git-${{ hashFiles('**/Cargo.lock') }}
 
-      - uses: actions/cache@v3.3.1
+      - uses: actions/cache@v4.0.2
         with:
           path: target
           key: ${{ runner.os }}-cargo-build-target-${{ hashFiles('**/Cargo.lock') }}
 
-      - uses: actions-rs/cargo@v1.0.1
+      - uses: actions-rs/cargo@v1.0.3
         with:
           command: build
           args: '--release'
@@ -86,9 +68,17 @@ jobs:
           tar czvf ../../poscan-consensus-${{ matrix.name }}.tar.gz poscan-consensus${{ matrix.suffix }}
           cd -
 
+      - name: Package WASM Artifact
+        if: matrix.name == 'linux-x86_64'
+        run: |
+          cd target/release/wbuild/poscan-runtime
+          tar czvf ../../../../poscan_runtime-wasm32-unknown-unknown.tar.gz poscan_runtime.compact.compressed.wasm
+
       - name: Publish
-        uses: softprops/action-gh-release@v0.1.15
+        uses: softprops/action-gh-release@v2.0.4
         with:
-          files: "poscan-consensus-*"
+          files: |
+            poscan-consensus-*
+            poscan_runtime-*
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
