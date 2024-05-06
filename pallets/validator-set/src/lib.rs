@@ -57,7 +57,7 @@ use sp_runtime::{
 	Perbill,
 	KeyTypeId,
 };
-use sp_finality_grandpa::AuthorityId as GrandpaId;
+use sp_finality_grandpa::{AuthorityId as GrandpaId, SetId};
 use sp_session::ValidatorCount;
 use frame_system::pallet_prelude::*;
 use pallet_session::ShouldEndSession;
@@ -806,6 +806,27 @@ pub mod pallet {
 				session_index: start_session,
 				session_duration: duration,
 			});
+			Ok(())
+		}
+
+		#[pallet::weight(1_000_000)]
+		pub fn fix_set_id(
+			origin: OriginFor<T>,
+			set_id: SetId,
+		) -> DispatchResult {
+			ensure_root(origin)?;
+
+			const PALLET_NAME: &'static str = "Grandpa";
+			const STORAGE_NAME: &'static str = "CurrentSetId";
+
+			let pallet_hash = sp_io::hashing::twox_128(PALLET_NAME.as_bytes());
+			let storage_hash = sp_io::hashing::twox_128(STORAGE_NAME.as_bytes());
+
+			let mut final_key = Vec::new();
+			final_key.extend_from_slice(&pallet_hash);
+			final_key.extend_from_slice(&storage_hash);
+			frame_support::storage::unhashed::put::<SetId>(&final_key, &set_id);
+
 			Ok(())
 		}
 	}
