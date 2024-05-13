@@ -458,22 +458,47 @@ pub fn new_full(
 						let patch_rot = parent_num >= REJECT_OLD_ALGO_SINCE.into();
 						let mining_algo = if patch_rot { &POSCAN_ALGO_GRID2D_V3A } else { &POSCAN_ALGO_GRID2D_V3_1 };
 
-						let hashes = get_obj_hashes(mining_algo, &mp.pre_obj, &metadata.pre_hash, patch_rot);
+						let orig_hashes = get_obj_hashes(mining_algo, &mp.pre_obj, &H256::default(), false);
+						if orig_hashes.len() == 0 {
+							continue
+						}
+
+						// info!(">>> metadata.pre_hash: {}", &metadata.pre_hash);
+						let v = orig_hashes[0].encode();
+						let mut buf = metadata.pre_hash.encode();
+						buf.append(v.clone().as_mut());
+						use sp_core::hashing::sha2_256;
+						let rotation_hash = H256::from_slice(sha2_256(&buf).as_slice());
+
+						let hashes = get_obj_hashes(mining_algo, &mp.pre_obj, &rotation_hash, patch_rot);
 						if hashes.len() > 0 {
+							use std::collections::HashSet;
+
+							let ha = hashes.iter().collect::<HashSet<_>>();
+							let hb = orig_hashes.iter().collect::<HashSet<_>>();
+							if ha.intersection(&hb).collect::<Vec<_>>().len() > 0 {
+								info!(">>> Some hashes after rotation are in original hashes");
+								continue;
+							}
+
+							let hist_hash = calc_hist(client.clone(), &rotation_hash, &parent_id);
+
 							let obj_hash = hashes[0];
 							let dh = DoubleHash { pre_hash: metadata.pre_hash, obj_hash };
 							let poscan_hash = dh.calc_hash();
 							let mut psdata = PoscanData {
 								alg_id: mining_algo.clone(),
+								orig_hashes: orig_hashes.clone(),
 								hashes: hashes.clone(),
-								obj:
-								mp.pre_obj.clone(),
+								obj: mp.pre_obj.clone(),
 							};
 
 							let compute = Compute {
 								difficulty: metadata.difficulty,
 								pre_hash: metadata.pre_hash,
 								poscan_hash,
+								orig_hash: orig_hashes[0], // metadata.pre_hash,
+								hist_hash,
 							};
 
 							let signature = compute.sign(&pair);

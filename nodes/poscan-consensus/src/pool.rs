@@ -188,13 +188,15 @@ impl MiningPool {
             return Err(PoolError::NotAccepted);
         }
 
-        let comp = Compute {difficulty: self.curr_meta.as_ref().unwrap().difficulty, pre_hash,  poscan_hash: dh};
+        // TODO:
+        let comp = Compute {difficulty: self.curr_meta.as_ref().unwrap().difficulty, pre_hash, poscan_hash: dh, orig_hash: H256::default(), hist_hash: H256::default()};
 
         if hash_meets_difficulty(&comp.get_work(), self.curr_meta.as_ref().unwrap().difficulty) {
             Ok(true)
         }
         else {
-            let comp = Compute {difficulty: dfclty, pre_hash,  poscan_hash: dh};
+            // TODO:
+            let comp = Compute {difficulty: dfclty, pre_hash,  poscan_hash: dh, orig_hash: H256::default(), hist_hash: H256::default() };
 
             if hash_meets_difficulty(&comp.get_work(), dfclty) {
                 Ok(false)

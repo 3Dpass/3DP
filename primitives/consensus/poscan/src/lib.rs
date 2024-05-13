@@ -166,6 +166,7 @@ sp_api::decl_runtime_apis! {
 	pub trait DifficultyApi<Difficulty: Decode> {
 		/// Return the target difficulty of the next block.
 		fn difficulty() -> Difficulty;
+		fn hist_steps() -> u32;
 	}
 
 	pub trait MiningPoolApi<AccountId>

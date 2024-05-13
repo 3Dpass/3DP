@@ -38,6 +38,8 @@ pub struct Seal {
 	pub work: H256,
 	// pub nonce: U256,
 	pub poscan_hash: H256,
+	pub orig_hash: H256,
+	pub hist_hash: H256,
 	pub signature: app::Signature,
 }
 
@@ -49,6 +51,8 @@ pub struct Compute {
 	pub pre_hash: H256,
 	// pub nonce: U256,
 	pub poscan_hash: H256,
+	pub orig_hash: H256,
+	pub hist_hash: H256,
 }
 
 impl Compute {
@@ -70,6 +74,8 @@ impl Compute {
 			difficulty: self.difficulty,
 			work,
 			poscan_hash: self.poscan_hash,
+			orig_hash: self.orig_hash,
+			hist_hash: self.hist_hash,
 			signature,
 		}
 	}
@@ -83,6 +89,8 @@ impl Compute {
 			difficulty: self.difficulty,
 			pre_hash: self.pre_hash,
 			poscan_hash: self.poscan_hash,
+			orig_hash: self.orig_hash,
+			hist_hash: self.hist_hash,
 		};
 
 		blake2_256(&calculation.encode()[..])
@@ -145,7 +153,7 @@ where
 	C::Api: PoscanApi<B, AccountId, BlockNumber>,
 	C::Api: Core<B>,
 	AccountId: Clone + Eq + Sync + Send + Debug + Encode + Decode + TypeInfo + Member,
-	BlockNumber: Clone + Eq + Sync + Send + Debug + Encode + Decode + TypeInfo + Member,
+	BlockNumber: Clone + Eq + Sync + Send + Debug + Encode + Decode + TypeInfo + Member + Into<u32>,
 {
 	type Difficulty = U256;
 
@@ -251,11 +259,35 @@ where
 			return Ok(false);
 		}
 
-		// Make sure the provided work actually comes from the correct pre_hash
+		let obj_orig_hashes = get_obj_hashes(&poscan_data.alg_id, &poscan_data.obj, &H256::default(), false);
+		if obj_orig_hashes.len() == 0 {
+			info!(">>> verify: obj_pre_hashes.len() == 0");
+			return Ok(false)
+		}
+
+		if obj_orig_hashes != poscan_data.orig_hashes {
+			info!(">>> verify: obj_orig_hashes != poscan_data.orig_hashes");
+			return Ok(false)
+		}
+
+		let v = obj_orig_hashes[0].encode();
+		let mut buf = pre_hash.encode();
+		buf.append(v.clone().as_mut());
+		let rotation_hash = H256::from_slice(sha2_256(&buf).as_slice());
+
+		let hist_hash = calc_hist(self.client.clone(), &rotation_hash, &parent_id);
+
+		if seal.hist_hash != hist_hash {
+			info!(">>> verify: seal.hist_hash != hist_hash");
+			return Ok(false);
+		}
+
 		let compute = Compute {
 			difficulty,
 			pre_hash: *pre_hash,
 			poscan_hash: seal.poscan_hash,
+			orig_hash: seal.orig_hash,
+			hist_hash: seal.hist_hash,
 		};
 
 		if compute.seal(seal.signature.clone()) != seal {
@@ -293,7 +325,8 @@ where
 			return Ok(false)
 		}
 
-		let h =
+		// TODO:
+		let _h =
 			if poscan_data.alg_id == POSCAN_ALGO_GRID2D_V3_1
 				|| poscan_data.alg_id == POSCAN_ALGO_GRID2D_V3A {
 				pre_hash
@@ -306,12 +339,88 @@ where
 		let parent_num = self.client.block_number_from_id(&parent_id).unwrap().unwrap();
 		let patch_rot = parent_num >= REJECT_OLD_ALGO_SINCE.into();
 
-		let hashes = get_obj_hashes(&poscan_data.alg_id, &poscan_data.obj, h, patch_rot);
+		let v = obj_orig_hashes[0].encode();
+		let mut buf = pre_hash.encode();
+		buf.append(v.clone().as_mut());
+		use sp_core::hashing::sha2_256;
+		let rotation_hash = H256::from_slice(sha2_256(&buf).as_slice());
+
+		let hashes = get_obj_hashes(&poscan_data.alg_id, &poscan_data.obj, &rotation_hash, patch_rot);
 		if hashes != poscan_data.hashes {
 			info!(">>> verify: hashes != poscan_data.hashes");
 			return Ok(false)
 		}
 
+		use std::collections::HashSet;
+
+		let ha = poscan_data.hashes.iter().collect::<HashSet<_>>();
+		let hb = obj_orig_hashes.iter().collect::<HashSet<_>>();
+		if ha.intersection(&hb).collect::<Vec<_>>().len() > 0 {
+			info!(">>> verify: some hashes after rotation are in original hashes");
+			return Ok(false)
+		}
+
 		Ok(true)
 	}
+}
+
+use sp_api::HeaderT;
+use sp_runtime::traits::SaturatedConversion;
+
+pub fn calc_hist<C, B>(client: Arc<C>, pre_hash: &H256, parent_block: &BlockId::<B>) -> H256
+//pub fn calc_hist<C, B>(client: Arc<C>, pre_hash: &H256, parent_num: BlockNumber) -> H256
+where
+	C: ProvideRuntimeApi<B> + HeaderBackend<B>,
+	C::Api: DifficultyApi<B, U256>,
+	B: BlockT,
+{
+	use std::convert::TryInto;
+
+	use sp_core::hashing::sha2_256;
+	use sp_runtime::DigestItem;
+
+	let mut selected_blocks = Vec::<u32>::new();
+
+	let n_blocks: u32 = client
+		.runtime_api()
+		.hist_steps(&parent_block)
+		.unwrap_or_default();
+
+	let parent_num = client.block_number_from_id(parent_block).unwrap().unwrap();
+	let mut hh = *pre_hash;
+	let num_blocks = parent_num.saturated_into::<u32>();
+	if num_blocks > 1 {
+		for _ in 0..n_blocks {
+			let n = u32::from_le_bytes(hh[..4].try_into().unwrap());
+			let number: u32 = n % (num_blocks - 1) + 1;
+
+			let digest = client
+				.header(BlockId::Number(number.into()))
+				.and_then(|maybe_header| match maybe_header {
+					Some(header) => Ok(Some(header.digest().clone())),
+					None => Ok(None),
+				});
+
+			if let Ok(None) = digest {
+				debug!("--- Select: no digest");
+				continue
+			}
+			let digest = digest.unwrap().unwrap();
+			let n = digest.logs().len();
+
+			if n >= 3 {
+				let di = digest.logs()[n - 1].clone();
+				if let DigestItem::Other(v) = di {
+					let mut buf = hh.encode();
+					buf.append(v.clone().as_mut());
+					hh = H256::from_slice(sha2_256(&buf).as_slice());
+					selected_blocks.push(number);
+				}
+			}
+		}
+		debug!("--- Selected  blocks: {}",
+			selected_blocks.iter().map(|x| x.to_string()).collect::<Vec<_>>().join(",")
+		);
+	}
+	hh
 }

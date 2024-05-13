@@ -1803,6 +1803,10 @@ impl_runtime_apis! {
 		fn difficulty() -> sp_consensus_poscan::Difficulty {
 			difficulty::Module::<Runtime>::difficulty() / difficulty::Module::<Runtime>::scale()
 		}
+
+		fn hist_steps() -> u32 {
+			difficulty::Module::<Runtime>::hist_steps()
+		}
 	}
 
 	impl sp_consensus_poscan::MiningPoolApi<Block, AccountId> for Runtime {

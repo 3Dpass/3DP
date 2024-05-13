@@ -205,6 +205,12 @@ impl<Block, Algorithm, C, L, Proof> MiningHandle<Block, Algorithm, C, L, Proof>
 
 		info!(">>> seal: {:x?}", &seal[0..20]);
 		let seal = DigestItem::Seal(POSCAN_ENGINE_ID, seal);
+
+		let mut h: Vec<u8> = poscan_data.orig_hashes.iter().flat_map(|h| h.as_bytes().to_vec()).collect();
+		let mut v = poscan_data.alg_id.to_vec();
+		v.append(&mut h);
+		let orig_poscan_hashes = DigestItem::Other(v);
+
 		let mut h: Vec<u8> = poscan_data.hashes.iter().flat_map(|h| h.as_bytes().to_vec()).collect();
 		let mut v = poscan_data.alg_id.to_vec();
 		v.append(&mut h);
@@ -226,6 +232,7 @@ impl<Block, Algorithm, C, L, Proof> MiningHandle<Block, Algorithm, C, L, Proof>
 		let mut import_block = BlockImportParams::new(BlockOrigin::Own, header);
 
 		import_block.post_digests.push(seal);
+		import_block.post_digests.push(orig_poscan_hashes);
 		import_block.post_digests.push(poscan_hashes);
 		import_block.post_digests.push(poscan_obj);
 
