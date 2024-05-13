@@ -7,7 +7,7 @@ use ecies_ed25519;
 use sp_std::sync::Arc;
 use sp_core::{H256, U256};
 use parking_lot::{Mutex, Condvar};
-use poscan_grid2d::{hash_meets_difficulty, DoubleHash, Compute};
+use poscan_grid2d::{hash_meets_difficulty, DoubleHash, ComputeV2};
 use poscan_algo::get_obj_hashes;
 use runtime::AccountId;
 
@@ -188,13 +188,15 @@ impl MiningPool {
             return Err(PoolError::NotAccepted);
         }
 
-        let comp = Compute {difficulty: self.curr_meta.as_ref().unwrap().difficulty, pre_hash,  poscan_hash: dh};
+        // TODO:
+        let comp = ComputeV2 {difficulty: self.curr_meta.as_ref().unwrap().difficulty, pre_hash, poscan_hash: dh, orig_hash: H256::default(), hist_hash: H256::default()};
 
         if hash_meets_difficulty(&comp.get_work(), self.curr_meta.as_ref().unwrap().difficulty) {
             Ok(true)
         }
         else {
-            let comp = Compute {difficulty: dfclty, pre_hash,  poscan_hash: dh};
+            // TODO:
+            let comp = ComputeV2 {difficulty: dfclty, pre_hash,  poscan_hash: dh, orig_hash: H256::default(), hist_hash: H256::default() };
 
             if hash_meets_difficulty(&comp.get_work(), dfclty) {
                 Ok(false)

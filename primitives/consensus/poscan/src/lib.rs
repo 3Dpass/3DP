@@ -44,6 +44,8 @@ use serde::{Serialize, Deserialize};
 
 /// The `ConsensusEngineId` of PoScan.
 pub const POSCAN_ENGINE_ID: ConsensusEngineId = [b'p', b'o', b's', b'c'];
+pub const POSCAN_SEAL_V1_ID: ConsensusEngineId = POSCAN_ENGINE_ID;
+pub const POSCAN_SEAL_V2_ID: ConsensusEngineId = [b'p', b's', b'c', b'2'];
 pub const POSCAN_COIN_ID: u8 = 71;
 
 pub const POSCAN_ALGO_GRID2D: [u8; 16] = *b"grid2d-1.1      ";
@@ -65,6 +67,8 @@ pub const REJECT_OLD_ALGO_SINCE: u32 = 740500;
 pub const SCALE_DIFF_SINCE: u32 = 370_898;
 pub const SCALE_DIFF_BY: u32 = 1_000_000;
 pub const MAX_MINING_OBJ_LEN: usize = 100 * 1024;
+
+pub const CONS_V2_SPEC_VER: u32 = 128;
 
 /// Type of seal.
 pub type Seal = Vec<u8>;
@@ -166,6 +170,7 @@ sp_api::decl_runtime_apis! {
 	pub trait DifficultyApi<Difficulty: Decode> {
 		/// Return the target difficulty of the next block.
 		fn difficulty() -> Difficulty;
+		fn hist_steps() -> u32;
 	}
 
 	pub trait MiningPoolApi<AccountId>
@@ -188,6 +193,7 @@ sp_api::decl_runtime_apis! {
 	{
 		fn get_poscan_object(i: u32) -> Option<ObjData<AccountId, BlockNum>>;
 		fn check_object(alg_id: &[u8;16], obj: &Vec<u8>, hashes: &Vec<H256>) -> bool;
+		fn get_obj_hashes_wasm(ver: &[u8; 16], data: &Vec<u8>, pre: &H256, depth: u32, patch_rot: bool) -> Vec<H256>;
 	}
 }
 

@@ -13,7 +13,7 @@ use std::sync::Arc;
 use std::thread;
 use std::time::Duration;
 use std::path::PathBuf;
-use sc_consensus_poscan::PoscanData;
+use sc_consensus_poscan::{PoscanData, PoscanDataV1, PoscanDataV2};
 use log::*;
 use sp_std::collections::vec_deque::VecDeque;
 use parking_lot::Mutex;
@@ -27,8 +27,10 @@ use sp_consensus_poscan::{
 	POSCAN_ALGO_GRID2D_V3_1,
 	POSCAN_ALGO_GRID2D_V3A,
 	REJECT_OLD_ALGO_SINCE,
+	CONS_V2_SPEC_VER,
 };
 use poscan_algo::get_obj_hashes;
+use poscan_grid2d::randomx;
 use async_trait::async_trait;
 use sc_rpc::SubscriptionTaskExecutor;
 use sc_finality_grandpa::{FinalityProofProvider as GrandpaFinalityProofProvider};
@@ -155,7 +157,7 @@ pub fn new_partial(
 				GrandpaBlockImport<FullBackend, Block, FullClient, FullSelectChain>,
 				FullClient,
 				FullSelectChain,
-				PoscanAlgorithm<FullClient, AccountId, BlockNumber>,
+				PoscanAlgorithm<Block, FullClient, AccountId, BlockNumber>,
 				impl sp_consensus::CanAuthorWith<Block>,
 				CreateInherentDataProviders,
 				AccountId,
@@ -458,34 +460,101 @@ pub fn new_full(
 						let patch_rot = parent_num >= REJECT_OLD_ALGO_SINCE.into();
 						let mining_algo = if patch_rot { &POSCAN_ALGO_GRID2D_V3A } else { &POSCAN_ALGO_GRID2D_V3_1 };
 
-						let hashes = get_obj_hashes(mining_algo, &mp.pre_obj, &metadata.pre_hash, patch_rot);
-						if hashes.len() > 0 {
-							let obj_hash = hashes[0];
-							let dh = DoubleHash { pre_hash: metadata.pre_hash, obj_hash };
-							let poscan_hash = dh.calc_hash();
-							let mut psdata = PoscanData {
-								alg_id: mining_algo.clone(),
-								hashes: hashes.clone(),
-								obj:
-								mp.pre_obj.clone(),
-							};
+						let ver = client.runtime_version_at(&parent_id).unwrap();
+						if ver.spec_version < CONS_V2_SPEC_VER {
+							let hashes = get_obj_hashes(mining_algo, &mp.pre_obj, &metadata.pre_hash, patch_rot);
+							if hashes.len() > 0 {
+								let obj_hash = hashes[0];
+								let dh = DoubleHash { pre_hash: metadata.pre_hash, obj_hash };
+								let poscan_hash = dh.calc_hash();
+								let psdata = PoscanData::V1(PoscanDataV1 {
+									alg_id: mining_algo.clone(),
+									hashes: hashes.clone(),
+									obj: mp.pre_obj.clone(),
+								});
 
-							let compute = Compute {
-								difficulty: metadata.difficulty,
-								pre_hash: metadata.pre_hash,
-								poscan_hash,
-							};
+								let compute = ComputeV1 {
+									difficulty: metadata.difficulty,
+									pre_hash: metadata.pre_hash,
+									poscan_hash,
+								};
 
-							let signature = compute.sign(&pair);
-							let seal = compute.seal(signature.clone());
-							if hash_meets_difficulty(&seal.work, seal.difficulty) {
-								info!(">>> hash_meets_difficulty: submit it: {}, {}, {}",  &seal.work, &seal.poscan_hash, &seal.difficulty);
-								psdata.hashes = hashes;
-
-								let _ = futures::executor::block_on(worker.submit(seal.encode(), &psdata));
+								let signature = compute.sign(&pair);
+								let seal = compute.seal(signature.clone());
+								if hash_meets_difficulty(&seal.work, seal.difficulty) {
+									info!(">>> hash_meets_difficulty: submit it: {}, {}, {}",  &seal.work, &seal.poscan_hash, &seal.difficulty);
+									let _ = futures::executor::block_on(worker.submit(seal.encode(), &psdata));
+								}
 							}
-							else {
-								// info!(">>> does not meet difficulty");
+						}
+						else {
+							let orig_hashes = get_obj_hashes(mining_algo, &mp.pre_obj, &H256::default(), false);
+							if orig_hashes.len() == 0 {
+								continue
+							}
+
+							let v = orig_hashes[0].encode();
+							let mut buf = metadata.pre_hash.encode();
+							buf.append(v.clone().as_mut());
+
+							let rndx = randomx(&buf);
+							if let Err(e) = rndx {
+								error!(">>> {}", e);
+								break
+							}
+							let rotation_hash = rndx.unwrap();
+							let hashes = get_obj_hashes(mining_algo, &mp.pre_obj, &rotation_hash, patch_rot);
+							if hashes.len() > 0 {
+								use std::collections::HashSet;
+
+								let ha = hashes.iter().collect::<HashSet<_>>();
+								let hb = orig_hashes.iter().collect::<HashSet<_>>();
+								if ha.intersection(&hb).collect::<Vec<_>>().len() > 0 {
+									info!(">>> Some hashes after rotation are in original hashes");
+									continue;
+								}
+
+								let hist_hash = calc_hist(client.clone(), &rotation_hash, &parent_id);
+
+								let rndx = randomx(hashes[0].0.as_slice());
+								if let Err(e) = rndx {
+									error!(">>> {}", e);
+									break
+								}
+								let obj_hash = rndx.unwrap();
+								let dh = DoubleHash { pre_hash: metadata.pre_hash, obj_hash };
+								let rndx = dh.calc_hash_randomx();
+								if let Err(e) = rndx {
+									error!(">>> {}", e);
+									break
+								}
+								let poscan_hash = rndx.unwrap();
+								let psdata = PoscanData::V2(PoscanDataV2 {
+									alg_id: mining_algo.clone(),
+									orig_hashes: orig_hashes.clone(),
+									hashes: hashes.clone(),
+									obj: mp.pre_obj.clone(),
+								});
+
+								let rndx = randomx(orig_hashes[0].0.as_slice());
+								if let Err(e) = rndx {
+									error!(">>> {}", e);
+									break
+								}
+								let compute = ComputeV2 {
+									difficulty: metadata.difficulty,
+									pre_hash: metadata.pre_hash,
+									poscan_hash,
+									orig_hash: rndx.unwrap(),
+									hist_hash,
+								};
+
+								let signature = compute.sign(&pair);
+								let seal = compute.seal(signature.clone());
+								if hash_meets_difficulty(&seal.work, seal.difficulty) {
+									info!(">>> hash_meets_difficulty: submit it: {}, {}, {}",  &seal.work, &seal.poscan_hash, &seal.difficulty);
+									let _ = futures::executor::block_on(worker.submit(seal.encode(), &psdata));
+								}
 							}
 						}
 					}

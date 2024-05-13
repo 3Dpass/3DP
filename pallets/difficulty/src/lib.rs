@@ -73,6 +73,7 @@ decl_storage! {
 		pub InitialDifficulty config(initial_difficulty): Difficulty;
 		pub PalletVersion: u32 = 0;
 		pub Scale get(fn scale): u64 = 1;
+		pub HistSteps get(fn hist_steps): u32 = 2;
 	}
 }
 
@@ -116,6 +117,19 @@ decl_module! {
 			<PastDifficultiesAndTimestamps<T>>::put(data);
 			let diff = <CurrentDifficulty>::get();
 			<CurrentDifficulty>::put(diff / scale);
+		}
+
+		#[weight = 1000]
+		fn set_hist_steps(
+			origin,
+			steps: u32,
+		) {
+			ensure_root(origin)?;
+			if steps == 0 {
+				return Ok(());
+			}
+
+			<HistSteps>::put(steps);
 		}
 	}
 }

@@ -56,7 +56,14 @@ use sp_runtime::generic::{BlockId, Digest, DigestItem};
 use sp_runtime::traits::{Block as BlockT, Header as HeaderT};
 use sp_api::ProvideRuntimeApi;
 use sp_finality_grandpa::GRANDPA_ENGINE_ID;
-use sp_consensus_poscan::{Seal, TotalDifficulty, POSCAN_ENGINE_ID};
+use sp_consensus_poscan::{
+	Seal,
+	TotalDifficulty,
+	POSCAN_ENGINE_ID,
+	CONS_V2_SPEC_VER,
+	POSCAN_SEAL_V1_ID,
+	POSCAN_SEAL_V2_ID,
+};
 use sp_inherents::{CreateInherentDataProviders, InherentDataProvider}; //, InherentData};
 use sp_consensus::{
 	SyncOracle, Environment, Proposer,
@@ -197,18 +204,25 @@ impl<Difficulty> PowAux<Difficulty> where
 	}
 }
 
+#[derive(Clone, Encode, Decode, PartialEq, Eq, Debug)]
+pub enum PoscanData {
+	V1(PoscanDataV1),
+	V2(PoscanDataV2),
+}
 
 #[derive(Clone, Encode, Decode, PartialEq, Eq, Debug)]
-pub struct PoscanData {
+pub struct PoscanDataV1 {
 	pub alg_id: [u8;16],
 	pub hashes: Vec<H256>,
 	pub obj: Vec<u8>,
 }
 
 #[derive(Clone, Encode, Decode, PartialEq, Eq, Debug)]
-pub struct PoscanData2 {
-	pub hashes: H256,
-	pub obj: u8,
+pub struct PoscanDataV2 {
+	pub alg_id: [u8;16],
+	pub hashes: Vec<H256>,
+	pub orig_hashes: Vec<H256>,
+	pub obj: Vec<u8>,
 }
 
 /// Algorithm used for proof of work.
@@ -290,6 +304,7 @@ impl<B: BlockT, I: Clone, C, S: Clone, Algorithm: Clone, CAW: Clone, CIDP, Accou
 }
 
 use sp_consensus_poscan::PoscanApi;
+use sp_api::Core;
 
 impl<B, I, C, S, Algorithm, CAW, CIDP, AccountId, BlockNumber> PowBlockImport<B, I, C, S, Algorithm, CAW, CIDP, AccountId, BlockNumber>
 	where
@@ -299,6 +314,7 @@ impl<B, I, C, S, Algorithm, CAW, CIDP, AccountId, BlockNumber> PowBlockImport<B,
 		C: ProvideRuntimeApi<B> + Send + Sync + HeaderBackend<B> + AuxStore + BlockOf,
 		C::Api: BlockBuilderApi<B>,
 		C::Api: PoscanApi<B, AccountId, BlockNumber>,
+		C::Api: Core<B>,
 		BlockNumber: Clone + Eq + Debug + Sync + Send + codec::Decode + codec::Encode + TypeInfo + Member,
 		AccountId: Clone + Eq + Debug + Sync + Send + codec::Decode + codec::Encode + TypeInfo + Member,
 		Algorithm: PowAlgorithm<B>,
@@ -526,9 +542,8 @@ impl<B, I, C, S, Algorithm, CAW, CIDP, AccountId, BlockNumber> BlockImport<B> fo
 
 		let pre_digest: Vec<u8> = find_pre_digest::<B>(&block.header)?.unwrap();
 
-		let inner_seal = fetch_seal::<B>(block.post_digests.get(digest_size - 3), block.header.hash())?;
-		let pscan_hashes = fetch_seal::<B>(block.post_digests.get(digest_size - 2), block.header.hash())?;
 		let pscan_obj = fetch_seal::<B>(block.post_digests.get(digest_size - 1), block.header.hash())?;
+		let pscan_hashes = fetch_seal::<B>(block.post_digests.get(digest_size - 2), block.header.hash())?;
 
 		if pscan_obj.len() > MAX_MINING_OBJ_LEN {
 			return Err(Error::<B>::Other("Mining object too large".to_string()).into());
@@ -538,13 +553,27 @@ impl<B, I, C, S, Algorithm, CAW, CIDP, AccountId, BlockNumber> BlockImport<B> fo
 		if !SUPPORTED_ALGORITHMS.contains(alg_id) {
 			return Err(Error::<B>::Other("Unknown algorithm".to_string()).into());
 		}
+
 		let block_num = *block.header.number();
 		if block_num > REJECT_OLD_ALGO_SINCE.into() && *alg_id != POSCAN_ALGO_GRID2D_V3A {
 			return Err(Error::<B>::Other("Unsupported algorithm".to_string()).into());
 		}
+
 		let hs: Vec<H256> = pscan_hashes[16..].chunks(32).map(H256::from_slice).collect();
 
-		let psdata = PoscanData{ alg_id: *alg_id, hashes: hs.clone(), obj: pscan_obj };
+		let parent_id: BlockId<B> = BlockId::hash(parent_hash);
+		let ver = self.client.runtime_api().version(&parent_id).unwrap();
+
+		let (inner_seal, psdata) = if ver.spec_version < CONS_V2_SPEC_VER {
+			let inner_seal = fetch_seal::<B>(block.post_digests.get(digest_size - 3), block.header.hash())?;
+			(inner_seal, PoscanData::V1(PoscanDataV1{ alg_id: *alg_id, hashes: hs.clone(), obj: pscan_obj }))
+		}
+		else {
+			let inner_seal = fetch_seal::<B>(block.post_digests.get(digest_size - 4), block.header.hash())?;
+			let orig_pscan_hashes = fetch_seal::<B>(block.post_digests.get(digest_size - 3), block.header.hash())?;
+			let orig_hs: Vec<H256> = orig_pscan_hashes[16..].chunks(32).map(H256::from_slice).collect();
+			(inner_seal, PoscanData::V2(PoscanDataV2 { alg_id: *alg_id, hashes: hs.clone(), orig_hashes: orig_hs.clone(), obj: pscan_obj }))
+		};
 
 		let intermediate = block.take_intermediate::<PowIntermediate::<Algorithm::Difficulty>>(
 			INTERMEDIATE_KEY
@@ -673,12 +702,15 @@ impl<B: BlockT, Algorithm> PowVerifier<B, Algorithm> {
 		Algorithm: PowAlgorithm<B>,
 	{
 		let mut digests: Vec<DigestItem> = Vec::new();
-		// pop last 3 DigestItem: Seal, Other, Other
-		for _ in 0..3 {
+
+		for _ in 0..4 {
 			match header.digest_mut().pop() {
 				Some(DigestItem::Seal(id, seal)) => {
-					if id == POSCAN_ENGINE_ID {
-						digests.push(DigestItem::Seal(id, seal.clone()))
+					if id == POSCAN_SEAL_V1_ID || id == POSCAN_SEAL_V2_ID {
+						digests.push(DigestItem::Seal(id, seal.clone()));
+						if id == POSCAN_SEAL_V1_ID {
+							break
+						}
 					} else {
 						return Err(Error::WrongEngine(id))
 					}
@@ -718,10 +750,17 @@ impl<B: BlockT, Algorithm> Verifier<B> for PowVerifier<B, Algorithm> where
 		let (checked_header, items) = self.check_header(block.header)?;
 
 		let mut seal: Option<DigestItem> = None;
+		let mut orig_hashes: Option<DigestItem> = None;
 		let mut poscan_hashes: Option<DigestItem> = None;
 		let mut poscan_obj: Option<DigestItem> = None;
 
-		if items.len() == 3 {
+		if items.len() == 4 {
+			seal = Some(items[3].clone());
+			orig_hashes = Some(items[2].clone());
+			poscan_hashes = Some(items[1].clone());
+			poscan_obj = Some(items[0].clone());
+		}
+		else if items.len() == 3 {
 			seal = Some(items[2].clone());
 			poscan_hashes = Some(items[1].clone());
 			poscan_obj = Some(items[0].clone());
@@ -734,6 +773,7 @@ impl<B: BlockT, Algorithm> Verifier<B> for PowVerifier<B, Algorithm> where
 		let mut import_block = BlockImportParams::new(block.origin, checked_header);
 
 		if let Some(seal) = seal { import_block.post_digests.push(seal) };
+		if let Some(orig_hashes) = orig_hashes { import_block.post_digests.push(orig_hashes) };
 		if let Some(poscan_hashes) = poscan_hashes { import_block.post_digests.push(poscan_hashes) };
 		if let Some(poscan_obj) = poscan_obj { import_block.post_digests.push(poscan_obj) };
 		import_block.body = block.body;
@@ -821,7 +861,7 @@ fn fetch_seal<B: BlockT>(
 ) -> Result<Vec<u8>, Error<B>> {
 	match digest {
 		Some(DigestItem::Seal(id, seal)) => {
-			if id == &POSCAN_ENGINE_ID {
+			if id == &POSCAN_SEAL_V1_ID || id == &POSCAN_SEAL_V2_ID{
 				Ok(seal.clone())
 			} else {
 				Err(Error::<B>::WrongEngine(*id).into())

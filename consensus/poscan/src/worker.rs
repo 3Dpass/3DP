@@ -41,10 +41,10 @@ use std::{
 	},
 	time::Duration,
 };
-use sp_consensus_poscan::compress_obj;
+use sp_consensus_poscan::{compress_obj, POSCAN_SEAL_V1_ID, POSCAN_SEAL_V2_ID};
 use crate::PoscanData;
 
-use crate::{PowAlgorithm, PowIntermediate, Seal, INTERMEDIATE_KEY, POSCAN_ENGINE_ID};
+use crate::{PowAlgorithm, PowIntermediate, Seal, INTERMEDIATE_KEY, };
 
 /// Mining metadata. This is the information needed to start an actual mining loop.
 #[derive(Clone, Eq, PartialEq)]
@@ -203,29 +203,41 @@ impl<Block, Algorithm, C, L, Proof> MiningHandle<Block, Algorithm, C, L, Proof>
 			return false;
 		};
 
+		let (seal_id, alg_id, hashes, obj) = match poscan_data {
+			PoscanData::V1(ps) => (POSCAN_SEAL_V1_ID, &ps.alg_id, &ps.hashes, &ps.obj),
+			PoscanData::V2(ps) => (POSCAN_SEAL_V2_ID, &ps.alg_id, &ps.hashes, &ps.obj),
+		};
+
 		info!(">>> seal: {:x?}", &seal[0..20]);
-		let seal = DigestItem::Seal(POSCAN_ENGINE_ID, seal);
-		let mut h: Vec<u8> = poscan_data.hashes.iter().flat_map(|h| h.as_bytes().to_vec()).collect();
-		let mut v = poscan_data.alg_id.to_vec();
+		let seal = DigestItem::Seal(seal_id, seal);
+		let mut h: Vec<u8> = hashes.iter().flat_map(|h| h.as_bytes().to_vec()).collect();
+		let mut v = alg_id.to_vec();
 		v.append(&mut h);
 		let poscan_hashes = DigestItem::Other(v);
 
-		info!(">>> pscan_obj len: {}", poscan_data.obj.len());
+		info!(">>> pscan_obj len: {}", obj.len());
 
 		let mut zip_obj = vec![b'l', b'z', b's', b's'];
-		let mut zipped = compress_obj(poscan_data.obj.as_slice());
+		let mut zipped = compress_obj(obj.as_slice());
 		zip_obj.append(&mut zipped);
 
 		info!(">>> zip_obj len: {}", zip_obj.len());
 
 		let poscan_obj = DigestItem::Other(zip_obj);
-
-
 		let (header, body) = build.proposal.block.deconstruct();
-
 		let mut import_block = BlockImportParams::new(BlockOrigin::Own, header);
 
 		import_block.post_digests.push(seal);
+
+		if let PoscanData::V2(ps_data) = poscan_data {
+			let mut h: Vec<u8> = ps_data.orig_hashes.iter().flat_map(|h| h.as_bytes().to_vec()).collect();
+			let mut v = ps_data.alg_id.to_vec();
+			v.append(&mut h);
+			let orig_poscan_hashes = DigestItem::Other(v);
+
+			import_block.post_digests.push(orig_poscan_hashes);
+		}
+
 		import_block.post_digests.push(poscan_hashes);
 		import_block.post_digests.push(poscan_obj);
 

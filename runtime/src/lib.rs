@@ -8,6 +8,7 @@ include!(concat!(env!("OUT_DIR"), "/wasm_binary.rs"));
 
 mod fee;
 mod check;
+mod algo;
 
 // Include the genesis helper module when building to std
 #[cfg(feature = "std")]
@@ -1803,6 +1804,10 @@ impl_runtime_apis! {
 		fn difficulty() -> sp_consensus_poscan::Difficulty {
 			difficulty::Module::<Runtime>::difficulty() / difficulty::Module::<Runtime>::scale()
 		}
+
+		fn hist_steps() -> u32 {
+			difficulty::Module::<Runtime>::hist_steps()
+		}
 	}
 
 	impl sp_consensus_poscan::MiningPoolApi<Block, AccountId> for Runtime {
@@ -1825,6 +1830,9 @@ impl_runtime_apis! {
 		fn check_object(alg_id: &[u8;16], obj: &Vec<u8>, hashes: &Vec<H256>) -> bool {
 			log::debug!("Runtime object check");
 			check::check_obj(alg_id, obj, hashes)
+		}
+		fn get_obj_hashes_wasm(ver: &[u8; 16], data: &Vec<u8>, pre: &H256, depth: u32, patch_rot: bool) -> Vec<H256> {
+			algo::get_obj_hashes_wasm(ver, &data[..], pre, depth as usize, patch_rot)
 		}
 	}
 
