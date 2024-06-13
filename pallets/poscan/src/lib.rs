@@ -379,7 +379,7 @@ pub mod pallet {
 	impl<T: Config> Pallet<T> {
 		/// Put file to poscan storage
 		#[pallet::weight(<Pallet::<T>>::fee_per_byte().unwrap_or(FEE_PER_BYTE) * obj.len() as u64)]
-		pub fn put_object2(
+		pub fn put_object(
 			origin: OriginFor<T>,
 			category: ObjectCategory,
 			obj: BoundedVec<u8, ConstU32<MAX_OBJECT_SIZE>>,
