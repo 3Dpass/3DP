@@ -29,6 +29,7 @@ use sp_consensus_poscan::{
 	REJECT_OLD_ALGO_SINCE,
 };
 use poscan_algo::get_obj_hashes;
+use poscan_grid2d::randomx;
 use async_trait::async_trait;
 use sc_rpc::SubscriptionTaskExecutor;
 use sc_finality_grandpa::{FinalityProofProvider as GrandpaFinalityProofProvider};
@@ -463,12 +464,16 @@ pub fn new_full(
 							continue
 						}
 
-						// info!(">>> metadata.pre_hash: {}", &metadata.pre_hash);
 						let v = orig_hashes[0].encode();
 						let mut buf = metadata.pre_hash.encode();
 						buf.append(v.clone().as_mut());
-						use sp_core::hashing::sha2_256;
-						let rotation_hash = H256::from_slice(sha2_256(&buf).as_slice());
+
+						let rndx = randomx(&buf);
+						if let Err(e) = rndx {
+							error!(">>> {}", e);
+							break
+						}
+						let rotation_hash = rndx.unwrap();
 
 						let hashes = get_obj_hashes(mining_algo, &mp.pre_obj, &rotation_hash, patch_rot);
 						if hashes.len() > 0 {
@@ -483,9 +488,19 @@ pub fn new_full(
 
 							let hist_hash = calc_hist(client.clone(), &rotation_hash, &parent_id);
 
-							let obj_hash = hashes[0];
+							let rndx = randomx(hashes[0].0.as_slice());
+							if let Err(e) = rndx {
+								error!(">>> {:#?}", e);
+								break
+							}
+							let obj_hash = rndx.unwrap();
 							let dh = DoubleHash { pre_hash: metadata.pre_hash, obj_hash };
-							let poscan_hash = dh.calc_hash();
+							let rndx = dh.calc_hash_randomx();
+							if let Err(e) = rndx {
+								error!(">>> {:#?}", e);
+								break
+							}
+							let poscan_hash = rndx.unwrap();
 							let mut psdata = PoscanData {
 								alg_id: mining_algo.clone(),
 								orig_hashes: orig_hashes.clone(),
@@ -493,11 +508,16 @@ pub fn new_full(
 								obj: mp.pre_obj.clone(),
 							};
 
+							let rndx = randomx(orig_hashes[0].0.as_slice());
+							if let Err(e) = rndx {
+								error!(">>> {:#?}", e);
+								break
+							}
 							let compute = Compute {
 								difficulty: metadata.difficulty,
 								pre_hash: metadata.pre_hash,
 								poscan_hash,
-								orig_hash: orig_hashes[0], // metadata.pre_hash,
+								orig_hash: rndx.unwrap(),
 								hist_hash,
 							};
 

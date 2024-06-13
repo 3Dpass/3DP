@@ -90,6 +90,7 @@ pallet-transaction-payment-rpc-runtime-api = { git = "https://github.com/parityt
 frame-benchmarking = { git = "https://github.com/paritytech/substrate", rev = "b0777b4c7f7", default-features = false, package = "frame-benchmarking", optional = true }
 frame-system-benchmarking = { git = "https://github.com/paritytech/substrate", rev = "b0777b4c7f7", default-features = false, package = "frame-system-benchmarking", optional = true }
 hex-literal = { version = "0.3.4", optional = true }
+array-bytes = { version = "6.1.0" }
 
 # Contracts specific packages
 pallet-contracts = { git = "https://github.com/paritytech/substrate", rev = "b0777b4c7f7", package = "pallet-contracts", default-features = false }
@@ -101,6 +102,8 @@ pallet-asset-conversion = { version = "4.0.0-dev", default-features = false, pat
 sp-consensus-poscan = { path = "../primitives/consensus/poscan", default-features = false }
 pallet-poscan = { path = "../pallets/poscan", default-features = false }
 pallet-poscan-assets = { path = "../pallets/poscan-assets", default-features = false }
+
+p3d = { version="0.7.0", git="https://github.com/3Dpass/p3d", rev="5eed8192" }
 
 [build-dependencies]
 substrate-wasm-builder = { version = "10"} # { git = "https://github.com/paritytech/substrate", rev = "b0777b4c7f7", package = "substrate-wasm-builder" }
@@ -180,7 +183,6 @@ std = [
 	"rewards/std",
 	# "lockdrop/std",
 	"poscan-api/std",
-
 ]
 runtime-benchmarks = [
 	"frame-benchmarking/runtime-benchmarks",

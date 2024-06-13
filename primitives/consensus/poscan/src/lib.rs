@@ -189,6 +189,7 @@ sp_api::decl_runtime_apis! {
 	{
 		fn get_poscan_object(i: u32) -> Option<ObjData<AccountId, BlockNum>>;
 		fn check_object(alg_id: &[u8;16], obj: &Vec<u8>, hashes: &Vec<H256>) -> bool;
+		fn get_obj_hashes_wasm(ver: &[u8; 16], data: &Vec<u8>, pre: &H256, depth: u32, patch_rot: bool) -> Vec<H256>;
 	}
 }
 

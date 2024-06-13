@@ -1,23 +1,25 @@
 use std::marker::PhantomData;
 use std::fmt::Debug;
 use std::sync::Arc;
+use std::convert::TryInto;
 use parity_scale_codec::{Decode, Encode};
 use sc_consensus_poscan::{Error, PoscanData, PowAlgorithm};
 use sha3::{Digest, Sha3_256};
 use sp_blockchain::HeaderBackend;
-use sp_api::{ProvideRuntimeApi, Core};
+use sc_client_api::BlockBackend;
+use sp_api::{HeaderT, ProvideRuntimeApi, Core};
 use sp_consensus_poscan::{Seal as RawSeal, SCALE_DIFF_SINCE, SCALE_DIFF_BY};
 use sp_consensus_poscan::{DifficultyApi, PoscanApi};
 use sp_core::{H256, U256, crypto::Pair, hashing::blake2_256, ByteArray};
 use sp_runtime::generic::BlockId;
 use sp_runtime::traits::{Block as BlockT, Member};
 use sp_runtime::scale_info::TypeInfo;
-// use frame_support::sp_runtime::print as prn;
-// use frame_support::runtime_print;
+use sp_runtime::traits::SaturatedConversion;
 use sc_consensus_poscan::app;
 use sp_consensus_poscan::{POSCAN_ALGO_GRID2D_V3_1, POSCAN_ALGO_GRID2D_V3A, REJECT_OLD_ALGO_SINCE};
 use poscan_algo::get_obj_hashes;
 use log::*;
+use randomx_rs::{RandomXFlag, RandomXCache, RandomXVM, RandomXError};
 
 /// Determine whether the given hash satisfies the given difficulty.
 /// The test is done by multiplying the two together. If the product
@@ -126,6 +128,10 @@ impl DoubleHash {
 	pub fn calc_hash(self) -> H256 {
 		H256::from_slice(Sha3_256::digest(&self.encode()[..]).as_slice())
 	}
+
+	pub fn calc_hash_randomx(self) -> Result<H256, RandomXError> {
+		Ok(H256::from_slice(&randomx(&self.encode()[..])?.encode()))
+	}
 }
 
 pub struct PoscanAlgorithm<C, AccountId, BlockNumber> {
@@ -148,7 +154,7 @@ impl<C, AccountId, BlockNumber> Clone for PoscanAlgorithm<C, AccountId, BlockNum
 
 impl<B: BlockT<Hash = H256>, C, AccountId, BlockNumber> PowAlgorithm<B> for PoscanAlgorithm<C, AccountId, BlockNumber>
 where
-	C: ProvideRuntimeApi<B> + HeaderBackend<B>,
+	C: ProvideRuntimeApi<B> + HeaderBackend<B> + BlockBackend<B>,
 	C::Api: DifficultyApi<B, U256>,
 	C::Api: PoscanApi<B, AccountId, BlockNumber>,
 	C::Api: Core<B>,
@@ -199,7 +205,9 @@ where
 			}
 
 			let dh = DoubleHash { pre_hash: *pre_hash, obj_hash: poscan_data.hashes[0] };
-			if dh.calc_hash() != seal.poscan_hash {
+			let rndx = dh.calc_hash_randomx()
+				.map_err(|e| Error::Other(format!("{:#?}", e)))?;
+			if rndx != seal.poscan_hash {
 				info!(">>> verify: poscan hash doesnt equal to seal one");
 				return Ok(false);
 			}
@@ -259,7 +267,21 @@ where
 			return Ok(false);
 		}
 
-		let obj_orig_hashes = get_obj_hashes(&poscan_data.alg_id, &poscan_data.obj, &H256::default(), false);
+		let obj_orig_hashes = if ver.spec_version >= 125 {
+			self.client
+				.runtime_api()
+				.get_obj_hashes_wasm(&parent_id, &poscan_data.alg_id, &poscan_data.obj, &H256::default(), 10, false)
+				.map_err(|err| {
+					sc_consensus_poscan::Error::<B>::Environment(format!(
+						">>> get_obj_hashes_wasm: {:?}",
+						err
+					))
+				})?
+		}
+		else {
+			get_obj_hashes(&poscan_data.alg_id, &poscan_data.obj, &H256::default(), false)
+		};
+
 		if obj_orig_hashes.len() == 0 {
 			info!(">>> verify: obj_pre_hashes.len() == 0");
 			return Ok(false)
@@ -273,12 +295,21 @@ where
 		let v = obj_orig_hashes[0].encode();
 		let mut buf = pre_hash.encode();
 		buf.append(v.clone().as_mut());
-		let rotation_hash = H256::from_slice(sha2_256(&buf).as_slice());
+
+		let rotation_hash = randomx(&buf)
+			.map_err(|e| Error::Other(format!("{:#?}", e)))?;
 
 		let hist_hash = calc_hist(self.client.clone(), &rotation_hash, &parent_id);
 
 		if seal.hist_hash != hist_hash {
 			info!(">>> verify: seal.hist_hash != hist_hash");
+			return Ok(false);
+		}
+
+		let rndx = randomx(&obj_orig_hashes[0].0.as_slice())
+			.map_err(|e| Error::Other(format!("{:#?}", e)))?;
+		if seal.orig_hash != rndx {
+			info!(">>> verify: seal.orig_hash != randomx(orig_hashes[0])");
 			return Ok(false);
 		}
 
@@ -339,13 +370,21 @@ where
 		let parent_num = self.client.block_number_from_id(&parent_id).unwrap().unwrap();
 		let patch_rot = parent_num >= REJECT_OLD_ALGO_SINCE.into();
 
-		let v = obj_orig_hashes[0].encode();
-		let mut buf = pre_hash.encode();
-		buf.append(v.clone().as_mut());
-		use sp_core::hashing::sha2_256;
-		let rotation_hash = H256::from_slice(sha2_256(&buf).as_slice());
+		let hashes = if ver.spec_version >= 125 {
+			self.client
+				.runtime_api()
+				.get_obj_hashes_wasm(&parent_id, &poscan_data.alg_id, &poscan_data.obj, &rotation_hash, 10, patch_rot)
+				.map_err(|err| {
+					sc_consensus_poscan::Error::<B>::Environment(format!(
+						">>> get_obj_hashes_wasm: {:?}",
+						err
+					))
+				})?
+		}
+		else {
+			get_obj_hashes(&poscan_data.alg_id, &poscan_data.obj, &rotation_hash, patch_rot)
+		};
 
-		let hashes = get_obj_hashes(&poscan_data.alg_id, &poscan_data.obj, &rotation_hash, patch_rot);
 		if hashes != poscan_data.hashes {
 			info!(">>> verify: hashes != poscan_data.hashes");
 			return Ok(false)
@@ -364,21 +403,12 @@ where
 	}
 }
 
-use sp_api::HeaderT;
-use sp_runtime::traits::SaturatedConversion;
-
 pub fn calc_hist<C, B>(client: Arc<C>, pre_hash: &H256, parent_block: &BlockId::<B>) -> H256
-//pub fn calc_hist<C, B>(client: Arc<C>, pre_hash: &H256, parent_num: BlockNumber) -> H256
 where
-	C: ProvideRuntimeApi<B> + HeaderBackend<B>,
+	C: ProvideRuntimeApi<B> + HeaderBackend<B> + BlockBackend<B>,
 	C::Api: DifficultyApi<B, U256>,
 	B: BlockT,
 {
-	use std::convert::TryInto;
-
-	use sp_core::hashing::sha2_256;
-	use sp_runtime::DigestItem;
-
 	let mut selected_blocks = Vec::<u32>::new();
 
 	let n_blocks: u32 = client
@@ -405,22 +435,39 @@ where
 				debug!("--- Select: no digest");
 				continue
 			}
-			let digest = digest.unwrap().unwrap();
-			let n = digest.logs().len();
 
-			if n >= 3 {
-				let di = digest.logs()[n - 1].clone();
-				if let DigestItem::Other(v) = di {
-					let mut buf = hh.encode();
-					buf.append(v.clone().as_mut());
-					hh = H256::from_slice(sha2_256(&buf).as_slice());
-					selected_blocks.push(number);
-				}
+			let block_data: Vec<u8>;
+			let block_id = BlockId::Number(number.into());
+			match client.block(&block_id) {
+				Ok(maybe_prev_block) => {
+					match maybe_prev_block {
+						Some(signed_block) => {
+							block_data = signed_block.block.encode();
+						},
+						_ => continue,
+					}
+				},
+				_ => continue,
 			}
+
+			let mut v = block_data.encode();
+			debug!("block_len={}", v.len());
+			let mut buf = hh.encode();
+			buf.append(&mut v);
+			hh = H256::from_slice(blake2_256(&buf).as_slice());
+			selected_blocks.push(number);
 		}
 		debug!("--- Selected  blocks: {}",
 			selected_blocks.iter().map(|x| x.to_string()).collect::<Vec<_>>().join(",")
 		);
 	}
 	hh
+}
+
+pub fn randomx(data: &[u8]) -> Result<H256, RandomXError> {
+	let flags = RandomXFlag::get_recommended_flags();
+	let cache = RandomXCache::new(flags, &data)?;
+	let vm = RandomXVM::new(flags, Some(cache), None)?;
+
+	vm.calculate_hash(&data).map(|res| H256::from_slice(&res))
 }
