@@ -44,6 +44,8 @@ use serde::{Serialize, Deserialize};
 
 /// The `ConsensusEngineId` of PoScan.
 pub const POSCAN_ENGINE_ID: ConsensusEngineId = [b'p', b'o', b's', b'c'];
+pub const POSCAN_SEAL_V1_ID: ConsensusEngineId = POSCAN_ENGINE_ID;
+pub const POSCAN_SEAL_V2_ID: ConsensusEngineId = [b'p', b's', b'c', b'2'];
 pub const POSCAN_COIN_ID: u8 = 72;
 
 pub const POSCAN_ALGO_GRID2D: [u8; 16] = *b"grid2d-1.1      ";
@@ -65,6 +67,8 @@ pub const REJECT_OLD_ALGO_SINCE: u32 = 740500;
 pub const SCALE_DIFF_SINCE: u32 = 370_898;
 pub const SCALE_DIFF_BY: u32 = 1_000_000;
 pub const MAX_MINING_OBJ_LEN: usize = 100 * 1024;
+
+pub const CONS_V2_SPEC_VER: u32 = 128;
 
 /// Type of seal.
 pub type Seal = Vec<u8>;
