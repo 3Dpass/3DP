@@ -100,6 +100,8 @@ pub trait HashableObject {
 		return true
 	}
 
+	fn try_call_128() -> bool { return true }
+
 	fn prev_mining_data() -> Result<(u32, H256, H256, Vec<u8>, Vec<H256>, Vec<u8>), Error> {
 		if CLIENT.lock().is_none() {
 			Err(Error::NoClient)
