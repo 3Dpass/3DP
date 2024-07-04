@@ -516,13 +516,7 @@ pub fn new_full(
 
 								let hist_hash = calc_hist(client.clone(), &rotation_hash, &parent_id);
 
-								let rndx = randomx(hashes[0].0.as_slice());
-								if let Err(e) = rndx {
-									error!(">>> {}", e);
-									break
-								}
-								let obj_hash = rndx.unwrap();
-								let dh = DoubleHash { pre_hash: metadata.pre_hash, obj_hash };
+								let dh = DoubleHash { pre_hash: metadata.pre_hash, obj_hash: hashes[0] };
 								let rndx = dh.calc_hash_randomx();
 								if let Err(e) = rndx {
 									error!(">>> {}", e);
