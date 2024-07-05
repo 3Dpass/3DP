@@ -2,11 +2,11 @@
 [![logo](https://github.com/3Dpass/3DP/assets/107915078/11de380f-7f77-4cf6-831d-e6ac8d7ab1ec)](https://3dpass.org)
 
 
-# 3Dpass Node - mainnet
+# The Ledger of Things Node
 
 "The Ledger of Things" is a revolutionary open source Layer 1 blockchain platform for the tokenization of objects. [White Paper](https://3dpass.org/coin#white-papper). Current list of the object categories is presented as follows: 3D objects, 2D drawings, Music, Biometrics, Radio signals, Movements, Texts.
 
-[Proof of Scan](https://3dpass.org/proof-of-scan) is a decentralized protocol, which is based on recognition technology. Every object, transformed by 3DPass, obtains its own unique and sustainable identity called HASH ID the object could be recognized by. This will prevent the copying of digital assets and thus open a door for the entire blockchain space to potentially trillions in deals all over the globe.
+[Proof of Scan](https://github.com/3Dpass/whitepaper/blob/main/3DPass_white_paper_v2.pdf) is a decentralized protocol (PoW `ASIC resistant, CPU oriented` + PoS), which is based on recognition technology. Every object, transformed by 3DPass, obtains its own unique and sustainable identity called HASH ID the object could be recognized by. This will prevent the copying of digital assets and thus open a door for the entire blockchain space to potentially trillions in deals all over the globe.
 
 [Grid2d](https://3dpass.org/grid2d) is the first 3D shape recognition algorithm, which is being utilized as the hash function in the Proof of Scan protocol. The implementations of the algorithm are the [pass3d](https://github.com/3Dpass/pass3d) recognition toolkit and its WASM analog [p3d](https://github.com/3Dpass/p3d). 
 
@@ -16,7 +16,7 @@ The scope of potential 3Dpass applications goes way beyond 3D object recognition
 
 [3DPass Coin (P3D)](https://3dpass.org/coin) is a native utility token, operating on "The Ledger of Things", which serves to incentivize community members to maintain the network infrastructure. Such aspects as: Storage fee, Gas fee, The object authentication fee, Transaction fee, The validator collaterals, Penalties - are all being counted in P3D.
 
-[Contribution program](https://3dpass.org/coin#distribution-contribution)  |  [Contributing guidelines](https://github.com/3Dpass/3DP/blob/main/CONTRIBUTING.md)  |  [Discord](https://discord.gg/u24WkXcwug)
+[Contribution program](https://3dpass.org/coin#distribution-contribution)  |  [Contribution guidelines](https://github.com/3Dpass/3DP/blob/main/CONTRIBUTING.md)  |  [Discord](https://discord.gg/u24WkXcwug)
 
 # Integration
 
