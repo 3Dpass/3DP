@@ -40,8 +40,8 @@ The scope of potential 3Dpass applications goes way beyond 3D object recognition
 
 ### Download the latest release
 ```sh
-wget https://github.com/3Dpass/3DP/releases/download/v9/poscan-consensus-x86_64-unknown-linux-gnu.tar.gz
-tar xzf poscan-consensus-x86_64-unknown-linux-gnu.tar.gz
+wget https://github.com/3Dpass/3DP/releases/download/v25/poscan-consensus-linux-x86_64.tar.gz
+tar xzf poscan-consensus-linux-x86_64.tar.gz
 ```
 
 ### Rust Setup
@@ -98,7 +98,7 @@ Register your mining key in the keystore:
 ./target/release/poscan-consensus import-mining-key 'your secret phrase' --base-path ~/3dp-chain/ --chain mainnetSpecRaw.json
 ```
 
-Generate your GRANDPA keys for finalization. Use the same secret phrase as it's used for mining address (The account is defined by the secret phrase):
+Generate your GRANDPA keys for block finalization. Use the same secret phrase as the one your mining address has been generated with (The account is defined by the secret phrase):
 ```bash
 ./target/release/poscan-consensus import-mining-key 'your secret phrase' --base-path ~/3dp-chain/ --chain mainnetSpecRaw.json
 ## Development
