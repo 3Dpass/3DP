@@ -562,7 +562,15 @@ impl<B, I, C, S, Algorithm, CAW, CIDP, AccountId, BlockNumber> BlockImport<B> fo
 		let hs: Vec<H256> = pscan_hashes[16..].chunks(32).map(H256::from_slice).collect();
 
 		let parent_id: BlockId<B> = BlockId::hash(parent_hash);
-		let ver = self.client.runtime_api().version(&parent_id).unwrap();
+		let ver = self.client
+			.runtime_api()
+			.version(&parent_id)
+			.map_err(|err|
+				Error::<B>::Environment(format!(
+					">>> get version call failed in import_block: {:?}",
+					err
+				))
+			)?;
 
 		let (inner_seal, psdata) = if ver.spec_version < CONS_V2_SPEC_VER {
 			let inner_seal = fetch_seal::<B>(block.post_digests.get(digest_size - 3), block.header.hash())?;
