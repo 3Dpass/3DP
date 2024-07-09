@@ -4,6 +4,9 @@
   "repository": "https://github.com/3Dpass/pass3d",
   "license": "MIT",
   "type": "commonjs",
+  "scripts": {
+    "miner": "node miner.js"
+  },
   "devDependencies": {
     "prettier": "2.8.8"
   },

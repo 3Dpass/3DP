@@ -1,5 +1,3 @@
-version: "3.9"
-
 services:
   miner:
     container_name: "miner"
@@ -15,7 +13,7 @@ services:
       context: .
       dockerfile: docker/node.Dockerfile
     volumes:
-      - /var/chain
+      - ./data/chain:/var/chain
     ports:
       - "0.0.0.0:9944:9944"
       - "0.0.0.0:9933:9933"

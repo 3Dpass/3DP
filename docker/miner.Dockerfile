@@ -2,13 +2,14 @@ FROM node:latest
 
 WORKDIR /app
 
-COPY ./miner-libs/ .
 COPY ./package.json .
 COPY ./pnpm-lock.yaml .
-COPY ./miner.js .
 
 RUN corepack enable && \
     corepack prepare pnpm@latest --activate && \
     pnpm install
+
+COPY ./miner-libs/ ./miner-libs/
+COPY ./miner.js .
 
 CMD ["pnpm", "miner", "--host", "node"]

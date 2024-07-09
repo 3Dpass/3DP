@@ -14,6 +14,11 @@ const do_save = argv.save || false;
 const apiUrl = `http://${host}:${port}`;
 const filename = "rock.obj";
 
+let interval = 3000;
+const MIN_INTERVAL = 100;
+const MAX_INTERVAL = 10000;
+const ADJUSTMENT_PERCENT = 10;
+
 let exporterModule;
 let exporter;
 
@@ -45,8 +50,17 @@ async function mining(do_save) {
     .catch((e) => {
       console.log(e.toString());
     })
-    .then(() => {
-      mining();
+    .then((res) => {
+      // example result: { jsonrpc: '2.0', result: 0, id: 1 }
+      // Adjust interval based on result
+      if (res && res.result === 0) {
+        interval = Math.max(MIN_INTERVAL, Math.round(interval * (1 - ADJUSTMENT_PERCENT / 100)));
+        console.log(`Decreased interval to ${interval}ms`);
+      } else if (res && res.result === 1) {
+        interval = Math.min(MAX_INTERVAL, Math.round(interval * (1 + ADJUSTMENT_PERCENT / 100)));
+        console.log(`Increased interval to ${interval}ms`);
+      }
+      setTimeout(() => mining(), interval);
     });
 }
 

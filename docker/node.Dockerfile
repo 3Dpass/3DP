@@ -1,10 +1,11 @@
-FROM rust:1.60 as builder
+FROM rust:1.71 AS builder
 WORKDIR /app
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
     libclang-dev cmake
 RUN rustup update nightly && \
-    rustup target add wasm32-unknown-unknown --toolchain nightly
+    rustup default nightly-2023-05-05 && \
+    rustup target add wasm32-unknown-unknown --toolchain nightly-2023-05-05
 ADD . ./
 RUN --mount=type=cache,target=/usr/local/cargo/registry \
     --mount=type=cache,target=/usr/local/cargo/git \
