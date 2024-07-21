@@ -20,23 +20,14 @@ The scope of potential 3Dpass applications goes way beyond 3D object recognition
 
 # Integration
 
- This is an eco-system scheme, which represents general functional elements:
-
-- 3Dpass NODE (based on [Substrate](https://substrate.io/)) - wallets, dApps, smart-contracts, IoT devices integration using API and RPC
-- [Pass3d](https://github.com/3Dpass/pass3d) and [p3d](https://github.com/3Dpass/p3d) recognition toolkit - recognition algorithms integration
-- [Proof of Scan](https://3dpass.org/proof-of-scan) consensus - the logic, using 3D objects recognition toolkit, that allows network participants to agree on the state of the blockchain
-
+- NODE - the Node leverages [Substrate](https://substrate.io/) framework and implemented as two-piece design `Rust native` part and `Runtime` part ([WASM](https://webassembly.org/)-based), which is upgradable online and allows for multiple useful modules to operate (see more [forkless upgrade](https://3dpass.org/proof-of-scan#forkless-upgrade)). 
+- RPC (remote procedure call) - the capabilities that allow blockchain users to interact with the network. The NODE provides HTTP and [WebSocket](https://github.com/3Dpass/3DP/wiki/Set-up-WSS-for-Remote-Connections) RPC servers.
+- CORE Networking - the [`libp2p`](https://libp2p.io/) is used as as networking stack for the Nodes to communicate with each other.
 - [3Dpass light wallet](https://github.com/3Dpass/wallet) - desktop users and 3D printing labs integration
 - [Pass3d mobile](https://github.com/3Dpass/threedpass) - smartphone and tablets users integration
-- Smart contracts toolkit - Substrate based smart contract tools using [ink](https://paritytech.github.io/ink-docs/), a Rust-based embedded domain specific language (eDSL) for writing WebAssembly smart contracts. Learn more about [how it compares to Solidity](https://paritytech.github.io/ink-docs/ink-vs-solidity). As well, it allows unmodified EVM code to be executed in the 3DPass blockchain. Some special Substrate features are designed to closely emulate the functionality of executing contracts on the Ethereum mainnet within the 3DPass network.
-- EIPFS storage - embedded decentralized storage for assets
-- RPC (remote procedure call) - the capabilities that allow blockchain users to interact with the network. The NODE provides HTTP and [WebSocket](https://github.com/3Dpass/3DP/wiki/Set-up-WSS-for-Remote-Connections) RPC servers.
-- Networking: we use the [`libp2p`](https://libp2p.io/) networking stack to allow for the
-  nodes in the network to communicate with one another.
 
-  
+ <img width="719" alt="Node_integration" src="https://github.com/user-attachments/assets/93f186eb-c9db-4fd8-96b7-efc3b451a6b8">
 
-[![Architecture](https://3dpass.org/images/eco_system1.png)](https://3dpass.org/features#integration)
 
 ## Getting started with 3Dpass Node
 
