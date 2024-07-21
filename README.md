@@ -34,6 +34,8 @@ The scope of potential 3Dpass applications goes way beyond 3D object recognition
 - Networking: we use the [`libp2p`](https://libp2p.io/) networking stack to allow for the
   nodes in the network to communicate with one another.
 
+  
+
 [![Architecture](https://3dpass.org/images/eco_system1.png)](https://3dpass.org/features#integration)
 
 ## Getting started with 3Dpass Node
@@ -88,35 +90,40 @@ subcommands:
 
 ### Set up your keys
 
-Generate youur mining address and keys:
-```bash
-./target/release/poscan-consensus generate-mining-key --base-path ~/3dp-chain/ --chain mainnetSpecRaw.json
+#### New account
+- Generate new account and import all of your keys (Mining key, GRANDPA key and ImOnline key) at once with the script `keygen.sh`:
+```sh
+sh keygen.sh
 ```
+The keys will be imported into `~/3dp-chain/chains/3dpass/keystore`
 
-Register your mining key in the keystore:
+#### Existing account
+- Have you already had an account, use the `keygen_seed.sh` script to generate the keys out of your Secret Seed phrase and import them all at once.
+
+1. Put your Secret Seed phrase into the `~/3DP/keygen_seed.sh` file like this:
 ```bash
-./target/release/poscan-consensus import-mining-key 'your secret phrase' --base-path ~/3dp-chain/ --chain mainnetSpecRaw.json
+bash#! /bin/bash
+# A keyset will be generated out of the seed phrase below
+MEMO_SEED="PUT YOUR MEMO SEED HERE"
 ```
-
-Generate your GRANDPA keys for block finalization. Use the same secret phrase as the one your mining address has been generated with (The account is defined by the secret phrase):
-```bash
-./target/release/poscan-consensus import-mining-key 'your secret phrase' --base-path ~/3dp-chain/ --chain mainnetSpecRaw.json
-## Development
+2. Save the the `keygen_seed.sh` and execute the script:
+```sh
+sh keygen_seed.sh
 ```
+The keys will be imported into `~/3dp-chain/chains/3dpass/keystore`
 
-Insert Grandpa key into the keystore:
-```bash
-./target/release/poscan-consensus key insert --base-path ~/3dp-chain/ --chain mainnetSpecRaw.json --scheme Ed25519 --suri <secret seed from Grandpa> --key-type gran
-```
-Make sure you have both keys in the keystore `~/3dp-chain/chains/3dpass/keystore`
+#### Manual set up
+- Follow [manual set up guidelines](https://3dpass.org/mainnet#manual), if you'd like to set up your keys manually. 
+Learn more about [addresses and keys](https://3dpass.org/mainnet#addresses).
 
-
+### Run the Node
 Start the Node with the following command:
 ```bash
 ./target/release/poscan-consensus --base-path ~/3dp-chain/ --chain mainnetSpecRaw.json --name MyNodeName --validator --telemetry-url "wss://submit.telemetry.3dpscan.io/submit 0" --author <your mining address or pub key> --threads 2 --no-mdns
 ```
-
-Run miner (You have to install [Bun](https://bun.sh/) before):
+### Run miner
+1. Install [Bun](https://bun.sh/)
+2. Install and run miner:
 ```bash
 bun install
 bun miner.js --host 127.0.0.1 --port 9933
@@ -124,8 +131,8 @@ bun miner.js --host 127.0.0.1 --port 9933
 
 Make sure you can see your node in the [list](https://telemetry.3dpscan.io/). Use this [tutorial](https://3dpass.org/mainnet#linux-mac) for more details.
 
-## Mining with Docker
-This procedure will build and run the Node and Miner automatically with Docker.
+## Node and Mining with Docker
+This procedure will build and run the Node and Miner automatically with Docker (Mac, Linux, or Windows).
 
 First, install [Docker](https://docs.docker.com/get-docker/) and
 [Docker Compose](https://docs.docker.com/compose/install/).
@@ -149,15 +156,12 @@ version: "3.9"
   services:
       node:
         environment:
-          - MEMO_SEED=[PLACE MEMO SEED HERE]
-          - ADDRESS=[PLACE MINER ADDRESS HERE]
-          - THREADS=2
-          - INTERVAL=100
-```
-- `THREADS=2` is the amount of threads you are about to use for mining
-- `INTERVAL=100` is the amount of time in milliseconds between the last and the next one objects being sent towards the Node. Depending on how much threads are you mining with, reduce the interval until you reach desired proc load.
+          - MEMO_SEED=PLACE MEMO SEED HERE
+          - ADDRESS=PLACE MINER ADDRESS HERE
 
-You can generate your ADDRESS and MEMO_SEED phrase in the [wallet](https://wallet.3dpass.org/) (add new address). Make sure you can see your node in the [list](https://telemetry.3dpscan.io/). Use this [tutorial](https://3dpass.org/mainnet#docker) for more details.
+```
+You can generate your ADDRESS and MEMO_SEED phrase in the [wallet](https://wallet.3dpass.org/). 
+Follow this [tutorial](https://3dpass.org/mainnet#docker) for more details.
 
 
 ## Connect to the wallet Front-end
