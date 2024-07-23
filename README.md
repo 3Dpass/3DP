@@ -51,16 +51,6 @@ rustup target add wasm32-unknown-unknown --toolchain nightly-2023-05-20
 sudo apt-get install -y libclang-dev libssl-dev clang
 ```
 
-### Run a temporary node
-
-The provided `cargo run` command will launch a temporary node and its state will be discarded after
-you terminate the process. After the project has been built, there are other ways to launch the
-node.
-
-```sh
-cargo run --release -- --dev --tmp
-```
-
 ### Build
 
 The `cargo run` command will perform an initial build. Use the following command to build the node
