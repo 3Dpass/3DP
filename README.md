@@ -6,21 +6,21 @@
 
 "The Ledger of Things" is a revolutionary open source Layer 1 blockchain platform for the tokenization of objects. [White Paper](https://3dpass.org/coin#white-papper). Current list of the object categories is presented as follows: 3D objects, 2D drawings, Music, Biometrics, Radio signals, Movements, Texts.
 
-[Proof of Scan](https://github.com/3Dpass/whitepaper/blob/main/3DPass_white_paper_v2.pdf) is a decentralized protocol (PoW `ASIC resistant, CPU oriented` + PoS), which is based on recognition technology. Every object, transformed by 3DPass, obtains its own unique and sustainable identity called HASH ID the object could be recognized by. This will prevent the copying of digital assets and thus open a door for the entire blockchain space to potentially trillions in deals all over the globe.
+[Proof of Scan](https://3dpass.org/proof-of-scan) is a hybrid decentralized protocol "PoW `ASIC-resistant, CPU-oriented` + PoA (Proof of Authority)", which is based on recognition technology. Every object, transformed by 3DPass, obtains its own unique and sustainable identity ([HASH ID](https://3dpass.org/features#recognition-hash-id)) the object can be recognized by. This will prevent the copying of digital assets and thus open a door for the entire blockchain space to potentially trillions in deals all over the globe.
 
-[Grid2d](https://3dpass.org/grid2d) is the first 3D shape recognition algorithm, which is being utilized as the hash function in the Proof of Scan protocol. The implementations of the algorithm are the [pass3d](https://github.com/3Dpass/pass3d) recognition toolkit and its WASM analog [p3d](https://github.com/3Dpass/p3d). 
+[Grid2d](https://3dpass.org/grid2d) is 3D shape recognition algorithm, which is utilized as one of hash functions in the Proof of Scan protocol. The implementations of the algorithm are the [pass3d](https://github.com/3Dpass/pass3d) recognition toolkit and its WASM analog [p3d](https://github.com/3Dpass/p3d). 
 
 [3DPRC-2](https://github.com/3Dpass/whitepaper/blob/main/3DPRC-2.md) (3Dpass Request for Comments) is a standard p2p protocol for the tokenization of the User objects operating within “The Ledger of Things”, by which the most useful aspect of the "Proof of Scan" consensus is getting uncovered. 3DPRC-2 provides decentralized [PoScan API](https://github.com/3Dpass/3DP/wiki/3DPRC%E2%80%902-PoScan-API) available for customers.
 
 The scope of potential 3Dpass applications goes way beyond 3D object recognition and not limited to. Being naturally organized and still cultivating this community driven spirit, 3Dpass is here to encourage developers from all around the globe to upgrade the pass3d open source toolkit with new fascinating recognition algorithms and make it even more useful for human civilization. Learn more about the [algorithm requirements](http://localhost:3000/proof-of-scan#object).
 
-[3DPass Coin (P3D)](https://3dpass.org/coin) is a native utility token, operating on "The Ledger of Things", which serves to incentivize community members to maintain the network infrastructure. Such aspects as: Storage fee, Gas fee, The object authentication fee, Transaction fee, The validator collaterals, Penalties - are all being counted in P3D.
+[3DPass Coin (P3D)](https://3dpass.org/coin) is a native utility token, operating within "The Ledger of Things" eco-system, which aims to incentivize the efforts of community members maintaining the network infrastructure. Such aspects as: Storage fee, Gas fee, The object authentication fee, Transaction fee, The validator collaterals, Penalties - are all being counted in P3D.
 
-[Contribution program](https://3dpass.org/coin#distribution-contribution)  |  [Contribution guidelines](https://github.com/3Dpass/3DP/blob/main/CONTRIBUTING.md)  |  [Discord](https://discord.gg/u24WkXcwug)
+[Contribution Grant Program](https://3dpass.org/grants)  |  [Contributing guidelines](https://github.com/3Dpass/3DP/blob/main/CONTRIBUTING.md)  |  [Discord](https://discord.gg/u24WkXcwug)
 
 # Integration
 
-- NODE - the Node leverages [Substrate](https://substrate.io/) framework and implemented as two-piece design `Rust native` part and `Runtime` part ([WASM](https://webassembly.org/)-based), which is upgradable online and allows for multiple useful modules to operate (see more [forkless upgrade](https://3dpass.org/proof-of-scan#forkless-upgrade)). 
+- NODE - the Node is based on [Substrate](https://substrate.io/) framework and implemented as two-piece design the `Rust native` part and the `Runtime` component ([WASM](https://webassembly.org/)-based), which is upgradable online and allows for multiple useful modules to operate (see more [forkless upgrade](https://3dpass.org/proof-of-scan#forkless-upgrade)). 
 - RPC (remote procedure call) - the capabilities that allow blockchain users to interact with the network. The NODE provides HTTP and [WebSocket](https://github.com/3Dpass/3DP/wiki/Set-up-WSS-for-Remote-Connections) RPC servers.
 - CORE Networking - the [`libp2p`](https://libp2p.io/) is used as as networking stack for the Nodes to communicate with each other.
 - [3Dpass light wallet](https://github.com/3Dpass/wallet) - desktop users and 3D printing labs integration
@@ -102,6 +102,8 @@ Start the Node with the following command:
 ```bash
 ./target/release/poscan-consensus --base-path ~/3dp-chain/ --chain mainnetSpecRaw.json --name MyNodeName --validator --telemetry-url "wss://submit.telemetry.3dpscan.io/submit 0" --author <your mining address or pub key> --threads 2 --no-mdns
 ```
+Make sure you can see your node in the [list](https://telemetry.3dpscan.io/). Explore additional details with this [tutorial](https://3dpass.org/mainnet#linux-mac).
+
 ### Run miner
 1. Install [Bun](https://bun.sh/)
 2. Install and run miner:
@@ -109,8 +111,6 @@ Start the Node with the following command:
 bun install
 bun miner.js --host 127.0.0.1 --port 9933
 ```
-
-Make sure you can see your node in the [list](https://telemetry.3dpscan.io/). Use this [tutorial](https://3dpass.org/mainnet#linux-mac) for more details.
 
 ## Node and Mining with Docker
 This procedure will build and run the Node and Miner automatically with Docker (Mac, Linux, or Windows).
