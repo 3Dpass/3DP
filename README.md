@@ -102,7 +102,7 @@ Start the Node with the following command:
 ```bash
 ./target/release/poscan-consensus --base-path ~/3dp-chain/ --chain mainnetSpecRaw.json --name MyNodeName --validator --telemetry-url "wss://submit.telemetry.3dpscan.io/submit 0" --author <your mining address or pub key> --threads 2 --no-mdns
 ```
-Make sure you can see your node in the [list](https://telemetry.3dpscan.io/). Explore additional details with this [tutorial](https://3dpass.org/mainnet#linux-mac).
+Make sure you can see your node in the [list](https://telemetry.3dpscan.io/). Explore additional details with this [tutorial](https://3dpass.org/mainnet#linux-mac-run).
 
 ### Run miner
 1. Install [Bun](https://bun.sh/)
