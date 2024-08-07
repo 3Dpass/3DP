@@ -4669,6 +4669,7 @@ dependencies = [
  "lazy_static",
  "log",
  "pallet-balances",
+ "pallet-identity",
  "pallet-poscan",
  "pallet-session",
  "pallet-treasury",

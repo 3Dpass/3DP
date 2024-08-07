@@ -24,6 +24,9 @@ mod tests;
 use lazy_static::lazy_static;
 use core::sync::atomic::AtomicBool;
 
+extern crate alloc;
+use alloc::string::String;
+
 use frame_support::{
 	ensure,
 	pallet_prelude::*,
@@ -60,12 +63,14 @@ use sp_runtime::{
 use sp_finality_grandpa::{AuthorityId as GrandpaId, SetId};
 use sp_session::ValidatorCount;
 use frame_system::pallet_prelude::*;
+use pallet_identity::{Judgement, IdentityInfo, Data};
 use pallet_session::ShouldEndSession;
 use sp_staking::offence::{Offence, OffenceError, ReportOffence, OnOffenceHandler};
 use sp_staking::SessionIndex;
 use sp_version::RuntimeVersion;
 use sp_std::{collections::btree_set::BTreeSet, prelude::*};
 use core::convert::TryInto;
+use sp_std::collections::vec_deque::VecDeque;
 use sp_core::H256;
 use sp_consensus_poscan::HOURS;
 use poscan_algo;
@@ -111,6 +116,23 @@ pub struct Estimation<AuthorityId> {
 	pub authority_id: AuthorityId,
 }
 
+// #[derive(Clone, Ord, PartialOrd, RuntimeDebug)] //Ord, PartialOrd,
+#[derive(Clone, RuntimeDebug)] //Ord, PartialOrd,
+pub(crate) struct IdentInfo {
+	pub(crate) good_judjements: u32,
+	pub(crate) total_judjements: u32,
+
+	pub(crate) email: Option<String>,
+	pub(crate) twitter: Option<String>,
+	pub(crate) discord: Option<String>,
+	pub(crate) telegram: Option<String>,
+}
+impl IdentInfo {
+	pub(crate) fn is_judjements_ok(&self) -> bool {
+		self.total_judjements > 0 && 3 * self.good_judjements >= 2 * self.total_judjements
+	}
+}
+
 #[frame_support::pallet]
 pub mod pallet {
 	use super::*;
@@ -122,6 +144,7 @@ pub mod pallet {
 		+ pallet_session::Config
 		+ pallet_treasury::Config
 		+ pallet_balances::Config
+		+ pallet_identity::Config
 		+ pallet_poscan::Config
 		+ CreateSignedTransaction<Call<Self>>
 	{
@@ -207,6 +230,10 @@ pub mod pallet {
 	pub type OfflineValidators<T: Config> = StorageValue<_, Vec<T::AccountId>, ValueQuery>;
 
 	#[pallet::storage]
+	#[pallet::getter(fn candidates)]
+	pub type Candidates<T: Config> = StorageValue<_, Vec<T::AccountId>, ValueQuery>;
+
+	#[pallet::storage]
 	#[pallet::getter(fn authors)]
 	pub type Authors<T: Config> = StorageMap<_, Twox64Concat, T::BlockNumber, Option<T::AccountId>, ValueQuery>;
 
@@ -285,6 +312,9 @@ pub mod pallet {
 			session_index: SessionIndex,
 			session_duration: BlockNumberFor<T>,
 		},
+
+		ValidatorAdded(T::AccountId),
+		ValidatorNotAdded(T::AccountId),
 	}
 
 	// Errors inform users that something went wrong.
@@ -330,6 +360,10 @@ pub mod pallet {
 		EstimateNextSessionFailed,
 		/// Too many validators.
 		TooManyValidators,
+		/// Account is not identified
+		NoIdentity,
+		/// Not enough good judjement
+		NotEnoughJudjement,
 	}
 
 	#[pallet::hooks]
@@ -469,8 +503,9 @@ pub mod pallet {
 		pub fn add_validator(origin: OriginFor<T>, validator_id: T::AccountId) -> DispatchResult {
 			T::AddRemoveOrigin::ensure_origin(origin)?;
 
-			Self::do_add_validator(validator_id.clone(), false)?;
-			Self::approve_validator(validator_id)?;
+			let deposit = Self::calc_deposit(&validator_id)?;
+			Self::check_new(&validator_id, deposit, false)?;
+			Self::push_validator_in_queue(&validator_id)?;
 
 			Ok(())
 		}
@@ -877,23 +912,40 @@ impl<T: Config> Pallet<T> {
 		<ApprovedValidators<T>>::put(validators);
 	}
 
+	fn push_validator_in_queue(validator_id: &T::AccountId) -> DispatchResult {
+		let validator_set = <Validators<T>>::get();
+		let mut candidates = <Candidates<T>>::get();
+
+		ensure!(!validator_set.contains(validator_id), Error::<T>::Duplicate);
+		ensure!(!candidates.contains(validator_id), Error::<T>::Duplicate);
+		ensure!(candidates.len() + validator_set.len() < T::MaxVal::get() as usize, Error::<T>::TooManyValidators);
+
+		candidates.push(validator_id.clone());
+		<Candidates<T>>::put(candidates);
+		Ok(())
+	}
+
+	fn pop_validator_from_queue() -> Option<T::AccountId> {
+		let mut candidates: VecDeque<_> = <Candidates<T>>::get().into();
+		let val = candidates.pop_front();
+		// let v: Vec<T::AccountId> = candidates.into();
+		<Candidates<T>>::put(candidates.iter().collect::<Vec<_>>());
+		val
+	}
+
 	fn do_add_validator(validator_id: T::AccountId, check_block_num: bool) -> DispatchResult {
+		let deposit = Self::calc_deposit(&validator_id)?;
+		Self::check_new(&validator_id, deposit, check_block_num)?;
+		Self::insert_validator(&validator_id, deposit)?;
+
+		Ok(())
+	}
+
+	fn check_new(validator_id: &T::AccountId, deposit: BalanceOf<T>, check_block_num: bool) -> DispatchResult {
 		let cur_block_number = <frame_system::Pallet<T>>::block_number();
 
 		ensure!(<Validators<T>>::get().len() < T::MaxVal::get() as usize, Error::<T>::TooManyValidators);
 
-		let item_lock = ValidatorLock::<T>::get(&validator_id).ok_or(Error::<T>::AmountLockedBelowLimit)?;
-		let deposit =
-			if item_lock.0 < cur_block_number  {
-				BalanceOf::<T>::zero()
-			}
-			else {
-				item_lock.1
-			};
-		{
-			let d = u128::from_le_bytes(deposit.encode().try_into().unwrap());
-			log::debug!(target: LOG_TARGET, "Deposit: {}", d);
-		}
 		if check_block_num {
 			let levels = T::FilterLevels::get();
 			let mut depth: u32 = T::MaxMinerDepth::get();
@@ -919,7 +971,7 @@ impl<T: Config> Pallet<T> {
 					break;
 				}
 				if let Some(author_id) = Authors::<T>::get(block_num) {
-					if validator_id == author_id {
+					if *validator_id == author_id {
 						log::debug!(target: LOG_TARGET, "Validator found as miner in block {:?}", block_num);
 						found = true;
 						break;
@@ -931,21 +983,131 @@ impl<T: Config> Pallet<T> {
 				return Err(Error::<T>::ValidatorHasNotMined.into());
 			}
 		}
-		else if !Self::check_lock(&validator_id) {
+		else if !Self::check_lock(validator_id) {
 			return Err(Error::<T>::AmountLockedBelowLimit.into());
 		}
 
 		let validator_set: BTreeSet<_> = <Validators<T>>::get().into_iter().collect();
-		ensure!(!validator_set.contains(&validator_id), Error::<T>::Duplicate);
+		ensure!(!validator_set.contains(validator_id), Error::<T>::Duplicate);
+
+		Self::check_identity(validator_id, true)?;
+
+		Ok(())
+	}
+
+	fn calc_deposit(validator_id: &T::AccountId) -> Result<BalanceOf<T>, DispatchError> {
+		let cur_block_number = <frame_system::Pallet<T>>::block_number();
+
+		let item_lock = ValidatorLock::<T>::get(validator_id).ok_or(Error::<T>::AmountLockedBelowLimit)?;
+		let deposit =
+			if item_lock.0 < cur_block_number  {
+				BalanceOf::<T>::zero()
+			}
+			else {
+				item_lock.1
+			};
+		{
+			let d = u128::from_le_bytes(deposit.encode().try_into().unwrap());
+			log::debug!(target: LOG_TARGET, "Deposit: {}", d);
+		}
+		Ok(deposit)
+	}
+
+	fn insert_validator(validator_id: &T::AccountId, deposit: BalanceOf<T>) -> DispatchResult {
+		let cur_block_number = <frame_system::Pallet<T>>::block_number();
+
 		<Validators<T>>::mutate(|v| v.push(validator_id.clone()));
+		EnterDeposit::<T>::insert(validator_id, Some((cur_block_number, deposit)));
 
-		EnterDeposit::<T>::insert(&validator_id, Some((cur_block_number, deposit)));
-
-		Self::deposit_event(Event::ValidatorAdditionInitiated(validator_id));
+		Self::deposit_event(Event::ValidatorAdditionInitiated(validator_id.clone()));
 		log::debug!(target: LOG_TARGET, "Validator addition initiated.");
 
 		Ok(())
 	}
+
+	fn check_identity(account_id: &T::AccountId, with_kyc: bool) -> Result<Option<IdentInfo>, DispatchError> {
+		let ident = Self::get_ident(&account_id);
+
+		if with_kyc {
+			match ident {
+				Some(ref id_info) => id_info.is_judjements_ok()
+					.then_some(ident).ok_or(Error::<T>::NotEnoughJudjement.into()),
+				None => Err(Error::<T>::NoIdentity.into()),
+			}
+		}
+		else {
+			Ok(ident)
+		}
+	}
+
+	fn get_ident(account_id: &T::AccountId) -> Option<IdentInfo> {
+		let reg = pallet_identity::Pallet::<T>::identity(&account_id);
+
+		if let Some(reg) = reg {
+			let mut good_judjements = 0;
+			let mut total_judjements = 0;
+			for (rgstr_idx, judge) in reg.judgements.clone() {
+				total_judjements += 1;
+				match judge {
+					Judgement::Reasonable | Judgement::KnownGood => {
+						log::debug!(target: LOG_TARGET, "Validator is identified by registrar {}", rgstr_idx);
+						good_judjements += 1;
+					},
+					_ => {},
+				}
+			}
+
+			let email = match reg.info.email {
+				Data::Raw(ref email) => String::from_utf8(email.to_vec()).ok(),
+				_ => None,
+			};
+			let twitter = match reg.info.twitter {
+				Data::Raw(ref twitter) => String::from_utf8(twitter.to_vec()).ok(),
+				_ => None,
+			};
+			let accs = Self::get_additional_info(&reg.info.clone(), &["Discord", "Telegram"]);
+			let (discord, telegram) = (accs[0].clone(), accs[1].clone());
+			Some(IdentInfo {good_judjements, total_judjements, email, twitter, discord, telegram})
+		}
+		else {
+			None
+		}
+	}
+
+	fn get_additional_info<const N: usize>(
+		info: &IdentityInfo<T::MaxAdditionalFields>,
+		field_names: &[&str; N],
+	) -> [Option<String>; N]
+	{
+		const DFLT: Option<String> = None;
+		let mut res: [Option<String>; N] = [DFLT; N];
+
+		for item in info.additional.iter() {
+			match item {
+				(Data::Raw(k), Data::Raw(v)) => {
+					// log::debug!(target: LOG_TARGET, "Found additional info: {:?} -> {:?}", k, v);
+					match String::from_utf8(k.to_vec()) {
+						Ok(key)	=> {
+							let index = field_names.iter().position(|&r| r == key);
+							if let Some(i) = index {
+								if let Ok(acc) = String::from_utf8(v.to_vec()) {
+									res[i] = Some(acc);
+								} else {
+									log::error!(target: LOG_TARGET, "Cant decode additional info: {:?} -> {:?}", key, v);
+								}
+							}
+						}
+						Err(_) => {
+							log::error!(target: LOG_TARGET, "Cant decode additional info key: {:?}", k);
+						}
+					}
+				},
+				_ => continue,
+			}
+		}
+		res
+	}
+
 
 	fn do_remove_validator(validator_id: T::AccountId) -> DispatchResult {
 		let mut validators = <Validators<T>>::get();
@@ -1296,6 +1458,18 @@ impl<T: Config> pallet_session::SessionManager<T::AccountId> for Pallet<T> {
 		// Remove any offline and slashed validators.
 		Self::remove_offline_validators();
 		log::debug!(target: LOG_TARGET, "New session called; updated validator set provided.");
+
+		if let Some(validator_id) = Self::pop_validator_from_queue() {
+			let res = Self::do_add_validator(validator_id.clone(), false)
+				.and_then(|_| Self::approve_validator(validator_id.clone()));
+
+			if res.is_ok() {
+				Self::deposit_event(Event::ValidatorAdded(validator_id));
+			}
+			else {
+				Self::deposit_event(Event::ValidatorNotAdded(validator_id));
+			}
+		}
 
 		Some(Self::validators())
 	}
