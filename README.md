@@ -45,9 +45,9 @@ First, complete the [basic Rust setup instructions](https://github.com/substrate
 cd ~
 git clone https://github.com/3Dpass/3DP.git
 cd 3DP
-curl https://sh.rustup.rs -sSf | sh -s -- -y --default-toolchain nightly-2023-05-20
+curl https://sh.rustup.rs -sSf | sh -s -- -y --default-toolchain nightly-2023-05-05
 source $HOME/.cargo/env
-rustup target add wasm32-unknown-unknown --toolchain nightly-2023-05-20
+rustup target add wasm32-unknown-unknown --toolchain nightly-2023-05-05
 sudo apt-get install -y libclang-dev libssl-dev clang
 ```
 
