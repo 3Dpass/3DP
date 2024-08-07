@@ -30,6 +30,7 @@ frame-system = { default-features = false, git = "https://github.com/paritytech/
 pallet-session = { default-features = false, features = ['historical'], git = "https://github.com/paritytech/substrate", rev = "b0777b4c7f7" }
 pallet-treasury = { default-features = false, git = "https://github.com/paritytech/substrate", rev = "b0777b4c7f7" }
 pallet-balances = { default-features = false, git = "https://github.com/paritytech/substrate", rev = "b0777b4c7f7" }
+pallet-identity = { default-features = false, git = "https://github.com/paritytech/substrate", rev = "b0777b4c7f7" }
 
 scale-info = { default-features = false, features = ['derive'], version = '2.1.1' }
 
