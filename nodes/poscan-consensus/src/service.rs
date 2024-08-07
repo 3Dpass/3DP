@@ -460,7 +460,14 @@ pub fn new_full(
 						let patch_rot = parent_num >= REJECT_OLD_ALGO_SINCE.into();
 						let mining_algo = if patch_rot { &POSCAN_ALGO_GRID2D_V3A } else { &POSCAN_ALGO_GRID2D_V3_1 };
 
-						let ver = client.runtime_version_at(&parent_id).unwrap();
+						let ver = match client.runtime_version_at(&parent_id) {
+							Ok(ver) => ver,
+							Err(_) => {
+								thread::sleep(Duration::new(1, 0));
+								continue
+							}
+						};
+
 						if ver.spec_version < CONS_V2_SPEC_VER {
 							let hashes = get_obj_hashes(mining_algo, &mp.pre_obj, &metadata.pre_hash, patch_rot);
 							if hashes.len() > 0 {
