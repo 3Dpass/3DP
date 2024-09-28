@@ -75,7 +75,7 @@ jobs:
           tar czvf ../../../../poscan_runtime-wasm32-unknown-unknown.tar.gz poscan_runtime.compact.compressed.wasm
 
       - name: Publish
-        uses: softprops/action-gh-release@v2.0.6
+        uses: softprops/action-gh-release@v2.0.8
         with:
           files: |
             poscan-consensus-*
