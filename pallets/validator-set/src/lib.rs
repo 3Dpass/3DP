@@ -210,6 +210,9 @@ pub mod pallet {
 
 		#[pallet::constant]
 		type MaxVal: Get<u32>;
+
+		#[pallet::constant]
+		type EnterFee: Get<u128>;
 	}
 
 	#[pallet::pallet]
@@ -364,6 +367,8 @@ pub mod pallet {
 		NoIdentity,
 		/// Not enough good judjement
 		NotEnoughJudjement,
+		/// Transfer to treasury failed
+		TransferToTreasuryFailed,
 	}
 
 	#[pallet::hooks]
@@ -941,46 +946,20 @@ impl<T: Config> Pallet<T> {
 		Ok(())
 	}
 
-	fn check_new(validator_id: &T::AccountId, deposit: BalanceOf<T>, check_block_num: bool) -> DispatchResult {
-		let cur_block_number = <frame_system::Pallet<T>>::block_number();
-
+	fn check_new(validator_id: &T::AccountId, _deposit: BalanceOf<T>, do_pot_transfer: bool) -> DispatchResult {
 		ensure!(<Validators<T>>::get().len() < T::MaxVal::get() as usize, Error::<T>::TooManyValidators);
 
-		if check_block_num {
-			let levels = T::FilterLevels::get();
-			let mut depth: u32 = T::MaxMinerDepth::get();
+		if do_pot_transfer {
+			let pot_id = pallet_treasury::Pallet::<T>::account_id();
+			let amount: BalanceOf<T> = T::EnterFee::get().saturated_into();
 
-			if deposit < levels[0].0.saturated_into() {
-				log::debug!(target: LOG_TARGET, "Too low deposit to be validator");
-				return Err(Error::<T>::AmountLockedBelowLimit.into());
-			}
+			let res = <T as pallet::Config>::Currency::transfer(
+				validator_id, &pot_id, amount, ExistenceRequirement::KeepAlive,
+			);
 
-			for i in (0..levels.len()).rev() {
-				if deposit >= levels[i].0.saturated_into() {
-					depth = levels[i].1;
-					break
-				}
-			}
-
-			let mut found = false;
-			let mut n = 0u32;
-			loop {
-				n += 1;
-				let block_num = cur_block_number - n.into();
-				if block_num < 1u32.into() || n > depth {
-					break;
-				}
-				if let Some(author_id) = Authors::<T>::get(block_num) {
-					if *validator_id == author_id {
-						log::debug!(target: LOG_TARGET, "Validator found as miner in block {:?}", block_num);
-						found = true;
-						break;
-					}
-				}
-			}
-			if !found {
-				log::debug!(target: LOG_TARGET, "Validator NOT found as miner within {} blocks", depth);
-				return Err(Error::<T>::ValidatorHasNotMined.into());
+			if let Err(e) = res {
+				log::error!(target: LOG_TARGET, "Error transfer to treasury of account {:#?} by {:?}: {:?}.", validator_id, &amount, &e);
+				return Err(Error::<T>::TransferToTreasuryFailed.into());
 			}
 		}
 		else if !Self::check_lock(validator_id) {

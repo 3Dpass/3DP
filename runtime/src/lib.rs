@@ -996,6 +996,7 @@ parameter_types! {
 	pub const SlashValidatorFor: u32 = 2 * HOURS;
 	pub const AddAfterSlashPeriod: u32 = 7 * 24 * HOURS;
 	pub const MaxVal: u32 = 1000;
+	pub const EnterFee: u128 = 10_000 * DOLLARS;
 }
 
 impl pallet_validator_set::Config for Runtime {
@@ -1020,6 +1021,7 @@ impl pallet_validator_set::Config for Runtime {
 	type DefaultOffset = Offset;
 	type DefaultPeriod = Period;
 	type MaxVal = MaxVal;
+	type EnterFee = EnterFee;
 }
 use sp_core::U256;
 
