@@ -121,7 +121,8 @@ pub const HOURS: u32 = 60;
 /// Block number of one day.
 pub const DAYS: u32 = 24 * HOURS;
 
-pub const MAX_OBJECT_SIZE: u32 = 100_000;
+pub const MAX_OBJECT_SIZE_OLD: u32 = 100_000;
+pub const MAX_OBJECT_SIZE: u32 = 1_000_000;
 pub const MAX_PROPERTIES: u32 = 100;
 pub const PROP_NAME_LEN: u32 = 64;
 pub const DEFAULT_OBJECT_HASHES: u32 = 10;
@@ -352,7 +353,7 @@ pub struct OldObjData<Account, Block>
 		Block: Encode + Decode + TypeInfo + Member,
 {
 	pub state: ObjectState<Block>,
-	pub obj: BoundedVec<u8, ConstU32<MAX_OBJECT_SIZE>>,
+	pub obj: BoundedVec<u8, ConstU32<MAX_OBJECT_SIZE_OLD>>,
 	pub compressed_with: Option<CompressWith>,
 	pub category: ObjectCategory,
 	pub hashes: BoundedVec<H256, ConstU32<MAX_OBJECT_HASHES>>,

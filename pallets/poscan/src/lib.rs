@@ -346,9 +346,11 @@ pub mod pallet {
 				let mut properties = BoundedVec::default();
 					properties.try_push(PropValue { prop_idx: 0, max_value: 1 }).unwrap();
 
+				let old_obj: Vec<_> = old_data.obj.into();
+
 				Some(ObjData::<T::AccountId, T::BlockNumber> {
 					state: old_data.state,
-					obj: old_data.obj,
+					obj: old_obj.try_into().unwrap(),
 					compressed_with: old_data.compressed_with,
 					category: old_data.category,
 					hashes: old_data.hashes,
