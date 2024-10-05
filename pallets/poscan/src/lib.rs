@@ -401,7 +401,10 @@ pub mod pallet {
 			let compressed_obj: BoundedVec<u8, ConstU32<MAX_OBJECT_SIZE>> =
 				compress_with.compress(obj.to_vec()).try_into().unwrap();
 
-			for (_idx, obj_data) in Objects::<T>::iter() {
+			for (_idx, obj_data)
+				in Objects::<T>::iter().filter(
+					|obj| !matches!(obj.1.state, ObjectState::NotApproved(_))
+			) {
 				match obj_data.compressed_with {
 					None if obj_data.obj == obj => {
 						return Err(Error::<T>::ObjectExists.into());
