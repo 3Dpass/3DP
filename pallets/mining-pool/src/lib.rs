@@ -473,6 +473,17 @@ pub mod pallet {
 		}
 
 		#[pallet::weight(0)]
+		pub fn clear_stat(
+			origin: OriginFor<T>,
+			pool_id: T::AccountId,
+		) -> DispatchResult {
+			ensure_root(origin)?;
+
+			<PowStat<T>>::remove(pool_id);
+			Ok(())
+		}
+
+		#[pallet::weight(0)]
 		pub fn remove_member(
 			origin: OriginFor<T>,
 			member_id: T::AccountId,
