@@ -332,6 +332,7 @@ pub struct ObjData<Account, Block>
 	pub obj: BoundedVec<u8, ConstU32<MAX_OBJECT_SIZE>>,
 	pub compressed_with: Option<CompressWith>,
 	pub category: ObjectCategory,
+	pub is_private: bool,
 	pub hashes: BoundedVec<H256, ConstU32<MAX_OBJECT_HASHES>>,
 	pub when_created: Block,
 	pub when_approved: Option<Block>,
@@ -366,4 +367,5 @@ pub struct OldObjData<Account, Block>
 	pub num_approvals: u8,
 	pub est_rewards: u128,
 	pub author_rewards: u128,
+	pub prop: BoundedVec<PropValue, ConstU32<MAX_PROPERTIES>>,
 }

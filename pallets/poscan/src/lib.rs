@@ -327,24 +327,26 @@ pub mod pallet {
 			let onchain_version =  Pallet::<T>::on_chain_storage_version();
 			log::info!(target: LOG_TARGET, "on_runtime_upgrade: onchain_version={:?}", &onchain_version);
 			if onchain_version < 2 {
-			let prop_idx = <Pallet::<T>>::prop_count();
+				let prop_idx = <Pallet::<T>>::prop_count();
 				log::info!(target: LOG_TARGET, "on_runtime_upgrade: prop_idx={}", &prop_idx);
-			if prop_idx == 0 {
-				let name: BoundedVec<u8, ConstU32<PROP_NAME_LEN>> = "Non-Fungible".as_bytes()
-					.to_vec().try_into().unwrap();
+				if prop_idx == 0 {
+					let name: BoundedVec<u8, ConstU32<PROP_NAME_LEN>> = "Non-Fungible".as_bytes()
+						.to_vec().try_into().unwrap();
 					Properties::<T>::insert(0, Property { name, class: PropClass::Relative, max_value: 1 });
 
-				let name: BoundedVec<u8, ConstU32<PROP_NAME_LEN>> = "Share".as_bytes()
-					.to_vec().try_into().unwrap();
+					let name: BoundedVec<u8, ConstU32<PROP_NAME_LEN>> = "Share".as_bytes()
+						.to_vec().try_into().unwrap();
 					Properties::<T>::insert(1, Property { name, class: PropClass::Relative, max_value: 100_000_000 });
-				<PropCount<T>>::put(2);
+					<PropCount<T>>::put(2);
+				}
 			}
 
+			if onchain_version == 2 {
 				Objects::<T>::translate::<OldObjData<T::AccountId, T::BlockNumber>, _>(|key, old_data| {
 					log::info!(target: LOG_TARGET, "on_runtime_upgrade: migrate object: {}", &key);
 
-				let mut properties = BoundedVec::default();
-					properties.try_push(PropValue { prop_idx: 0, max_value: 1 }).unwrap();
+					let mut properties = BoundedVec::default();
+						properties.try_push(PropValue { prop_idx: 0, max_value: 1 }).unwrap();
 
 				let old_obj: Vec<_> = old_data.obj.into();
 
@@ -353,6 +355,7 @@ pub mod pallet {
 					obj: old_obj.try_into().unwrap(),
 					compressed_with: old_data.compressed_with,
 					category: old_data.category,
+					is_private: true,
 					hashes: old_data.hashes,
 					when_created: old_data.when_created,
 					when_approved: old_data.when_approved,
@@ -385,6 +388,7 @@ pub mod pallet {
 		pub fn put_object(
 			origin: OriginFor<T>,
 			category: ObjectCategory,
+			is_private: bool,
 			obj: BoundedVec<u8, ConstU32<MAX_OBJECT_SIZE>>,
 			num_approvals: u8,
 			hashes: Option<BoundedVec<H256, ConstU32<MAX_OBJECT_HASHES>>>,
@@ -478,6 +482,7 @@ pub mod pallet {
 				obj: compressed_obj,
 				compressed_with: Some(CompressWith::Lzss),
 				category,
+				is_private,
 				hashes,
 				when_created: block_num,
 				when_approved: None,
