@@ -50,7 +50,6 @@ pallet-child-bounties = { default-features = false, git = "https://github.com/pa
 sp-arithmetic = { default-features = false, git = "https://github.com/paritytech/substrate", rev = "b0777b4c7f7" }
 pallet-grandpa = { default-features = false, git = "https://github.com/paritytech/substrate", rev = "b0777b4c7f7" }
 pallet-democracy = { default-features = false, git = "https://github.com/paritytech/substrate", rev = "b0777b4c7f7" }
-pallet-identity = { default-features = false, git = "https://github.com/paritytech/substrate", rev = "b0777b4c7f7" }
 pallet-indices = { default-features = false, git = "https://github.com/paritytech/substrate", rev = "b0777b4c7f7" }
 pallet-multisig = { default-features = false, git = "https://github.com/paritytech/substrate", rev = "b0777b4c7f7" }
 pallet-preimage = { default-features = false, git = "https://github.com/paritytech/substrate", rev = "b0777b4c7f7" }
@@ -81,6 +80,7 @@ difficulty = { package = "pallet-difficulty", path = "../pallets/difficulty", de
 rewards = { package = "pallet-rewards", path = "../pallets/rewards", default-features = false }
 pallet-referenda = { default-features = false, path = "../pallets/referenda" }
 pallet-asset-rate = { default-features = false, path = "../pallets/asset-rate" }
+pallet-identity = { default-features = false, path =  "../pallets/identity" }
 
 # Used for the node's RPCs
 frame-system-rpc-runtime-api = { git = "https://github.com/paritytech/substrate", rev = "b0777b4c7f7", package = "frame-system-rpc-runtime-api", default-features = false }
