@@ -127,7 +127,7 @@ pub const MAX_PROPERTIES: u32 = 100;
 pub const PROP_NAME_LEN: u32 = 64;
 pub const DEFAULT_OBJECT_HASHES: u32 = 10;
 pub const MAX_OBJECT_HASHES: u32 = 256 + DEFAULT_OBJECT_HASHES;
-pub const DEFAULT_MAX_ALGO_TIME: u32 = 10;  // 10 sec
+pub const DEFAULT_MAX_ALGO_TIME: u32 = 30;  // 30 sec
 pub const FEE_PER_BYTE: u64 = 10_000;
 pub const MAX_ESTIMATORS: u32 = 1000;
 
