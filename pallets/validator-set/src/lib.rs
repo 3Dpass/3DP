@@ -508,8 +508,18 @@ pub mod pallet {
 		pub fn add_validator(origin: OriginFor<T>, validator_id: T::AccountId) -> DispatchResult {
 			T::AddRemoveOrigin::ensure_origin(origin)?;
 
+			Self::do_add_validator(validator_id.clone(), true)?;
+			Self::approve_validator(validator_id)?;
+
+			Ok(())
+		}
+
+		#[pallet::weight(10_000_000)]
+		pub fn add_validator_self(origin: OriginFor<T>) -> DispatchResult {
+			let validator_id = ensure_signed(origin)?;
+
 			let deposit = Self::calc_deposit(&validator_id)?;
-			Self::check_new(&validator_id, deposit, false)?;
+			Self::check_new(&validator_id, deposit, true)?;
 			Self::push_validator_in_queue(&validator_id)?;
 
 			Ok(())
@@ -938,9 +948,9 @@ impl<T: Config> Pallet<T> {
 		val
 	}
 
-	fn do_add_validator(validator_id: T::AccountId, check_block_num: bool) -> DispatchResult {
+	fn do_add_validator(validator_id: T::AccountId, do_pot_transfer: bool) -> DispatchResult {
 		let deposit = Self::calc_deposit(&validator_id)?;
-		Self::check_new(&validator_id, deposit, check_block_num)?;
+		Self::check_new(&validator_id, deposit, do_pot_transfer)?;
 		Self::insert_validator(&validator_id, deposit)?;
 
 		Ok(())
@@ -962,7 +972,7 @@ impl<T: Config> Pallet<T> {
 				return Err(Error::<T>::TransferToTreasuryFailed.into());
 			}
 		}
-		else if !Self::check_lock(validator_id) {
+		if !Self::check_lock(validator_id) {
 			return Err(Error::<T>::AmountLockedBelowLimit.into());
 		}
 
