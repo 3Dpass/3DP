@@ -1,7 +1,8 @@
 #!/bin/bash
 # importing mining key
-./p3d import-mining-key "$MEMO_SEED" --base-path /var/chain --chain mainnetSpecRaw.json
-# deriving GRANDPA key 
+ADDRESS=$(./p3d import-mining-key "$MEMO_SEED" --base-path /var/chain --chain mainnetSpecRaw.json 2>&1 | grep -o "Address: [^ ]*" | cut -d' ' -f2)
+echo "Using address: $ADDRESS"
+# deriving GRANDPA key
 GRANDPA_KEY="$(./p3d key inspect --scheme Ed25519 "$MEMO_SEED" | sed -n 's/.*Secret seed://p')"
 # inserting GRANDPA key
 ./p3d key insert --base-path /var/chain --chain mainnetSpecRaw.json --scheme Ed25519 --key-type gran --suri $GRANDPA_KEY
