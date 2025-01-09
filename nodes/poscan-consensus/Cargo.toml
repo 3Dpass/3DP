@@ -1,10 +1,10 @@
 [package]
 name = "poscan-consensus"
 version = "3.1.0"
-edition = "2018"
-authors = ["Substrate DevHub <https://github.com/substrate-developer-hub>"]
-repository = "https://github.com/substrate-developer-hub/recipes"
-description = "A Substrate node with PoW authoring and PoA finality"
+edition = "2025"
+authors = ["3DPass devs <https://github.com/3dpass>"]
+repository = "https://github.com/3Dpass/3DP"
+description = "The Ledger of Things Node with Proof of Scan consensus: recognition-based PoW authoring and PoA finality"
 license = "GPL-3.0-or-later"
 
 [[bin]]
