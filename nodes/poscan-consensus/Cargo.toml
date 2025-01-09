@@ -1,7 +1,7 @@
 [package]
 name = "poscan-consensus"
 version = "3.1.0"
-edition = "2025"
+edition = "2018"
 authors = ["3DPass devs <https://github.com/3dpass>"]
 repository = "https://github.com/3Dpass/3DP"
 description = "The Ledger of Things Node with Proof of Scan consensus: recognition-based PoW authoring and PoA finality"
