@@ -1,7 +1,7 @@
 [package]
 name = "rewards-api"
 version = "3.0.0"
-edition = "2018"
+edition = "2021"
 authors = ['Substrate DevHub <https://github.com/substrate-developer-hub>']
 repository = 'https://github.com/substrate-developer-hub/recipes'
 description = "A trait that supplies a set of accounts for use in a Substrate runtime"

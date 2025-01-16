@@ -3,7 +3,7 @@ name = "pallet-rewards"
 version = "2.8.0"
 authors = ["Wei Tang <wei@that.world>"]
 license = "GPL-3.0-or-later"
-edition = "2018"
+edition = "2021"
 
 [dependencies]
 serde = { version = "1.0.101", optional = true }

@@ -82,6 +82,22 @@ pallet-referenda = { default-features = false, path = "../pallets/referenda" }
 pallet-asset-rate = { default-features = false, path = "../pallets/asset-rate" }
 pallet-identity = { default-features = false, path =  "../pallets/identity" }
 
+# Frontier
+fp-rpc = { path = "../primitives/rpc", default-features = false }
+fp-self-contained = { path = "../primitives/self-contained", default-features = false }
+fp-evm = { path = "../primitives/evm", default-features = false }
+# Frontier FRAME
+pallet-base-fee = { path = "../pallets/base-fee", default-features = false }
+pallet-dynamic-fee = { path = "../pallets/dynamic-fee", default-features = false }
+pallet-ethereum = { path = "../pallets/ethereum", default-features = false }
+pallet-evm = { path = "../pallets/evm", default-features = false }
+pallet-evm-chain-id = { path = "../pallets/evm-chain-id", default-features = false }
+pallet-evm-precompile-modexp = { path = "../pallets/evm/precompile/modexp", default-features = false }
+pallet-evm-precompile-sha3fips = { path = "../pallets/evm/precompile/sha3fips", default-features = false }
+pallet-evm-precompile-simple = { path = "../pallets/evm/precompile/simple", default-features = false }
+pallet-hotfix-sufficients = { path = "../pallets/hotfix-sufficients", default-features = false }
+
+
 # Used for the node's RPCs
 frame-system-rpc-runtime-api = { git = "https://github.com/paritytech/substrate", rev = "b0777b4c7f7", package = "frame-system-rpc-runtime-api", default-features = false }
 pallet-transaction-payment-rpc-runtime-api = { git = "https://github.com/paritytech/substrate", rev = "b0777b4c7f7", package = "pallet-transaction-payment-rpc-runtime-api", default-features = false }
@@ -183,6 +199,20 @@ std = [
 	"rewards/std",
 	# "lockdrop/std",
 	"poscan-api/std",
+
+	"fp-rpc/std",
+	"fp-self-contained/std",
+	"fp-evm/std",
+	"pallet-base-fee/std",
+	"pallet-dynamic-fee/std",
+	"pallet-ethereum/std",
+	"pallet-evm/std",
+	"pallet-evm-chain-id/std",
+	"pallet-evm-precompile-modexp/std",
+	"pallet-evm-precompile-sha3fips/std",
+	"pallet-evm-precompile-simple/std",
+	"pallet-hotfix-sufficients/std",
+
 ]
 runtime-benchmarks = [
 	"frame-benchmarking/runtime-benchmarks",
