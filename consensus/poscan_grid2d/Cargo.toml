@@ -1,7 +1,7 @@
 [package]
 name = 'poscan-grid2d'
 version = "3.0.0"
-edition = '2018'
+edition = '2021'
 authors = ['Substrate DevHub <https://github.com/substrate-developer-hub>']
 repository = 'https://github.com/substrate-developer-hub/recipes'
 description = 'Sha3-based Proof of Work algorithms for Substrate'
