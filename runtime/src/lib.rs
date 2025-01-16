@@ -1,6 +1,6 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 // `construct_runtime!` does a lot of recursion and requires us to increase the limit to 256.
-#![recursion_limit = "256"]
+#![recursion_limit = "512"]
 
 // Make the WASM binary available.
 #[cfg(feature = "std")]
@@ -20,7 +20,7 @@ use log;
 use static_assertions::const_assert;
 
 use sp_api::impl_runtime_apis;
-use sp_core::{crypto::KeyTypeId, OpaqueMetadata, H256};
+use sp_core::{crypto::KeyTypeId, OpaqueMetadata, H256, H160};
 use sp_std::{cmp, collections::btree_map::BTreeMap, prelude::*};
 
 #[cfg(feature = "std")]
@@ -30,6 +30,13 @@ use sp_version::RuntimeVersion;
 #[cfg(any(feature = "std", test))]
 pub use sp_runtime::BuildStorage;
 pub use sp_runtime::{Perbill, Permill, Percent};
+
+// Frontier
+use fp_rpc::TransactionStatus;
+use pallet_ethereum::{Call::transact, Transaction as EthereumTransaction};
+use pallet_evm::{
+	Account as EVMAccount, EnsureAddressTruncated, FeeCalculator, HashedAddressMapping, Runner,
+};
 
 use frame_support::{
 	construct_runtime, parameter_types, ord_parameter_types,
@@ -62,6 +69,7 @@ use sp_runtime::{
 	ApplyExtrinsicResult, MultiSignature,
 };
 
+pub use frame_system::Call as SystemCall;
 pub use pallet_balances::Call as BalancesCall;
 use pallet_contracts::{migration, DefaultContractAccessWeight};
 use pallet_grandpa::{AuthorityId as GrandpaId, AuthorityList as GrandpaAuthorityList};
@@ -80,6 +88,9 @@ use sp_consensus_poscan::{
 
 use mining_pool_stat_api::{MiningPoolStatApi, CheckMemberError};
 use poscan_api::PoscanApi;
+
+mod precompiles;
+use precompiles::FrontierPrecompiles;
 
 /// An index to a block.
 pub type BlockNumber = u32;
@@ -179,6 +190,7 @@ const AVERAGE_ON_INITIALIZE_RATIO: Perbill = Perbill::from_percent(10);
 
 /// We allow for 20 seconds of compute with a 60 second average block time.
 const MAXIMUM_BLOCK_WEIGHT: Weight = 20 * WEIGHT_PER_SECOND;
+const WEIGHT_PER_GAS: u64 = 20_000;
 
 // Prints debug output of the `contracts` pallet to stdout if the node is
 // started with `-lruntime::contracts=debug`.
@@ -1481,6 +1493,105 @@ impl pallet_sudo::Config for Runtime {
 	type Call = Call;
 }
 
+impl pallet_evm_chain_id::Config for Runtime {}
+
+pub struct FindAuthorTruncated;
+impl FindAuthor<H160> for FindAuthorTruncated {
+	// fn find_author<'a, I>(digests: I) -> Option<H160>
+	// 	where
+	// 		I: 'a + IntoIterator<Item = (ConsensusEngineId, &'a [u8])>,
+	// {
+	// 	if let Some(author_index) = F::find_author(digests) {
+	// 		let authority_id = Aura::authorities()[author_index as usize].clone();
+	// 		return Some(H160::from_slice(&data[4..24]));
+	// 	}
+	// 	None
+	// }
+
+	fn find_author<'a, I>(digests: I) -> Option<H160>
+		where I: 'a + IntoIterator<Item=(ConsensusEngineId, &'a [u8])> {
+		digests.into_iter().filter_map(|(id, mut data)| {
+			use codec::Decode;
+			if id == POSCAN_ENGINE_ID {
+				//AccountId::decode(&mut data).ok()
+				Some(H160::from_slice(&data[4..24]))
+			} else {
+				None
+			}
+		})
+			.next()
+	}
+}
+
+parameter_types! {
+	pub BlockGasLimit: U256 = U256::from(NORMAL_DISPATCH_RATIO * MAXIMUM_BLOCK_WEIGHT / WEIGHT_PER_GAS);
+	pub PrecompilesValue: FrontierPrecompiles<Runtime> = FrontierPrecompiles::<_>::new();
+	pub WeightPerGas: u64 = 20_000;
+}
+
+impl pallet_evm::Config for Runtime {
+	type FeeCalculator = BaseFee;
+	type GasWeightMapping = pallet_evm::FixedGasWeightMapping<Self>;
+	type WeightPerGas = WeightPerGas;
+	type BlockHashMapping = pallet_ethereum::EthereumBlockHashMapping<Self>;
+	type CallOrigin = EnsureAddressTruncated;
+	type WithdrawOrigin = EnsureAddressTruncated;
+	type AddressMapping = HashedAddressMapping<BlakeTwo256>;
+	type Currency = Balances;
+	type Event = Event;
+	type PrecompilesType = FrontierPrecompiles<Self>;
+	type PrecompilesValue = PrecompilesValue;
+	type ChainId = EVMChainId;
+	type BlockGasLimit = BlockGasLimit;
+	type Runner = pallet_evm::runner::stack::Runner<Self>;
+	type OnChargeTransaction = ();
+	type FindAuthor = FindAuthorTruncated;
+}
+
+impl pallet_ethereum::Config for Runtime {
+	type Event = Event;
+	type StateRoot = pallet_ethereum::IntermediateStateRoot<Self>;
+}
+
+parameter_types! {
+	pub BoundDivision: U256 = U256::from(1024);
+}
+
+impl pallet_dynamic_fee::Config for Runtime {
+	type MinGasPriceBoundDivisor = BoundDivision;
+}
+
+parameter_types! {
+	pub DefaultBaseFeePerGas: U256 = U256::from(1_000_000_000);
+	pub DefaultElasticity: Permill = Permill::from_parts(125_000);
+}
+
+pub struct BaseFeeThreshold;
+impl pallet_base_fee::BaseFeeThreshold for BaseFeeThreshold {
+	fn lower() -> Permill {
+		Permill::zero()
+	}
+	fn ideal() -> Permill {
+		Permill::from_parts(500_000)
+	}
+	fn upper() -> Permill {
+		Permill::from_parts(1_000_000)
+	}
+}
+
+impl pallet_base_fee::Config for Runtime {
+	type Event = Event;
+	type Threshold = BaseFeeThreshold;
+	type DefaultBaseFeePerGas = DefaultBaseFeePerGas;
+	type DefaultElasticity = DefaultElasticity;
+}
+
+impl pallet_hotfix_sufficients::Config for Runtime {
+	type AddressMapping = HashedAddressMapping<BlakeTwo256>;
+	type WeightInfo = pallet_hotfix_sufficients::weights::SubstrateWeight<Runtime>;
+}
+
+
 pub struct Migrations;
 impl OnRuntimeUpgrade for Migrations {
 	fn on_runtime_upgrade() -> Weight {
@@ -1563,6 +1674,12 @@ construct_runtime!(
 		PoscanPoolAssets: pallet_poscan_assets::<Instance2>,
 		MiningPool: pallet_mining_pool,
 		Sudo: pallet_sudo,
+		Ethereum: pallet_ethereum,
+		EVM: pallet_evm,
+		EVMChainId: pallet_evm_chain_id,
+		DynamicFee: pallet_dynamic_fee,
+		BaseFee: pallet_base_fee,
+		HotfixSufficients: pallet_hotfix_sufficients,
 	}
 );
 
