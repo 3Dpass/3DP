@@ -25,7 +25,7 @@ tokio = "1.19"
 # trie-root = "0.15.2"
 lazy_static = { version = "1.4.0" }
 async-trait = "0.1.50"
-jsonrpsee = { version = "0.14.0", features = ["server"] }
+jsonrpsee = { version = "0.14.0", features = ["server", "macros"] }
 hex = { version = "0.4", default-features = false, features = ["alloc"] }
 serde = { version = "1.0", default-features = false }
 serde_json = { version = "1", default-features = false }
@@ -83,6 +83,22 @@ poscan-algo = { path = "../../consensus/poscan_algo" }
 sc-consensus-poscan = { path = "../../consensus/poscan" }
 sp-consensus-poscan = { path = "../../primitives/consensus/poscan" }
 pallet-poscan = { path = "../../pallets/poscan", default-features = false }
+
+# Frontier
+fc-cli = { path = "../../frontier/cli" }
+fc-consensus = { path = "../../consensus/frontier" }
+fc-db = { path = "../../frontier/db" }
+fc-mapping-sync = { path = "../../frontier/mapping-sync" }
+fc-rpc = { path = "../../frontier/rpc" }
+fc-rpc-core = { path = "../../frontier/rpc-core" }
+fp-consensus = { path = "../../primitives/consensus/evm" }
+fp-dynamic-fee = { path = "../../primitives/dynamic-fee" }
+fp-evm = { path = "../../primitives/evm" }
+fp-rpc = { path = "../../primitives/rpc" }
+fp-storage = { path = "../../primitives/storage" }
+
+# poscan-runtime = { path = "../../runtime", default-features = false, features = ["std"] }
+
 
 frame-benchmarking = { git = "https://github.com/paritytech/substrate", rev = "b0777b4c7f7" }
 
