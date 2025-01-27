@@ -1,36 +1,59 @@
 //! Service and ServiceFactory implementation. Specialized wrapper over substrate service.
 #![allow(clippy::needless_borrow)]
-use async_trait::async_trait;
-use log::*;
-use parking_lot::Mutex;
-use poscan_algo::get_obj_hashes;
-use poscan_grid2d::randomx;
-use poscan_grid2d::*;
-use runtime::{self, opaque::Block, AccountId, BlockNumber, RuntimeApi};
-use sc_client_api::{BlockBackend, ExecutorProvider};
-use sc_consensus::DefaultImportQueue;
-use sc_consensus_poscan::{PoscanData, PoscanDataV1, PoscanDataV2};
+
+use futures::{future, StreamExt};
+
+use runtime::{self, opaque::Block, RuntimeApi, AccountId, BlockNumber};
+use sc_client_api::{ExecutorProvider, BlockBackend, BlockchainEvents };
 use sc_executor::NativeElseWasmExecutor;
-use sc_finality_grandpa::FinalityProofProvider as GrandpaFinalityProofProvider;
-use sc_finality_grandpa::{grandpa_peers_set_config, GrandpaBlockImport};
-use sc_rpc::SubscriptionTaskExecutor;
-use sc_service::{error::Error as ServiceError, Configuration, PartialComponents, TaskManager};
+use sc_consensus::DefaultImportQueue;
+use sc_finality_grandpa::{GrandpaBlockImport, grandpa_peers_set_config};
+use sc_service::{BasePath, error::Error as ServiceError, Configuration, PartialComponents, TaskManager};
 use sc_telemetry::{Telemetry, TelemetryWorker};
-use sp_consensus_poscan::{
-	CONS_V2_SPEC_VER, POSCAN_ALGO_GRID2D_V3A, POSCAN_ALGO_GRID2D_V3_1, POSCAN_COIN_ID,
-	REJECT_OLD_ALGO_SINCE,
+use poscan_grid2d::*;
+use sp_core::{Encode, Decode, H256};
+use std::thread;
+// use std::time::Duration;
+// use std::path::PathBuf;
+use std::{
+	collections::BTreeMap,
+	path::PathBuf,
+	sync::{Arc, Mutex as StdMutex},
+	time::Duration,
 };
-use sp_core::crypto::{set_default_ss58_version, Ss58AddressFormat, Ss58Codec, UncheckedFrom};
-use sp_core::Pair;
-use sp_core::{Decode, Encode, H256};
+use sc_cli::SubstrateCli;
+
+use sc_consensus_poscan::{PoscanData, PoscanDataV1, PoscanDataV2};
+use log::*;
+use sp_std::collections::vec_deque::VecDeque;
+use parking_lot::Mutex;
+use std::str::FromStr;
 use sp_keystore::{SyncCryptoStore, SyncCryptoStorePtr};
 use sp_runtime::traits::Block as BlockT;
-use sp_std::collections::vec_deque::VecDeque;
-use std::path::PathBuf;
-use std::str::FromStr;
-use std::sync::Arc;
-use std::thread;
-use std::time::Duration;
+use sp_core::crypto::{Ss58Codec,UncheckedFrom, Ss58AddressFormat, set_default_ss58_version};
+use sp_core::Pair;
+use sp_consensus_poscan::{
+	POSCAN_COIN_ID,
+	POSCAN_ALGO_GRID2D_V3_1,
+	POSCAN_ALGO_GRID2D_V3A,
+	REJECT_OLD_ALGO_SINCE,
+	CONS_V2_SPEC_VER,
+};
+use poscan_algo::get_obj_hashes;
+use poscan_grid2d::randomx;
+use async_trait::async_trait;
+use sc_rpc::SubscriptionTaskExecutor;
+use sc_finality_grandpa::{FinalityProofProvider as GrandpaFinalityProofProvider};
+
+// use sc_consensus_poscan::PowBlockImport;
+// Frontier
+use fc_consensus::FrontierBlockImport;
+use fc_db::Backend as FrontierBackend;
+use fc_mapping_sync::{MappingSyncWorker, SyncStrategy};
+use fc_rpc::{EthTask, OverrideHandle};
+use fc_rpc_core::types::{FeeHistoryCache, FeeHistoryCacheLimit, FilterPool};
+
+use crate::cli::Cli;
 
 pub struct MiningProposal {
 	pub id: i32,
@@ -38,46 +61,42 @@ pub struct MiningProposal {
 }
 
 lazy_static! {
-	pub static ref DEQUE: Mutex<VecDeque<MiningProposal>> = {
-		let m = VecDeque::new();
-		Mutex::new(m)
-	};
+    pub static ref DEQUE: Mutex<VecDeque<MiningProposal>> = {
+        let m = VecDeque::new();
+        Mutex::new(m)
+    };
 }
 
 pub struct ExecutorDispatch;
 
 impl sc_executor::NativeExecutionDispatch for ExecutorDispatch {
-	type ExtendHostFunctions = (
+    type ExtendHostFunctions = (
 		frame_benchmarking::benchmarking::HostFunctions,
 		poscan_algo::hashable_object::HostFunctions,
 	);
 
-	fn dispatch(method: &str, data: &[u8]) -> Option<Vec<u8>> {
+    fn dispatch(method: &str, data: &[u8]) -> Option<Vec<u8>> {
 		runtime::api::dispatch(method, data)
-	}
+    }
 
-	fn native_version() -> sc_executor::NativeVersion {
-		runtime::native_version()
+   fn native_version() -> sc_executor::NativeVersion {
+			   runtime::native_version()
 	}
 }
 
 pub fn decode_author(
-	author: Option<&str>,
-	keystore: SyncCryptoStorePtr,
-	keystore_path: Option<PathBuf>,
+	author: Option<&str>, keystore: SyncCryptoStorePtr, keystore_path: Option<PathBuf>,
 ) -> Result<sc_consensus_poscan::app::Public, String> {
 	if let Some(author) = author {
 		if author.starts_with("0x") {
 			Ok(sc_consensus_poscan::app::Public::unchecked_from(
-				H256::from_str(&author[2..]).map_err(|_| "Invalid author account".to_string())?,
-			)
-			.into())
+				H256::from_str(&author[2..]).map_err(|_| "Invalid author account".to_string())?
+			).into())
 		} else {
-			let (address, version) =
-				sc_consensus_poscan::app::Public::from_ss58check_with_version(author)
-					.map_err(|_| "Invalid author address".to_string())?;
+			let (address, version) = sc_consensus_poscan::app::Public::from_ss58check_with_version(author)
+				.map_err(|_| "Invalid author address".to_string())?;
 			if version != Ss58AddressFormat::from(POSCAN_COIN_ID) {
-				return Err("Invalid author version".to_string());
+				return Err("Invalid author version".to_string())
 			}
 			Ok(address)
 		}
@@ -91,14 +110,9 @@ pub fn decode_author(
 			sc_consensus_poscan::app::ID,
 			&phrase,
 			pair.public().as_ref(),
-		)
-		.map_err(|e| format!("Registering mining key failed: {:?}", e))?;
+		).map_err(|e| format!("Registering mining key failed: {:?}", e))?;
 
-		info!(
-			"Generated a mining key with address: {}",
-			pair.public()
-				.to_ss58check_with_version(Ss58AddressFormat::from(POSCAN_COIN_ID))
-		);
+		info!("Generated a mining key with address: {}", pair.public().to_ss58check_with_version(Ss58AddressFormat::from(POSCAN_COIN_ID)));
 
 		match keystore_path {
 			Some(path) => info!("You can go to {:?} to find the seed phrase of the mining key.", path),
@@ -110,10 +124,17 @@ pub fn decode_author(
 }
 
 type FullClient =
-	sc_service::TFullClient<Block, RuntimeApi, NativeElseWasmExecutor<ExecutorDispatch>>;
+       sc_service::TFullClient<Block, RuntimeApi, NativeElseWasmExecutor<ExecutorDispatch>>;
 
 type FullBackend = sc_service::TFullBackend<Block>;
 type FullSelectChain = sc_consensus::LongestChain<FullBackend, Block>;
+
+// pub type TFrontierBlockImport =
+// 	PowBlockImport<
+// 		Block,
+// 		sc_finality_grandpa::GrandpaBlockImport<FullBackend, Block, FullClient, FullSelectChain>,
+// 		FullClient,
+// 	>;
 
 pub struct CreateInherentDataProviders {
 	author: Option<Vec<u8>>,
@@ -141,6 +162,25 @@ impl sp_inherents::CreateInherentDataProviders<Block, ()> for CreateInherentData
 
 // use sc_network::{
 //
+
+pub type ConsensusResult =
+	FrontierBlockImport<
+		Block,
+		sc_finality_grandpa::GrandpaBlockImport<FullBackend, Block, FullClient, FullSelectChain>,
+		FullClient,
+	>;
+
+pub(crate) fn db_config_dir(config: &Configuration) -> PathBuf {
+	config
+		.base_path
+		.as_ref()
+		.map(|base_path| base_path.config_dir(config.chain_spec.id()))
+		.unwrap_or_else(|| {
+			BasePath::from_project("", "", &Cli::executable_name())
+				.config_dir(config.chain_spec.id())
+		})
+}
+
 /// Returns most parts of a service. Not enough to run a full chain,
 /// But enough to perform chain operations like purge-chain
 #[allow(clippy::type_complexity)]
@@ -149,7 +189,7 @@ pub fn new_partial(
 	// check_inherents_after: u32,
 	// enable_weak_subjectivity: bool,
 	author: Option<&str>,
-	skip_check: bool,
+	cli: &Cli,
 ) -> Result<
 	PartialComponents<
 		FullClient,
@@ -173,6 +213,10 @@ pub fn new_partial(
 			sc_finality_grandpa::LinkHalf<Block, FullClient, FullSelectChain>,
 			sc_finality_grandpa::SharedVoterState,
 			Option<Telemetry>,
+			ConsensusResult,
+			Arc<FrontierBackend<Block>>,
+			Option<FilterPool>,
+			(FeeHistoryCache, FeeHistoryCacheLimit),
 		),
 	>,
 	ServiceError,
@@ -195,7 +239,7 @@ pub fn new_partial(
 		config.wasm_method,
 		config.default_heap_pages,
 		config.max_runtime_instances,
-		config.runtime_cache_size,
+		config.runtime_cache_size
 	);
 
 	let (client, backend, keystore_container, task_manager) =
@@ -210,14 +254,10 @@ pub fn new_partial(
 	let keystore_path = config.keystore.path().map(|p| p.to_owned());
 	let auth = decode_author(author, keystore_container.sync_keystore(), keystore_path)?.encode();
 
-	poscan_algo::CLIENT
-		.lock()
-		.replace((Box::new(client.clone()), config.role.is_light()));
+	poscan_algo::CLIENT.lock().replace((Box::new(client.clone()), config.role.is_light()));
 
 	let telemetry = telemetry.map(|(worker, telemetry)| {
-		task_manager
-			.spawn_handle()
-			.spawn("telemetry", None, worker.run());
+		task_manager.spawn_handle().spawn("telemetry", None, worker.run());
 		telemetry
 	});
 
@@ -231,6 +271,15 @@ pub fn new_partial(
 		client.clone(),
 	);
 
+	let frontier_backend = Arc::new(FrontierBackend::open(
+		Arc::clone(&client),
+		&config.database,
+		&db_config_dir(config),
+	)?);
+	let filter_pool: Option<FilterPool> = Some(Arc::new(StdMutex::new(BTreeMap::new())));
+	let fee_history_cache: FeeHistoryCache = Arc::new(StdMutex::new(BTreeMap::new()));
+	let fee_history_cache_limit: FeeHistoryCacheLimit = cli.run.fee_history_limit;
+
 	let (grandpa_block_import, grandpa_link) = sc_finality_grandpa::block_import(
 		client.clone(),
 		&(client.clone() as Arc<_>),
@@ -238,24 +287,28 @@ pub fn new_partial(
 		telemetry.as_ref().map(|x| x.handle()),
 	)?;
 
+	let frontier_block_import = FrontierBlockImport::new(
+		grandpa_block_import.clone(),
+		client.clone(),
+		frontier_backend.clone(),
+	);
+
 	let can_author_with = sp_consensus::CanAuthorWithNativeVersion::new(client.executor().clone());
 
 	let pow_block_import = sc_consensus_poscan::PowBlockImport::new(
 		grandpa_block_import.clone(),
 		client.clone(),
-		poscan_grid2d::PoscanAlgorithm::with_skip_check(client.clone(), skip_check),
+		poscan_grid2d::PoscanAlgorithm::new(client.clone()),
 		0, // check inherents starting at block 0
 		select_chain.clone(),
-		CreateInherentDataProviders {
-			author: Some(auth.encode()),
-		},
+		CreateInherentDataProviders { author: Some(auth.encode()) },
 		can_author_with,
 	);
 
 	let import_queue = sc_consensus_poscan::import_queue(
 		Box::new(pow_block_import.clone()),
 		Some(Box::new(grandpa_block_import)),
-		poscan_grid2d::PoscanAlgorithm::with_skip_check(client.clone(), skip_check),
+		poscan_grid2d::PoscanAlgorithm::new(client.clone()),
 		&task_manager.spawn_essential_handle(),
 		config.prometheus_registry(),
 	)?;
@@ -270,7 +323,16 @@ pub fn new_partial(
 		task_manager,
 		transaction_pool,
 		select_chain,
-		other: (pow_block_import, grandpa_link, rpc_setup, telemetry),
+		other: (
+			pow_block_import,
+			grandpa_link,
+			rpc_setup,
+			telemetry,
+			frontier_block_import,
+			frontier_backend,
+			filter_pool,
+			(fee_history_cache, fee_history_cache_limit),
+		),
 	})
 }
 
@@ -279,8 +341,9 @@ pub fn new_full(
 	mut config: Configuration,
 	author: Option<&str>,
 	threads: usize,
-	skip_check: bool,
+	cli: &Cli,
 ) -> Result<TaskManager, ServiceError> {
+
 	let sc_service::PartialComponents {
 		client,
 		backend,
@@ -289,18 +352,24 @@ pub fn new_full(
 		keystore_container,
 		select_chain,
 		transaction_pool,
-		other: (pow_block_import, grandpa_link, shared_voter_state, mut telemetry),
-	} = new_partial(&config, author, skip_check)?;
+		other: (
+			pow_block_import,
+			grandpa_link,
+			shared_voter_state,
+			mut telemetry,
+			_frontier_block_import,
+			frontier_backend,
+			filter_pool,
+			(fee_history_cache, fee_history_cache_limit),
+		),
+	} = new_partial(&config, author, cli)?;
 
 	let grandpa_protocol_name = sc_finality_grandpa::protocol_standard_name(
-		&client
-			.block_hash(0)
-			.ok()
-			.flatten()
-			.expect("Genesis block exists; qed"),
+		&client.block_hash(0).ok().flatten().expect("Genesis block exists; qed"),
 		&config.chain_spec,
 	);
 	config
+
 		.network
 		.extra_sets
 		.push(grandpa_peers_set_config(grandpa_protocol_name.clone()));
@@ -330,6 +399,14 @@ pub fn new_full(
 	let is_authority = config.role.is_authority();
 	let prometheus_registry = config.prometheus_registry().cloned();
 	let enable_grandpa = !config.disable_grandpa;
+	let overrides = crate::rpc::overrides_handle(client.clone());
+	let block_data_cache = Arc::new(fc_rpc::EthBlockDataCacheTask::new(
+		task_manager.spawn_handle(),
+		overrides.clone(),
+		50,
+		50,
+		prometheus_registry.clone(),
+	));
 
 	let justification_stream = grandpa_link.justification_stream();
 	let shared_authority_set = grandpa_link.shared_authority_set().clone();
@@ -348,13 +425,24 @@ pub fn new_full(
 
 		let mining_pool = mining_pool.as_ref().map(|a| a.clone());
 		let backend = backend.clone();
-		Box::new(
-			move |deny_unsafe, subscription_executor: SubscriptionTaskExecutor| {
-				let deps = crate::rpc::FullDeps {
-					client: client.clone(),
+
+		let is_authority = role.is_authority();
+		let enable_dev_signer = cli.run.enable_dev_signer;
+		let network = network.clone();
+		let filter_pool = filter_pool.clone();
+		let frontier_backend = frontier_backend.clone();
+		let overrides = overrides.clone();
+		let fee_history_cache = fee_history_cache.clone();
+		let max_past_logs = cli.run.max_past_logs;
+
+		Box::new(move |deny_unsafe, subscription_executor: SubscriptionTaskExecutor| {
+			let deps =
+				crate::rpc::FullDeps { client: client.clone(),
 					pool: pool.clone(),
+					graph: pool.pool().clone(),
 					deny_unsafe,
-					grandpa: crate::rpc::GrandpaDeps {
+					grandpa:
+						crate::rpc::GrandpaDeps {
 						shared_voter_state: shared_voter_state.clone(),
 						shared_authority_set: shared_authority_set.clone(),
 						justification_stream: justification_stream.clone(),
@@ -362,28 +450,49 @@ pub fn new_full(
 						finality_provider: finality_proof_provider.clone(),
 					},
 					mining_pool: mining_pool.clone(),
+					network: network.clone(),
+					filter_pool: filter_pool.clone(),
 					backend: backend.clone(),
+					frontier_backend: frontier_backend.clone(),
+					is_authority,
+					enable_dev_signer,
+					max_past_logs,
+					fee_history_cache: fee_history_cache.clone(),
+					fee_history_cache_limit,
+					overrides: overrides.clone(),
+					block_data_cache: block_data_cache.clone(),
 				};
-				crate::rpc::create_full(deps).map_err(Into::into)
-			},
-		)
+			crate::rpc::create_full(deps).map_err(Into::into)
+		})
 	};
 
 	let keystore_path = config.keystore.path().map(|p| p.to_owned());
 
-	let _rpc_handlers = sc_service::spawn_tasks(sc_service::SpawnTasksParams {
-		network: network.clone(),
-		client: client.clone(),
-		keystore: keystore_container.sync_keystore(),
-		task_manager: &mut task_manager,
-		transaction_pool: transaction_pool.clone(),
-		rpc_builder: rpc_extensions_builder,
+	let _rpc_handlers =
+		sc_service::spawn_tasks(sc_service::SpawnTasksParams {
+			network: network.clone(),
+			client: client.clone(),
+			keystore: keystore_container.sync_keystore(),
+			task_manager: &mut task_manager,
+			transaction_pool: transaction_pool.clone(),
+			rpc_builder: rpc_extensions_builder,
+			backend: backend.clone(),
+			// network_status_sinks,
+			system_rpc_tx,
+			config,
+			telemetry: telemetry.as_mut(),
+		})?;
+
+	spawn_frontier_tasks(
+		&task_manager,
+		client.clone(),
 		backend,
-		// network_status_sinks,
-		system_rpc_tx,
-		config,
-		telemetry: telemetry.as_mut(),
-	})?;
+		frontier_backend,
+		filter_pool,
+		overrides,
+		fee_history_cache,
+		fee_history_cache_limit,
+	);
 
 	if is_authority {
 		let author = decode_author(author, keystore_container.sync_keystore(), keystore_path)?;
@@ -409,9 +518,7 @@ pub fn new_full(
 			network.clone(),
 			Some(author.encode()),
 			// CreateInherentDataProviders,
-			CreateInherentDataProviders {
-				author: Some(author.encode()),
-			},
+			CreateInherentDataProviders { author: Some(author.encode()) },
 			// time to wait for a new block before starting to mine a new one
 			Duration::from_secs(10),
 			// how long to take to actually build the block (i.e. executing extrinsics)
@@ -421,30 +528,30 @@ pub fn new_full(
 
 		task_manager
 			.spawn_essential_handle()
-			.spawn_blocking("poscan", None, worker_task);
+			.spawn_blocking("poscan", None,  worker_task);
 
 		let pre_digest = author.encode();
-		let author =
-			sc_consensus_poscan::app::Public::decode(&mut &pre_digest[..]).map_err(|_| {
-				ServiceError::Other("Unable to mine: author pre-digest decoding failed".to_string())
-			})?;
+		let author = sc_consensus_poscan::app::Public::decode(&mut &pre_digest[..]).map_err(|_| {
+			ServiceError::Other(
+				"Unable to mine: author pre-digest decoding failed".to_string(),
+			)
+		})?;
 
-		let keystore = keystore_container
-			.local_keystore()
-			.ok_or(ServiceError::Other(
-				"Unable to mine: no local keystore".to_string(),
-			))?;
+		let keystore = keystore_container.local_keystore()
+		.ok_or(ServiceError::Other(
+			"Unable to mine: no local keystore".to_string(),
+		))?;
 
 		info!(">>> author: {:x?}", &author);
 
-		let pair = keystore
-			.key_pair::<sc_consensus_poscan::app::Pair>(&author)
-			.map_err(|_| {
-				ServiceError::Other("Unable to mine: fetch pair from author failed".to_string())
-			})?
-			.ok_or(ServiceError::Other(
-				"Unable to mine: key not found in keystore".to_string(),
-			))?;
+		let pair = keystore.key_pair::<sc_consensus_poscan::app::Pair>(
+			&author,
+		).map_err(|_| ServiceError::Other(
+			"Unable to mine: fetch pair from author failed".to_string(),
+		))?
+		.ok_or(ServiceError::Other(
+		 	"Unable to mine: key not found in keystore".to_string(),
+		))?;
 
 		// Start Mining
 		info!(">>> Spawn mining loop(s)");
@@ -458,25 +565,19 @@ pub fn new_full(
 			thread::spawn(move || loop {
 				let metadata = worker.metadata();
 				if let Some(metadata) = metadata {
-					let maybe_mining_prop = mining_pool
-						.clone()
-						.map(|mining_pool| {
-							let mut mining_pool = mining_pool.lock();
-							mining_pool.update_metadata(
-								metadata.pre_hash,
-								metadata.best_hash,
-								metadata.difficulty,
-							);
-							mining_pool.take().map(|sp| MiningProposal {
-								id: 0,
-								pre_obj: sp.pre_obj,
+					let maybe_mining_prop =
+						mining_pool.clone()
+							.map(|mining_pool| {
+								let mut mining_pool = mining_pool.lock();
+								mining_pool.update_metadata(metadata.pre_hash, metadata.best_hash, metadata.difficulty);
+								mining_pool.take()
+									.map(|sp| MiningProposal { id: 0, pre_obj: sp.pre_obj })
 							})
-						})
-						.flatten()
-						.or_else(|| {
-							let mut lock = DEQUE.lock();
-							(*lock).pop_front()
-						});
+							.flatten()
+							.or_else(|| {
+								let mut lock = DEQUE.lock();
+								(*lock).pop_front()
+							});
 
 					if let Some(mp) = maybe_mining_prop {
 						use sp_api::BlockId;
@@ -484,33 +585,21 @@ pub fn new_full(
 						let parent_id = BlockId::<Block>::hash(metadata.best_hash);
 						let parent_num = client.block_number_from_id(&parent_id).unwrap().unwrap();
 						let patch_rot = parent_num >= REJECT_OLD_ALGO_SINCE.into();
-						let mining_algo = if patch_rot {
-							&POSCAN_ALGO_GRID2D_V3A
-						} else {
-							&POSCAN_ALGO_GRID2D_V3_1
-						};
+						let mining_algo = if patch_rot { &POSCAN_ALGO_GRID2D_V3A } else { &POSCAN_ALGO_GRID2D_V3_1 };
 
 						let ver = match client.runtime_version_at(&parent_id) {
 							Ok(ver) => ver,
 							Err(_) => {
 								thread::sleep(Duration::new(1, 0));
-								continue;
+								continue
 							}
 						};
 
 						if ver.spec_version < CONS_V2_SPEC_VER {
-							let hashes = get_obj_hashes(
-								mining_algo,
-								&mp.pre_obj,
-								&metadata.pre_hash,
-								patch_rot,
-							);
+							let hashes = get_obj_hashes(mining_algo, &mp.pre_obj, &metadata.pre_hash, patch_rot);
 							if hashes.len() > 0 {
 								let obj_hash = hashes[0];
-								let dh = DoubleHash {
-									pre_hash: metadata.pre_hash,
-									obj_hash,
-								};
+								let dh = DoubleHash { pre_hash: metadata.pre_hash, obj_hash };
 								let poscan_hash = dh.calc_hash();
 								let psdata = PoscanData::V1(PoscanDataV1 {
 									alg_id: mining_algo.clone(),
@@ -527,20 +616,15 @@ pub fn new_full(
 								let signature = compute.sign(&pair);
 								let seal = compute.seal(signature.clone());
 								if hash_meets_difficulty(&seal.work, seal.difficulty) {
-									info!(
-										">>> hash_meets_difficulty: submit it: {}, {}, {}",
-										&seal.work, &seal.poscan_hash, &seal.difficulty
-									);
-									let _ = futures::executor::block_on(
-										worker.submit(seal.encode(), &psdata),
-									);
+									info!(">>> hash_meets_difficulty: submit it: {}, {}, {}",  &seal.work, &seal.poscan_hash, &seal.difficulty);
+									let _ = futures::executor::block_on(worker.submit(seal.encode(), &psdata));
 								}
 							}
-						} else {
-							let orig_hashes =
-								get_obj_hashes(mining_algo, &mp.pre_obj, &H256::default(), false);
+						}
+						else {
+							let orig_hashes = get_obj_hashes(mining_algo, &mp.pre_obj, &H256::default(), false);
 							if orig_hashes.len() == 0 {
-								continue;
+								continue
 							}
 
 							let v = orig_hashes[0].encode();
@@ -550,11 +634,10 @@ pub fn new_full(
 							let rndx = randomx(&buf);
 							if let Err(e) = rndx {
 								error!(">>> {}", e);
-								break;
+								break
 							}
 							let rotation_hash = rndx.unwrap();
-							let hashes =
-								get_obj_hashes(mining_algo, &mp.pre_obj, &rotation_hash, patch_rot);
+							let hashes = get_obj_hashes(mining_algo, &mp.pre_obj, &rotation_hash, patch_rot);
 							if hashes.len() > 0 {
 								use std::collections::HashSet;
 
@@ -565,17 +648,13 @@ pub fn new_full(
 									continue;
 								}
 
-								let hist_hash =
-									calc_hist(client.clone(), &rotation_hash, &parent_id);
+								let hist_hash = calc_hist(client.clone(), &rotation_hash, &parent_id);
 
-								let dh = DoubleHash {
-									pre_hash: metadata.pre_hash,
-									obj_hash: hashes[0],
-								};
+								let dh = DoubleHash { pre_hash: metadata.pre_hash, obj_hash: hashes[0] };
 								let rndx = dh.calc_hash_randomx();
 								if let Err(e) = rndx {
 									error!(">>> {}", e);
-									break;
+									break
 								}
 								let poscan_hash = rndx.unwrap();
 								let psdata = PoscanData::V2(PoscanDataV2 {
@@ -588,7 +667,7 @@ pub fn new_full(
 								let rndx = randomx(orig_hashes[0].0.as_slice());
 								if let Err(e) = rndx {
 									error!(">>> {}", e);
-									break;
+									break
 								}
 								let compute = ComputeV2 {
 									difficulty: metadata.difficulty,
@@ -601,17 +680,13 @@ pub fn new_full(
 								let signature = compute.sign(&pair);
 								let seal = compute.seal(signature.clone());
 								if hash_meets_difficulty(&seal.work, seal.difficulty) {
-									info!(
-										">>> hash_meets_difficulty: submit it: {}, {}, {}",
-										&seal.work, &seal.poscan_hash, &seal.difficulty
-									);
-									let _ = futures::executor::block_on(
-										worker.submit(seal.encode(), &psdata),
-									);
+									info!(">>> hash_meets_difficulty: submit it: {}, {}, {}",  &seal.work, &seal.poscan_hash, &seal.difficulty);
+									let _ = futures::executor::block_on(worker.submit(seal.encode(), &psdata));
 								}
 							}
 						}
-					} else {
+					}
+					else {
 						thread::sleep(Duration::new(1, 0));
 					}
 				} else {
@@ -660,4 +735,54 @@ pub fn new_full(
 
 	network_starter.start_network();
 	Ok(task_manager)
+}
+
+fn spawn_frontier_tasks(
+	task_manager: &TaskManager,
+	client: Arc<FullClient>,
+	backend: Arc<FullBackend>,
+	frontier_backend: Arc<FrontierBackend<Block>>,
+	filter_pool: Option<FilterPool>,
+	overrides: Arc<OverrideHandle<Block>>,
+	fee_history_cache: FeeHistoryCache,
+	fee_history_cache_limit: FeeHistoryCacheLimit,
+) {
+	task_manager.spawn_essential_handle().spawn(
+		"frontier-mapping-sync-worker",
+		None,
+		MappingSyncWorker::new(
+			client.import_notification_stream(),
+			Duration::new(6, 0),
+			client.clone(),
+			backend,
+			frontier_backend,
+			3,
+			0,
+			SyncStrategy::Normal,
+		)
+			.for_each(|()| future::ready(())),
+	);
+
+	// Spawn Frontier EthFilterApi maintenance task.
+	if let Some(filter_pool) = filter_pool {
+		// Each filter is allowed to stay in the pool for 100 blocks.
+		const FILTER_RETAIN_THRESHOLD: u64 = 100;
+		task_manager.spawn_essential_handle().spawn(
+			"frontier-filter-pool",
+			None,
+			EthTask::filter_pool_task(client.clone(), filter_pool, FILTER_RETAIN_THRESHOLD),
+		);
+	}
+
+	// Spawn Frontier FeeHistory cache maintenance task.
+	task_manager.spawn_essential_handle().spawn(
+		"frontier-fee-history",
+		None,
+		EthTask::fee_history_task(
+			client,
+			overrides,
+			fee_history_cache,
+			fee_history_cache_limit,
+		),
+	);
 }

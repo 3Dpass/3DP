@@ -19,16 +19,13 @@ use crate::cli::{Cli, Subcommand};
 use crate::service;
 
 use log::*;
-use sc_cli::{ChainSpec, RuntimeVersion, SubstrateCli};
-use sc_keystore::LocalKeystore;
-use sc_service::{config::KeystoreConfig, PartialComponents};
-use sp_consensus_poscan::POSCAN_COIN_ID;
+use sp_core::{hexdisplay::HexDisplay, crypto::{Pair, Ss58Codec, Ss58AddressFormat}};
 use sp_core::crypto::set_default_ss58_version;
-use sp_core::{
-	crypto::{Pair, Ss58AddressFormat, Ss58Codec},
-	hexdisplay::HexDisplay,
-};
 use sp_keystore::SyncCryptoStore;
+use sc_cli::{SubstrateCli, ChainSpec, RuntimeVersion};
+use sc_service::{PartialComponents, config::KeystoreConfig};
+use sc_keystore::LocalKeystore;
+use sp_consensus_poscan::POSCAN_COIN_ID;
 
 impl SubstrateCli for Cli {
 	fn impl_name() -> String {
@@ -90,7 +87,7 @@ pub fn run() -> sc_cli::Result<()> {
 					task_manager,
 					import_queue,
 					..
-				} = service::new_partial(&config, None, false)?;
+				} = service::new_partial(&config, None, &cli)?;
 				Ok((cmd.run(client, import_queue), task_manager))
 			})
 		}
@@ -101,7 +98,7 @@ pub fn run() -> sc_cli::Result<()> {
 					client,
 					task_manager,
 					..
-				} = service::new_partial(&config, None, false)?;
+				} = service::new_partial(&config, None, &cli)?;
 				Ok((cmd.run(client, config.database), task_manager))
 			})
 		}
@@ -112,7 +109,7 @@ pub fn run() -> sc_cli::Result<()> {
 					client,
 					task_manager,
 					..
-				} = service::new_partial(&config, None, false)?;
+				} = service::new_partial(&config, None,&cli)?;
 				Ok((cmd.run(client, config.chain_spec), task_manager))
 			})
 		}
@@ -124,7 +121,7 @@ pub fn run() -> sc_cli::Result<()> {
 					task_manager,
 					import_queue,
 					..
-				} = service::new_partial(&config, None, false)?;
+				} = service::new_partial(&config, None, &cli)?;
 				Ok((cmd.run(client, import_queue), task_manager))
 			})
 		}
@@ -140,7 +137,7 @@ pub fn run() -> sc_cli::Result<()> {
 					task_manager,
 					backend,
 					..
-				} = service::new_partial(&config, None, false)?;
+				} = service::new_partial(&config, None, &cli)?;
 				// TODO:!!! None ?`
 				Ok((cmd.run(client, backend, None), task_manager))
 			})
@@ -149,31 +146,31 @@ pub fn run() -> sc_cli::Result<()> {
 			let runner = cli.create_runner(cmd)?;
 			runner.sync_run(|config| {
 				let keystore = match &config.keystore {
-					KeystoreConfig::Path { path, password } => {
-						LocalKeystore::open(path.clone(), password.clone())
-							.map_err(|e| format!("Open keystore failed: {:?}", e))?
-					}
+					KeystoreConfig::Path { path, password } => LocalKeystore::open(
+						path.clone(),
+						password.clone()
+					).map_err(|e| format!("Open keystore failed: {:?}", e))?,
 					KeystoreConfig::InMemory => LocalKeystore::in_memory(),
 				};
 
-				let pair = sc_consensus_poscan::app::Pair::from_string(&cmd.suri, None)
-					.map_err(|e| format!("Invalid seed: {:?}", e))?;
+				let pair = sc_consensus_poscan::app::Pair::from_string(
+					&cmd.suri,
+					None,
+				).map_err(|e| format!("Invalid seed: {:?}", e))?;
 
 				SyncCryptoStore::insert_unknown(
 					&keystore,
 					sc_consensus_poscan::app::ID,
 					&cmd.suri,
 					pair.public().as_ref(),
-				)
-				.map_err(|e| format!("Registering mining key failed: {:?}", e))?;
+				).map_err(|e| format!("Registering mining key failed: {:?}", e))?;
 
 				println!(
 					"Public key: 0x{}\nSecret seed: {}\nAddress: {}",
 					HexDisplay::from(&pair.public().as_ref()),
 					cmd.suri,
 					// TODO: kulupu -> 3dp
-					pair.public()
-						.to_ss58check_with_version(Ss58AddressFormat::from(POSCAN_COIN_ID)),
+					pair.public().to_ss58check_with_version(Ss58AddressFormat::from(POSCAN_COIN_ID)),
 				);
 
 				// for i in 0..16383 {
@@ -182,26 +179,24 @@ pub fn run() -> sc_cli::Result<()> {
 				// 	);
 				// }
 
-				info!(
-					"Registered one mining key (public key 0x{}).",
-					HexDisplay::from(&pair.public().as_ref())
-				);
+				info!("Registered one mining key (public key 0x{}).",
+					  HexDisplay::from(&pair.public().as_ref()));
 
 				Ok(())
 			})
-		}
+		},
 		Some(Subcommand::GenerateMiningKey(cmd)) => {
 			let runner = cli.create_runner(cmd)?;
 			runner.sync_run(|config| {
 				let keystore = match &config.keystore {
-					KeystoreConfig::Path { path, password } => {
-						LocalKeystore::open(path.clone(), password.clone())
-							.map_err(|e| format!("Open keystore failed: {:?}", e))?
-					}
+					KeystoreConfig::Path { path, password } => LocalKeystore::open(
+						path.clone(),
+						password.clone()
+					).map_err(|e| format!("Open keystore failed: {:?}", e))?,
 					KeystoreConfig::InMemory => {
 						info!(">>> in memory keystore");
 						LocalKeystore::in_memory()
-					}
+					},
 				};
 
 				let (pair, phrase, _) = sc_consensus_poscan::app::Pair::generate_with_phrase(None);
@@ -211,8 +206,7 @@ pub fn run() -> sc_cli::Result<()> {
 					sc_consensus_poscan::app::ID,
 					&phrase,
 					pair.public().as_ref(),
-				)
-				.map_err(|e| format!("Registering mining key failed: {:?}", e))?;
+				).map_err(|e| format!("Registering mining key failed: {:?}", e))?;
 
 				info!("Generated one mining key.");
 
@@ -221,19 +215,28 @@ pub fn run() -> sc_cli::Result<()> {
 					HexDisplay::from(&pair.public().as_ref()),
 					phrase,
 					// TODO: kulupu -> 3dp
-					pair.public()
-						.to_ss58check_with_version(Ss58AddressFormat::from(POSCAN_COIN_ID)),
+					pair.public().to_ss58check_with_version(Ss58AddressFormat::from(POSCAN_COIN_ID)),
 				);
 
-				let _pair = keystore
-					.key_pair::<sc_consensus_poscan::app::Pair>(&pair.public())
-					.map_err(|_e| format!("Unable to mine: fetch pair from author failed"))?;
+				let _pair = keystore.key_pair::<sc_consensus_poscan::app::Pair>(
+					&pair.public(),
+				).map_err(|_e|
+					format!("Unable to mine: fetch pair from author failed")
+				)?;
 
 				Ok(())
 			})
-		}
+		},
+		Some(Subcommand::FrontierDb(cmd)) => {
+			let runner = cli.create_runner(cmd)?;
+			runner.sync_run(|config| {
+				let PartialComponents { client, other, .. } = service::new_partial(&config, None, &cli)?;
+				let frontier_backend = other.5;
+				cmd.run::<_, runtime::opaque::Block>(client, frontier_backend)
+			})
+		},
 		None => {
-			let runner = cli.create_runner(&cli.run)?;
+			let runner = cli.create_runner(&cli.run.base)?;
 			runner.run_node_until_exit(|config| async move {
 				match config.role {
 					// Role::Light => service::new_light(config),
@@ -241,7 +244,7 @@ pub fn run() -> sc_cli::Result<()> {
 						config,
 						cli.author.as_ref().map(|s| s.as_str()),
 						cli.threads.unwrap_or(1),
-						cli.skip_check,
+						&cli,
 					),
 				}
 				.map_err(sc_cli::Error::Service)
