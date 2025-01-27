@@ -87,7 +87,7 @@ pub fn run() -> sc_cli::Result<()> {
 					task_manager,
 					import_queue,
 					..
-				} = service::new_partial(&config, None)?;
+				} = service::new_partial(&config, None, &cli)?;
 				Ok((cmd.run(client, import_queue), task_manager))
 			})
 		}
@@ -98,7 +98,7 @@ pub fn run() -> sc_cli::Result<()> {
 					client,
 					task_manager,
 					..
-				} = service::new_partial(&config, None)?;
+				} = service::new_partial(&config, None, &cli)?;
 				Ok((cmd.run(client, config.database), task_manager))
 			})
 		}
@@ -109,7 +109,7 @@ pub fn run() -> sc_cli::Result<()> {
 					client,
 					task_manager,
 					..
-				} = service::new_partial(&config, None)?;
+				} = service::new_partial(&config, None,&cli)?;
 				Ok((cmd.run(client, config.chain_spec), task_manager))
 			})
 		}
@@ -121,7 +121,7 @@ pub fn run() -> sc_cli::Result<()> {
 					task_manager,
 					import_queue,
 					..
-				} = service::new_partial(&config, None)?;
+				} = service::new_partial(&config, None, &cli)?;
 				Ok((cmd.run(client, import_queue), task_manager))
 			})
 		}
@@ -137,7 +137,7 @@ pub fn run() -> sc_cli::Result<()> {
 					task_manager,
 					backend,
 					..
-				} = service::new_partial(&config, None)?;
+				} = service::new_partial(&config, None, &cli)?;
 				// TODO:!!! None ?`
 				Ok((cmd.run(client, backend, None), task_manager))
 			})
@@ -227,8 +227,16 @@ pub fn run() -> sc_cli::Result<()> {
 				Ok(())
 			})
 		},
+		Some(Subcommand::FrontierDb(cmd)) => {
+			let runner = cli.create_runner(cmd)?;
+			runner.sync_run(|config| {
+				let PartialComponents { client, other, .. } = service::new_partial(&config, None, &cli)?;
+				let frontier_backend = other.5;
+				cmd.run::<_, runtime::opaque::Block>(client, frontier_backend)
+			})
+		},
 		None => {
-			let runner = cli.create_runner(&cli.run)?;
+			let runner = cli.create_runner(&cli.run.base)?;
 			runner.run_node_until_exit(|config| async move {
 				match config.role {
 					// Role::Light => service::new_light(config),
@@ -236,6 +244,7 @@ pub fn run() -> sc_cli::Result<()> {
 						config,
 						cli.author.as_ref().map(|s| s.as_str()),
 						cli.threads.unwrap_or(1),
+						&cli,
 					),
 				}
 				.map_err(sc_cli::Error::Service)
