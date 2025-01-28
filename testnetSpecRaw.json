@@ -1,7 +1,7 @@
 {
   "name": "3dpass - The Ledger of Things 2(testnet)",
   "id": "3dpass-test",
-  "chainType": "Live",
+  "chainType": "Development",
   "bootNodes": [
     "/ip4/127.0.0.1/tcp/30333/p2p/12D3KooWAkpe2LLq2soj8zRmKUFgXkUegdZXQrycvadsgtJ1WDqS"
   ],
