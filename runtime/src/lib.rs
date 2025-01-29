@@ -64,9 +64,11 @@ use sp_runtime::{
 		AccountIdLookup, BlakeTwo256, Block as BlockT, ConvertInto, IdentifyAccount,
 		Identity as IdentityTrait, NumberFor, OpaqueKeys, Verify,
 		Extrinsic, SaturatedConversion, StaticLookup, AccountIdConversion,
-		Get, UniqueSaturatedInto,
+		Get, UniqueSaturatedInto, DispatchInfoOf, PostDispatchInfoOf, Dispatchable
 	},
-	transaction_validity::{TransactionPriority, TransactionSource, TransactionValidity},
+	transaction_validity::{
+		TransactionPriority, TransactionSource, TransactionValidity, TransactionValidityError
+	},
 	ApplyExtrinsicResult, MultiSignature,
 };
 
@@ -1718,9 +1720,9 @@ pub type SignedExtra = (
 /// The payload being signed in transactions.
 pub type SignedPayload = generic::SignedPayload<Call, SignedExtra>;
 /// Unchecked extrinsic type as expected by this runtime.
-pub type UncheckedExtrinsic = generic::UncheckedExtrinsic<Address, Call, Signature, SignedExtra>;
+pub type UncheckedExtrinsic = fp_self_contained::UncheckedExtrinsic<Address, Call, Signature, SignedExtra>;
 /// Extrinsic type that has already been checked.
-pub type CheckedExtrinsic = generic::CheckedExtrinsic<AccountId, Call, SignedExtra>;
+pub type CheckedExtrinsic = fp_self_contained::CheckedExtrinsic<AccountId, Call, SignedExtra, H160>;
 /// Executive: handles dispatch to the various pallets.
 pub type Executive = frame_executive::Executive<
 	Runtime,
@@ -1730,6 +1732,60 @@ pub type Executive = frame_executive::Executive<
 	AllPalletsWithSystem,
 	(Migrations, SessionUpgrade),
 >;
+
+impl fp_self_contained::SelfContainedCall for Call {
+	type SignedInfo = H160;
+
+	fn is_self_contained(&self) -> bool {
+		match self {
+			Call::Ethereum(call) => call.is_self_contained(),
+			_ => false,
+		}
+	}
+
+	fn check_self_contained(&self) -> Option<Result<Self::SignedInfo, TransactionValidityError>> {
+		match self {
+			Call::Ethereum(call) => call.check_self_contained(),
+			_ => None,
+		}
+	}
+
+	fn validate_self_contained(
+		&self,
+		info: &Self::SignedInfo,
+		dispatch_info: &DispatchInfoOf<Call>,
+		len: usize,
+	) -> Option<TransactionValidity> {
+		match self {
+			Call::Ethereum(call) => call.validate_self_contained(info, dispatch_info, len),
+			_ => None,
+		}
+	}
+
+	fn pre_dispatch_self_contained(
+		&self,
+		info: &Self::SignedInfo,
+		dispatch_info: &DispatchInfoOf<Call>,
+		len: usize,
+	) -> Option<Result<(), TransactionValidityError>> {
+		match self {
+			Call::Ethereum(call) => call.pre_dispatch_self_contained(info, dispatch_info, len),
+			_ => None,
+		}
+	}
+
+	fn apply_self_contained(
+		self,
+		info: Self::SignedInfo,
+	) -> Option<sp_runtime::DispatchResultWithInfo<PostDispatchInfoOf<Self>>> {
+		match self {
+			call @ Call::Ethereum(pallet_ethereum::Call::transact { .. }) => Some(call.dispatch(
+				Origin::from(pallet_ethereum::RawOrigin::EthereumTransaction(info)),
+			)),
+			_ => None,
+		}
+	}
+}
 
 impl_runtime_apis! {
 	impl sp_api::Core<Block> for Runtime {
@@ -1985,8 +2041,7 @@ impl_runtime_apis! {
 		fn extrinsic_filter(
 			xts: Vec<<Block as BlockT>::Extrinsic>,
 		) -> Vec<EthereumTransaction> {
-			// xts.into_iter().filter_map(|xt| match xt.0.function {
-			xts.into_iter().filter_map(|xt| match xt.function {
+			xts.into_iter().filter_map(|xt| match xt.0.function {
 				Call::Ethereum(transact { transaction }) => Some(transaction),
 				_ => None
 			}).collect::<Vec<EthereumTransaction>>()
