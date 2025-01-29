@@ -3,7 +3,8 @@
   "id": "3dpass-test",
   "chainType": "Development",
   "bootNodes": [
-    "/ip4/127.0.0.1/tcp/30333/p2p/12D3KooWAkpe2LLq2soj8zRmKUFgXkUegdZXQrycvadsgtJ1WDqS"
+    "/ip4/127.0.0.1/tcp/30333/p2p/12D3KooWAkpe2LLq2soj8zRmKUFgXkUegdZXQrycvadsgtJ1WDqS",
+    "/ip4/94.130.69.234/tcp/30355/p2p/12D3KooWSdfKXSwXxLB1DaBbCCmYHX7kkvP7cJWkwQoY7B2bWVSP"
   ],
   "telemetryEndpoints": [
     [
