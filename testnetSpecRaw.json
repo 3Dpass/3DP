@@ -14,6 +14,7 @@
   ],
   "protocolId": "3dpass",
   "properties": {
+    "isEthereum": true,
     "ss58Format": 72,
     "tokenDecimals": 12,
     "tokenSymbol": "P3Dt"
