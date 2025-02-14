@@ -29,6 +29,7 @@ sp-consensus = { default-features = false, git = "https://github.com/paritytech/
 sp-application-crypto = { default-features = false, git = "https://github.com/paritytech/substrate", rev = "b0777b4c7f7" }
 sp-timestamp = { default-features = false, git = "https://github.com/paritytech/substrate", rev = "b0777b4c7f7" }
 sp-std = { default-features = false, git = "https://github.com/paritytech/substrate", rev = "b0777b4c7f7" }
+fp-consensus = { version = "2.0.0-dev", path="../../primitives/consensus/evm" }
 async-trait = "0.1.50"
 log = "0.4"
 futures = { version = "0.3", features = ["compat"] }
