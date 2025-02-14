@@ -7152,6 +7152,7 @@ version = "0.9.0"
 dependencies = [
  "async-trait",
  "derive_more",
+ "fp-consensus",
  "futures 0.3.31",
  "futures-timer",
  "lazy_static",

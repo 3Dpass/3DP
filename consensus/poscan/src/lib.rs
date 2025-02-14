@@ -33,62 +33,75 @@
 
 mod worker;
 
-pub use crate::worker::{MiningBuild, MiningHandle, MiningMetadata};
+pub use crate::worker::{MiningHandle, MiningMetadata, MiningBuild};
 
+use std::{
+	sync::Arc, borrow::Cow, collections::HashMap, marker::PhantomData,
+	cmp::Ordering, time::Duration
+};
 use futures::prelude::*;
 use parking_lot::Mutex;
-use sc_client_api::{backend::AuxStore, BlockBackend, BlockOf, BlockchainEvents};
+use sc_client_api::{BlockOf, backend::AuxStore, BlockchainEvents, BlockBackend};
 use sc_consensus::{
-	import_queue::{BasicQueue, BoxBlockImport, BoxJustificationImport, Verifier},
-	BlockCheckParams, BlockImport, BlockImportParams, ForkChoiceStrategy, ImportResult,
+	BlockImportParams, BlockCheckParams, ImportResult, ForkChoiceStrategy, BlockImport,
+	import_queue::{
+		BoxBlockImport, BasicQueue, Verifier, BoxJustificationImport,
+	}
 };
-use sp_blockchain::{well_known_cache_keys::Id as CacheKeyId, HeaderBackend, HeaderMetadata};
-use std::{
-	borrow::Cow, cmp::Ordering, collections::HashMap, marker::PhantomData, sync::Arc,
-	time::Duration,
-};
+use sp_blockchain::{HeaderBackend, HeaderMetadata, well_known_cache_keys::Id as CacheKeyId};
 // use sp_blockchain::{HeaderBackend, HeaderMetadata, ProvideCache, well_known_cache_keys::Id as CacheKeyId};
-use codec::{Decode, Encode};
-use core::ops::Bound::{Excluded, Included};
-use lazy_static::lazy_static;
-use log::*;
-use prometheus_endpoint::Registry;
-use sp_api::ProvideRuntimeApi;
 use sp_block_builder::BlockBuilder as BlockBuilderApi;
-use sp_consensus::{
-	CanAuthorWith, Environment, Error as ConsensusError, Proposer, SelectChain, SyncOracle,
-};
-use sp_consensus_poscan::{
-	Seal, TotalDifficulty, CONS_V2_SPEC_VER, POSCAN_ENGINE_ID, POSCAN_SEAL_V1_ID, POSCAN_SEAL_V2_ID,
-};
-use sp_core::{H256, U256};
-use sp_finality_grandpa::GRANDPA_ENGINE_ID;
-use sp_inherents::{CreateInherentDataProviders, InherentDataProvider}; //, InherentData};
+use sp_runtime::RuntimeString;
 use sp_runtime::generic::{BlockId, Digest, DigestItem};
 use sp_runtime::traits::{Block as BlockT, Header as HeaderT};
-use sp_runtime::RuntimeString;
+use sp_api::ProvideRuntimeApi;
+use sp_finality_grandpa::GRANDPA_ENGINE_ID;
+use sp_consensus_poscan::{
+	Seal,
+	TotalDifficulty,
+	POSCAN_ENGINE_ID,
+	CONS_V2_SPEC_VER,
+	POSCAN_SEAL_V1_ID,
+	POSCAN_SEAL_V2_ID,
+};
+use fp_consensus::FRONTIER_ENGINE_ID;
+use sp_inherents::{CreateInherentDataProviders, InherentDataProvider}; //, InherentData};
+use sp_consensus::{
+	SyncOracle, Environment, Proposer,
+	SelectChain, Error as ConsensusError, CanAuthorWith,
+};
+use codec::{Encode, Decode};
+use prometheus_endpoint::Registry;
+use log::*;
+use sp_core::{H256, U256};
+use core::ops::Bound::{Excluded, Included};
 use sp_std::collections::btree_set::BTreeSet;
 use std::convert::TryInto;
+use lazy_static::lazy_static;
 
 use sp_core::ExecutionContext;
 
 use crate::worker::UntilImportedOrTimeout;
 use sp_consensus_poscan::{
-	Difficulty, DifficultyApi, MAX_MINING_OBJ_LEN, POSCAN_ALGO_GRID2D_V3A, REJECT_OLD_ALGO_SINCE,
+	Difficulty,
+	DifficultyApi,
+	MAX_MINING_OBJ_LEN,
 	SUPPORTED_ALGORITHMS,
+	POSCAN_ALGO_GRID2D_V3A,
+	REJECT_OLD_ALGO_SINCE,
 };
 
 lazy_static! {
-	pub static ref CACHE: Mutex<BTreeSet<u64>> = {
-		let m = BTreeSet::new();
-		Mutex::new(m)
-	};
+    pub static ref CACHE: Mutex<BTreeSet<u64>> = {
+        let m = BTreeSet::new();
+        Mutex::new(m)
+    };
 }
 
 pub mod app {
-	use core::convert::TryFrom;
 	use sp_application_crypto::{app_crypto, sr25519};
 	use sp_core::crypto::KeyTypeId;
+	use core::convert::TryFrom;
 
 	pub const ID: KeyTypeId = KeyTypeId(*b"3dpp");
 	app_crypto!(sr25519, ID);
@@ -125,8 +138,8 @@ pub enum Error<B: BlockT> {
 	#[display(fmt = "Too far from finalized block")]
 	CheckFinalized,
 	#[display(
-		fmt = "Checking inherents unknown error for identifier: {:?}",
-		"String::from_utf8_lossy(_0)"
+	fmt = "Checking inherents unknown error for identifier: {:?}",
+	"String::from_utf8_lossy(_0)"
 	)]
 	CheckInherentsUnknownError(sp_inherents::InherentIdentifier),
 	#[display(fmt = "Multiple pre-runtime digests")]
@@ -155,11 +168,7 @@ pub const POW_AUX_PREFIX: [u8; 4] = *b"PoSc";
 
 /// Get the auxiliary storage key used by engine to store total difficulty.
 fn aux_key<T: AsRef<[u8]>>(hash: &T) -> Vec<u8> {
-	POW_AUX_PREFIX
-		.iter()
-		.chain(hash.as_ref())
-		.copied()
-		.collect()
+	POW_AUX_PREFIX.iter().chain(hash.as_ref()).copied().collect()
 }
 
 /// Intermediate value passed to block importer.
@@ -182,8 +191,7 @@ pub struct PowAux<Difficulty> {
 	pub total_difficulty: Difficulty,
 }
 
-impl<Difficulty> PowAux<Difficulty>
-where
+impl<Difficulty> PowAux<Difficulty> where
 	Difficulty: Decode + Default,
 {
 	/// Read the auxiliary from client.
@@ -205,14 +213,14 @@ pub enum PoscanData {
 
 #[derive(Clone, Encode, Decode, PartialEq, Eq, Debug)]
 pub struct PoscanDataV1 {
-	pub alg_id: [u8; 16],
+	pub alg_id: [u8;16],
 	pub hashes: Vec<H256>,
 	pub obj: Vec<u8>,
 }
 
 #[derive(Clone, Encode, Decode, PartialEq, Eq, Debug)]
 pub struct PoscanDataV2 {
-	pub alg_id: [u8; 16],
+	pub alg_id: [u8;16],
 	pub hashes: Vec<H256>,
 	pub orig_hashes: Vec<H256>,
 	pub obj: Vec<u8>,
@@ -244,7 +252,11 @@ pub trait PowAlgorithm<B: BlockT> {
 	/// breaking algorithms will help to protect against selfish mining.
 	///
 	/// Returns if the new seal should be considered best block.
-	fn break_tie(&self, _own_seal: &Seal, _new_seal: &Seal) -> bool {
+	fn break_tie(
+		&self,
+		_own_seal: &Seal,
+		_new_seal: &Seal,
+	) -> bool {
 		false
 	}
 	/// Verify that the difficulty is valid against given seal.
@@ -273,17 +285,8 @@ pub struct PowBlockImport<B: BlockT, I, C, S, Algorithm, CAW, CIDP, AccountId, B
 	_phantom2: PhantomData<BlockNumber>,
 }
 
-impl<
-		B: BlockT,
-		I: Clone,
-		C,
-		S: Clone,
-		Algorithm: Clone,
-		CAW: Clone,
-		CIDP,
-		AccountId,
-		BlockNumber,
-	> Clone for PowBlockImport<B, I, C, S, Algorithm, CAW, CIDP, AccountId, BlockNumber>
+impl<B: BlockT, I: Clone, C, S: Clone, Algorithm: Clone, CAW: Clone, CIDP, AccountId, BlockNumber> Clone
+	for PowBlockImport<B, I, C, S, Algorithm, CAW, CIDP, AccountId, BlockNumber>
 {
 	fn clone(&self) -> Self {
 		Self {
@@ -301,25 +304,23 @@ impl<
 	}
 }
 
-use sp_api::Core;
 use sp_consensus_poscan::PoscanApi;
+use sp_api::Core;
 
-impl<B, I, C, S, Algorithm, CAW, CIDP, AccountId, BlockNumber>
-	PowBlockImport<B, I, C, S, Algorithm, CAW, CIDP, AccountId, BlockNumber>
-where
-	B: BlockT,
-	I: BlockImport<B, Transaction = sp_api::TransactionFor<C, B>> + Send + Sync,
-	I::Error: Into<ConsensusError>,
-	C: ProvideRuntimeApi<B> + Send + Sync + HeaderBackend<B> + AuxStore + BlockOf,
-	C::Api: BlockBuilderApi<B>,
-	C::Api: PoscanApi<B, AccountId, BlockNumber>,
-	C::Api: Core<B>,
-	BlockNumber:
-		Clone + Eq + Debug + Sync + Send + codec::Decode + codec::Encode + TypeInfo + Member,
-	AccountId: Clone + Eq + Debug + Sync + Send + codec::Decode + codec::Encode + TypeInfo + Member,
-	Algorithm: PowAlgorithm<B>,
-	CAW: CanAuthorWith<B>,
-	CIDP: CreateInherentDataProviders<B, ()>,
+impl<B, I, C, S, Algorithm, CAW, CIDP, AccountId, BlockNumber> PowBlockImport<B, I, C, S, Algorithm, CAW, CIDP, AccountId, BlockNumber>
+	where
+		B: BlockT,
+		I: BlockImport<B, Transaction = sp_api::TransactionFor<C, B>> + Send + Sync,
+		I::Error: Into<ConsensusError>,
+		C: ProvideRuntimeApi<B> + Send + Sync + HeaderBackend<B> + AuxStore + BlockOf,
+		C::Api: BlockBuilderApi<B>,
+		C::Api: PoscanApi<B, AccountId, BlockNumber>,
+		C::Api: Core<B>,
+		BlockNumber: Clone + Eq + Debug + Sync + Send + codec::Decode + codec::Encode + TypeInfo + Member,
+		AccountId: Clone + Eq + Debug + Sync + Send + codec::Decode + codec::Encode + TypeInfo + Member,
+		Algorithm: PowAlgorithm<B>,
+		CAW: CanAuthorWith<B>,
+		CIDP: CreateInherentDataProviders<B, ()>,
 {
 	/// Create a new block import suitable to be used in PoW
 	pub fn new(
@@ -353,7 +354,7 @@ where
 		execution_context: ExecutionContext,
 	) -> Result<(), Error<B>> {
 		if *block.header().number() < self.check_inherents_after {
-			return Ok(());
+			return Ok(())
 		}
 
 		if let Err(e) = self.can_author_with.can_author_with(&block_id) {
@@ -363,7 +364,7 @@ where
 				e,
 			);
 
-			return Ok(());
+			return Ok(())
 		}
 
 		let inherent_data = inherent_data_providers
@@ -378,10 +379,7 @@ where
 
 		if !inherent_res.ok() {
 			for (identifier, error) in inherent_res.into_errors() {
-				match inherent_data_providers
-					.try_handle_error(&identifier, &error)
-					.await
-				{
+				match inherent_data_providers.try_handle_error(&identifier, &error).await {
 					Some(res) => res.map_err(Error::CheckInherents)?,
 					None => return Err(Error::CheckInherentsUnknownError(identifier)),
 				}
@@ -394,24 +392,19 @@ where
 	fn update_cache(&mut self) {
 		let info = self.client.info();
 		let block_id = BlockId::Hash(info.finalized_hash);
-		let fin_num = self
-			.client
-			.block_number_from_id(&block_id)
-			.unwrap()
-			.unwrap();
+		let fin_num = self.client.block_number_from_id(&block_id).unwrap().unwrap();
 		let fin_num: u32 = u32::from_le_bytes(fin_num.encode()[0..4].try_into().unwrap());
 
 		for number in (self.last_cached + 1)..=fin_num {
-			let digest =
-				self.client
-					.header(BlockId::Number(number.into()))
-					.and_then(|maybe_header| match maybe_header {
-						Some(header) => Ok(Some(header.digest().clone())),
-						None => Ok(None),
-					});
+			let digest = self.client
+				.header(BlockId::Number(number.into()))
+				.and_then(|maybe_header| match maybe_header {
+					Some(header) => Ok(Some(header.digest().clone())),
+					None => Ok(None),
+				});
 
 			if let Ok(None) = digest {
-				continue;
+				continue
 			}
 			let digest = digest.unwrap().unwrap();
 
@@ -450,8 +443,7 @@ where
 	}
 
 	fn get_poscan_hash(&self, block_num: u32) -> Option<H256> {
-		let digest = self
-			.client
+		let digest = self.client
 			.header(BlockId::Number(block_num.into()))
 			.and_then(|maybe_header| match maybe_header {
 				Some(header) => Ok(Some(header.digest().clone())),
@@ -461,7 +453,7 @@ where
 		if let Ok(None) = digest {
 			debug!(target: "cache", "get_poscan_hash: no digest");
 
-			return None;
+			return None
 		}
 		let digest = digest.unwrap().unwrap();
 
@@ -469,24 +461,22 @@ where
 		debug!(target: "cache", "digest len=: {}", n);
 
 		if n >= 3 {
-			let di = digest.logs()[n - 2].clone();
+			let di = digest.logs()[n-2].clone();
 			if let DigestItem::Other(v) = di {
 				let hashes: Vec<H256> = v[16..].chunks(32).map(H256::from_slice).collect();
-				return Some(hashes[0]);
+				return Some(hashes[0])
 			}
 		}
 		None
 	}
 }
 
-use scale_info::TypeInfo;
 use sp_runtime::traits::Member;
 use sp_std::fmt::Debug;
+use scale_info::TypeInfo;
 
 #[async_trait::async_trait]
-impl<B, I, C, S, Algorithm, CAW, CIDP, AccountId, BlockNumber> BlockImport<B>
-	for PowBlockImport<B, I, C, S, Algorithm, CAW, CIDP, AccountId, BlockNumber>
-where
+impl<B, I, C, S, Algorithm, CAW, CIDP, AccountId, BlockNumber> BlockImport<B> for PowBlockImport<B, I, C, S, Algorithm, CAW, CIDP, AccountId, BlockNumber> where
 	B: BlockT,
 	I: BlockImport<B, Transaction = sp_api::TransactionFor<C, B>> + Send + Sync,
 	I::Error: Into<ConsensusError>,
@@ -517,20 +507,14 @@ where
 		mut block: BlockImportParams<B, Self::Transaction>,
 		new_cache: HashMap<CacheKeyId, Vec<u8>>,
 	) -> Result<ImportResult, Self::Error> {
-		let best_header = self
-			.select_chain
-			.best_chain()
+		let best_header = self.select_chain.best_chain()
 			.await
 			.map_err(|e| format!("Fetch best chain failed via select chain: {:?}", e))?;
 		let best_hash = best_header.hash();
 
 		let info = self.client.info();
 		let block_id = BlockId::Hash(info.finalized_hash);
-		let fin_num = self
-			.client
-			.block_number_from_id(&block_id)
-			.unwrap()
-			.unwrap();
+		let fin_num = self.client.block_number_from_id(&block_id).unwrap().unwrap();
 
 		let parent_hash = *block.header.parent_hash();
 		let best_aux = PowAux::read::<_, B>(self.client.as_ref(), &best_hash)?;
@@ -550,7 +534,7 @@ where
 				block.origin.into(),
 				// timestamp_now,
 			)
-			.await?;
+				.await?;
 
 			block.body = Some(check_block.deconstruct().1);
 		}
@@ -559,10 +543,8 @@ where
 
 		let pre_digest: Vec<u8> = find_pre_digest::<B>(&block.header)?.unwrap();
 
-		let pscan_obj =
-			fetch_seal::<B>(block.post_digests.get(digest_size - 1), block.header.hash())?;
-		let pscan_hashes =
-			fetch_seal::<B>(block.post_digests.get(digest_size - 2), block.header.hash())?;
+		let pscan_obj = fetch_seal::<B>(block.post_digests.get(digest_size - 1), block.header.hash())?;
+		let pscan_hashes = fetch_seal::<B>(block.post_digests.get(digest_size - 2), block.header.hash())?;
 
 		if pscan_obj.len() > MAX_MINING_OBJ_LEN {
 			return Err(Error::<B>::Other("Mining object too large".to_string()).into());
@@ -578,56 +560,33 @@ where
 			return Err(Error::<B>::Other("Unsupported algorithm".to_string()).into());
 		}
 
-		let hs: Vec<H256> = pscan_hashes[16..]
-			.chunks(32)
-			.map(H256::from_slice)
-			.collect();
+		let hs: Vec<H256> = pscan_hashes[16..].chunks(32).map(H256::from_slice).collect();
 
 		let parent_id: BlockId<B> = BlockId::hash(parent_hash);
-		let ver = self
-			.client
+		let ver = self.client
 			.runtime_api()
 			.version(&parent_id)
-			.map_err(|err| {
+			.map_err(|err|
 				Error::<B>::Environment(format!(
 					">>> get version call failed in import_block: {:?}",
 					err
 				))
-			})?;
+			)?;
 
 		let (inner_seal, psdata) = if ver.spec_version < CONS_V2_SPEC_VER {
-			let inner_seal =
-				fetch_seal::<B>(block.post_digests.get(digest_size - 3), block.header.hash())?;
-			(
-				inner_seal,
-				PoscanData::V1(PoscanDataV1 {
-					alg_id: *alg_id,
-					hashes: hs.clone(),
-					obj: pscan_obj,
-				}),
-			)
-		} else {
-			let inner_seal =
-				fetch_seal::<B>(block.post_digests.get(digest_size - 4), block.header.hash())?;
-			let orig_pscan_hashes =
-				fetch_seal::<B>(block.post_digests.get(digest_size - 3), block.header.hash())?;
-			let orig_hs: Vec<H256> = orig_pscan_hashes[16..]
-				.chunks(32)
-				.map(H256::from_slice)
-				.collect();
-			(
-				inner_seal,
-				PoscanData::V2(PoscanDataV2 {
-					alg_id: *alg_id,
-					hashes: hs.clone(),
-					orig_hashes: orig_hs.clone(),
-					obj: pscan_obj,
-				}),
-			)
+			let inner_seal = fetch_seal::<B>(block.post_digests.get(digest_size - 3), block.header.hash())?;
+			(inner_seal, PoscanData::V1(PoscanDataV1{ alg_id: *alg_id, hashes: hs.clone(), obj: pscan_obj }))
+		}
+		else {
+			let inner_seal = fetch_seal::<B>(block.post_digests.get(digest_size - 4), block.header.hash())?;
+			let orig_pscan_hashes = fetch_seal::<B>(block.post_digests.get(digest_size - 3), block.header.hash())?;
+			let orig_hs: Vec<H256> = orig_pscan_hashes[16..].chunks(32).map(H256::from_slice).collect();
+			(inner_seal, PoscanData::V2(PoscanDataV2 { alg_id: *alg_id, hashes: hs.clone(), orig_hashes: orig_hs.clone(), obj: pscan_obj }))
 		};
 
-		let intermediate =
-			block.take_intermediate::<PowIntermediate<Algorithm::Difficulty>>(INTERMEDIATE_KEY)?;
+		let intermediate = block.take_intermediate::<PowIntermediate::<Algorithm::Difficulty>>(
+			INTERMEDIATE_KEY
+		)?;
 
 		let difficulty = match intermediate.difficulty {
 			Some(difficulty) => difficulty,
@@ -651,18 +610,14 @@ where
 			&psdata,
 		)? {
 			error!(">>> InvalidSeal after self.algorithm.verify");
-			return Err(Error::<B>::InvalidSeal.into());
+			return Err(Error::<B>::InvalidSeal.into())
 		}
 
 		self.update_cache();
 		let mut prev_hash = Some(parent_hash);
 		while prev_hash.is_some() {
 			let block_id: BlockId<B> = BlockId::hash(prev_hash.unwrap());
-			let num = self
-				.client
-				.block_number_from_id(&block_id)
-				.unwrap()
-				.unwrap();
+			let num = self.client.block_number_from_id(&block_id).unwrap().unwrap();
 
 			if num <= fin_num {
 				debug!(target: "cache", "Lookup in cache");
@@ -672,36 +627,40 @@ where
 					return Err(Error::<B>::InvalidSeal.into());
 				}
 				debug!(target: "cache", "Lookup in cache: not found");
-				break;
+				break
 			}
 			match self.client.block(&block_id) {
-				Ok(maybe_prev_block) => match maybe_prev_block {
-					Some(signed_block) => {
-						let h = signed_block.block.header();
-						let n = h.digest().logs().len();
-						if n >= 3 {
-							let di = h.digest().logs()[n - 2].clone();
-							if let DigestItem::Other(v) = di {
-								let hashes: Vec<H256> =
-									v[16..].chunks(32).map(H256::from_slice).collect();
-								for hh in hashes[..1].iter() {
-									if hs[..1].contains(hh) {
-										info!(">>>>>> duplicated hash found");
-										return Err(Error::<B>::InvalidSeal.into());
+				Ok(maybe_prev_block) => {
+					match maybe_prev_block {
+						Some(signed_block) => {
+							let h = signed_block.block.header();
+							let n = h.digest().logs().len();
+							if n >= 3 {
+								let di = h.digest().logs()[n - 2].clone();
+								if let DigestItem::Other(v) = di {
+									let hashes: Vec<H256> = v[16..].chunks(32).map(H256::from_slice).collect();
+									for hh in hashes[..1].iter() {
+										if hs[..1].contains(hh) {
+											info!(">>>>>> duplicated hash found");
+											return Err(Error::<B>::InvalidSeal.into());
+										}
 									}
 								}
-							} else {
-								error!(">>> No poscan hashes in header");
-								return Err(Error::<B>::HeaderUnsealed(h.hash()).into());
+								else {
+									error!(">>> No poscan hashes in header");
+									return Err(Error::<B>::HeaderUnsealed(h.hash()).into())
+								}
 							}
-						}
-						prev_hash = Some(*h.parent_hash());
+							prev_hash = Some(*h.parent_hash());
+						},
+						None => {
+							prev_hash = None
+						},
 					}
-					None => prev_hash = None,
 				},
 				Err(_e) => {
 					return Err(Error::<B>::InvalidSeal.into());
-				}
+				},
 			}
 		}
 
@@ -716,19 +675,18 @@ where
 					Ordering::Less => false,
 					Ordering::Greater => true,
 					Ordering::Equal => {
-						let best_inner_seal =
-							fetch_seal::<B>(best_header.digest().logs.last(), best_hash)?;
+						let best_inner_seal = fetch_seal::<B>(
+							best_header.digest().logs.last(),
+							best_hash,
+						)?;
 
 						self.algorithm.break_tie(&best_inner_seal, &inner_seal)
-					}
-				},
+					},
+				}
 			));
 		}
 
-		self.inner
-			.import_block(block, new_cache)
-			.await
-			.map_err(Into::into)
+		self.inner.import_block(block, new_cache).await.map_err(Into::into)
 	}
 }
 
@@ -740,15 +698,16 @@ pub struct PowVerifier<B: BlockT, Algorithm> {
 }
 
 impl<B: BlockT, Algorithm> PowVerifier<B, Algorithm> {
-	pub fn new(algorithm: Algorithm) -> Self {
-		Self {
-			_algorithm: algorithm,
-			_marker: PhantomData,
-		}
+	pub fn new(
+		algorithm: Algorithm,
+	) -> Self {
+		Self { _algorithm: algorithm, _marker: PhantomData }
 	}
 
-	fn check_header(&self, mut header: B::Header) -> Result<(B::Header, Vec<DigestItem>), Error<B>>
-	where
+	fn check_header(
+		&self,
+		mut header: B::Header,
+	) -> Result<(B::Header, Vec<DigestItem>), Error<B>> where
 		Algorithm: PowAlgorithm<B>,
 	{
 		let mut digests: Vec<DigestItem> = Vec::new();
@@ -759,24 +718,26 @@ impl<B: BlockT, Algorithm> PowVerifier<B, Algorithm> {
 					if id == POSCAN_SEAL_V1_ID || id == POSCAN_SEAL_V2_ID {
 						digests.push(DigestItem::Seal(id, seal.clone()));
 						if id == POSCAN_SEAL_V1_ID {
-							break;
+							break
 						}
 					} else {
-						return Err(Error::WrongEngine(id));
+						return Err(Error::WrongEngine(id))
 					}
-				}
-				Some(DigestItem::Other(item)) => digests.push(DigestItem::Other(item.clone())),
+				},
+				Some(DigestItem::Other(item)) => {
+					digests.push(DigestItem::Other(item.clone()))
+				},
 				_ => {
 					let msg = ">>> Header invalid in check_header";
 					error!("{}", msg);
-					return Err(Error::Other(msg.to_string()));
-				}
+					return Err(Error::Other(msg.to_string()))
+				},
 			};
 		}
 		for item in header.digest().logs().iter() {
 			if let DigestItem::Consensus(id, _) = item {
-				if *id != GRANDPA_ENGINE_ID {
-					return Err(Error::WrongEngine(*id));
+				if *id != GRANDPA_ENGINE_ID && *id != FRONTIER_ENGINE_ID {
+					return Err(Error::WrongEngine(*id))
 				}
 			}
 		}
@@ -786,15 +747,15 @@ impl<B: BlockT, Algorithm> PowVerifier<B, Algorithm> {
 }
 
 #[async_trait::async_trait]
-impl<B: BlockT, Algorithm> Verifier<B> for PowVerifier<B, Algorithm>
-where
+impl<B: BlockT, Algorithm> Verifier<B> for PowVerifier<B, Algorithm> where
 	Algorithm: PowAlgorithm<B> + Send + Sync,
 	Algorithm::Difficulty: 'static + Send,
 {
 	async fn verify(
-		&mut self,
-		block: BlockImportParams<B, ()>,
-	) -> Result<(BlockImportParams<B, ()>, Option<Vec<(CacheKeyId, Vec<u8>)>>), String> {
+			&mut self,
+			block: BlockImportParams<B, ()>,
+		) -> Result<(BlockImportParams<B, ()>, Option<Vec<(CacheKeyId, Vec<u8>)>>), String> {
+
 		let (checked_header, items) = self.check_header(block.header)?;
 
 		let mut seal: Option<DigestItem> = None;
@@ -807,33 +768,28 @@ where
 			orig_hashes = Some(items[2].clone());
 			poscan_hashes = Some(items[1].clone());
 			poscan_obj = Some(items[0].clone());
-		} else if items.len() == 3 {
+		}
+		else if items.len() == 3 {
 			seal = Some(items[2].clone());
 			poscan_hashes = Some(items[1].clone());
 			poscan_obj = Some(items[0].clone());
 		}
 
-		let intermediate = PowIntermediate::<Algorithm::Difficulty> { difficulty: None };
+		let intermediate = PowIntermediate::<Algorithm::Difficulty> {
+			difficulty: None,
+		};
 
 		let mut import_block = BlockImportParams::new(block.origin, checked_header);
 
-		if let Some(seal) = seal {
-			import_block.post_digests.push(seal)
-		};
-		if let Some(orig_hashes) = orig_hashes {
-			import_block.post_digests.push(orig_hashes)
-		};
-		if let Some(poscan_hashes) = poscan_hashes {
-			import_block.post_digests.push(poscan_hashes)
-		};
-		if let Some(poscan_obj) = poscan_obj {
-			import_block.post_digests.push(poscan_obj)
-		};
+		if let Some(seal) = seal { import_block.post_digests.push(seal) };
+		if let Some(orig_hashes) = orig_hashes { import_block.post_digests.push(orig_hashes) };
+		if let Some(poscan_hashes) = poscan_hashes { import_block.post_digests.push(poscan_hashes) };
+		if let Some(poscan_obj) = poscan_obj { import_block.post_digests.push(poscan_obj) };
 		import_block.body = block.body;
 		import_block.justifications = block.justifications;
 		import_block.intermediates.insert(
 			Cow::from(INTERMEDIATE_KEY),
-			Box::new(intermediate) as Box<_>,
+			Box::new(intermediate) as Box<_>
 		);
 		// import_block.post_hash = Some(post_hash);
 
@@ -866,8 +822,10 @@ pub fn import_queue<B, Transaction, Algorithm>(
 	// inherent_data_providers: InherentDataProviders,
 	spawner: &impl sp_core::traits::SpawnEssentialNamed,
 	registry: Option<&Registry>,
-) -> Result<PowImportQueue<B, Transaction>, sp_consensus::Error>
-where
+) -> Result<
+	PowImportQueue<B, Transaction>,
+	sp_consensus::Error
+> where
 	B: BlockT,
 	Transaction: Send + Sync + 'static,
 	Algorithm: PowAlgorithm<B> + Clone + Send + Sync + 'static,
@@ -894,10 +852,10 @@ fn find_pre_digest<B: BlockT>(header: &B::Header) -> Result<Option<Vec<u8>>, Err
 		match (log, pre_digest.is_some()) {
 			(DigestItem::PreRuntime(POSCAN_ENGINE_ID, _), true) => {
 				return Err(Error::MultiplePreRuntimeDigests)
-			}
+			},
 			(DigestItem::PreRuntime(POSCAN_ENGINE_ID, v), false) => {
 				pre_digest = Some(v.clone());
-			}
+			},
 			(_, _) => trace!(target: "pow", "Ignoring digest not meant for us"),
 		}
 	}
@@ -906,34 +864,41 @@ fn find_pre_digest<B: BlockT>(header: &B::Header) -> Result<Option<Vec<u8>>, Err
 }
 
 /// Fetch PoW seal.
-fn fetch_seal<B: BlockT>(digest: Option<&DigestItem>, hash: B::Hash) -> Result<Vec<u8>, Error<B>> {
+fn fetch_seal<B: BlockT>(
+	digest: Option<&DigestItem>,
+	hash: B::Hash,
+) -> Result<Vec<u8>, Error<B>> {
 	match digest {
 		Some(DigestItem::Seal(id, seal)) => {
-			if id == &POSCAN_SEAL_V1_ID || id == &POSCAN_SEAL_V2_ID {
+			if id == &POSCAN_SEAL_V1_ID || id == &POSCAN_SEAL_V2_ID{
 				Ok(seal.clone())
 			} else {
 				Err(Error::<B>::WrongEngine(*id).into())
 			}
-		}
-		Some(DigestItem::Other(item)) => Ok(item.clone()),
+		},
+		Some(DigestItem::Other(item)) => {
+			Ok(item.clone())
+		},
 		Some(DigestItem::PreRuntime(id, pre_runtime)) => {
 			if id == &POSCAN_ENGINE_ID {
 				Ok(pre_runtime.clone())
-			} else {
+			}
+			else {
 				Err(Error::<B>::WrongEngine(*id).into())
 			}
-		}
+		},
 		Some(DigestItem::Consensus(id, v)) => {
 			if id == &GRANDPA_ENGINE_ID {
 				Ok(v.clone())
-			} else {
+			}
+			else {
 				Err(Error::<B>::WrongEngine(*id).into())
 			}
-		}
+		},
 		_ => {
 			error!(">>> Header unsealed in fetch_seal");
 			Err(Error::<B>::HeaderUnsealed(hash).into())
-		}
+		},
 	}
 }
 
@@ -965,24 +930,19 @@ pub fn start_mining_worker<Block, C, S, Algorithm, E, SO, L, CIDP, CAW>(
 	MiningHandle<Block, Algorithm, C, L, <E::Proposer as Proposer<Block>>::Proof>,
 	impl Future<Output = ()>,
 )
-where
-	Block: BlockT,
-	C: ProvideRuntimeApi<Block>
-		+ BlockchainEvents<Block>
-		+ 'static
-		+ BlockBackend<Block>
-		+ HeaderBackend<Block>
-		+ HeaderMetadata<Block, Error = sp_blockchain::Error>,
-	S: SelectChain<Block> + 'static,
-	Algorithm: PowAlgorithm<Block> + Clone,
-	Algorithm::Difficulty: Send + 'static,
-	E: Environment<Block> + Send + Sync + 'static,
-	E::Error: std::fmt::Debug,
-	E::Proposer: Proposer<Block, Transaction = sp_api::TransactionFor<C, Block>>,
-	SO: SyncOracle + Clone + Send + Sync + 'static,
-	L: sc_consensus::JustificationSyncLink<Block>,
-	CIDP: CreateInherentDataProviders<Block, ()>,
-	CAW: CanAuthorWith<Block> + Clone + Send + 'static,
+	where
+		Block: BlockT,
+		C: ProvideRuntimeApi<Block> + BlockchainEvents<Block> + 'static + BlockBackend<Block> + HeaderBackend<Block> + HeaderMetadata<Block, Error = sp_blockchain::Error>,
+		S: SelectChain<Block> + 'static,
+		Algorithm: PowAlgorithm<Block> + Clone,
+		Algorithm::Difficulty: Send + 'static,
+		E: Environment<Block> + Send + Sync + 'static,
+		E::Error: std::fmt::Debug,
+		E::Proposer: Proposer<Block, Transaction = sp_api::TransactionFor<C, Block>>,
+		SO: SyncOracle + Clone + Send + Sync + 'static,
+		L: sc_consensus::JustificationSyncLink<Block>,
+		CIDP: CreateInherentDataProviders<Block, ()>,
+		CAW: CanAuthorWith<Block> + Clone + Send + 'static,
 {
 	let mut timer = UntilImportedOrTimeout::new(client.import_notification_stream(), timeout);
 	let worker = MiningHandle::new(algorithm.clone(), block_import, justification_sync_link);
@@ -1075,10 +1035,8 @@ where
 
 			let mut inherent_digest = Digest::default();
 			if let Some(pre_runtime) = &pre_runtime {
-				inherent_digest.push(DigestItem::PreRuntime(
-					POSCAN_ENGINE_ID,
-					pre_runtime.to_vec(),
-				));
+				inherent_digest.push(DigestItem::PreRuntime(POSCAN_ENGINE_ID, pre_runtime.to_vec()));
+				inherent_digest.push(DigestItem::PreRuntime(FRONTIER_ENGINE_ID, pre_runtime.to_vec()));
 			}
 
 			let pre_runtime = pre_runtime.clone();
@@ -1134,3 +1092,4 @@ where
 
 	(worker_ret, task)
 }
+
