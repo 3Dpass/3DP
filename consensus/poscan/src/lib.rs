@@ -64,6 +64,7 @@ use sp_consensus_poscan::{
 	POSCAN_SEAL_V1_ID,
 	POSCAN_SEAL_V2_ID,
 };
+use fp_consensus::FRONTIER_ENGINE_ID;
 use sp_inherents::{CreateInherentDataProviders, InherentDataProvider}; //, InherentData};
 use sp_consensus::{
 	SyncOracle, Environment, Proposer,
@@ -735,7 +736,7 @@ impl<B: BlockT, Algorithm> PowVerifier<B, Algorithm> {
 		}
 		for item in header.digest().logs().iter() {
 			if let DigestItem::Consensus(id, _) = item {
-				if *id != GRANDPA_ENGINE_ID {
+				if *id != GRANDPA_ENGINE_ID && *id != FRONTIER_ENGINE_ID {
 					return Err(Error::WrongEngine(*id))
 				}
 			}
@@ -1035,6 +1036,7 @@ pub fn start_mining_worker<Block, C, S, Algorithm, E, SO, L, CIDP, CAW>(
 			let mut inherent_digest = Digest::default();
 			if let Some(pre_runtime) = &pre_runtime {
 				inherent_digest.push(DigestItem::PreRuntime(POSCAN_ENGINE_ID, pre_runtime.to_vec()));
+				inherent_digest.push(DigestItem::PreRuntime(FRONTIER_ENGINE_ID, pre_runtime.to_vec()));
 			}
 
 			let pre_runtime = pre_runtime.clone();
