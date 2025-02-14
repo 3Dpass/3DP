@@ -67,6 +67,8 @@ use sp_inherents::{CreateInherentDataProviders, InherentDataProvider}; //, Inher
 use sp_runtime::generic::{BlockId, Digest, DigestItem};
 use sp_runtime::traits::{Block as BlockT, Header as HeaderT};
 use sp_runtime::RuntimeString;
+use fp_consensus::FRONTIER_ENGINE_ID;
+
 use sp_std::collections::btree_set::BTreeSet;
 use std::convert::TryInto;
 
@@ -775,8 +777,8 @@ impl<B: BlockT, Algorithm> PowVerifier<B, Algorithm> {
 		}
 		for item in header.digest().logs().iter() {
 			if let DigestItem::Consensus(id, _) = item {
-				if *id != GRANDPA_ENGINE_ID {
-					return Err(Error::WrongEngine(*id));
+				if *id != GRANDPA_ENGINE_ID && *id != FRONTIER_ENGINE_ID {
+					return Err(Error::WrongEngine(*id))
 				}
 			}
 		}
@@ -1075,10 +1077,8 @@ where
 
 			let mut inherent_digest = Digest::default();
 			if let Some(pre_runtime) = &pre_runtime {
-				inherent_digest.push(DigestItem::PreRuntime(
-					POSCAN_ENGINE_ID,
-					pre_runtime.to_vec(),
-				));
+				inherent_digest.push(DigestItem::PreRuntime(POSCAN_ENGINE_ID, pre_runtime.to_vec()));
+				inherent_digest.push(DigestItem::PreRuntime(FRONTIER_ENGINE_ID, pre_runtime.to_vec()));
 			}
 
 			let pre_runtime = pre_runtime.clone();
