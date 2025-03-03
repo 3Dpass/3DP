@@ -7,13 +7,16 @@ use super::{
 	EVMChainIdConfig, EVMConfig,
 };
 use sp_consensus_poscan::{DOLLARS, POSCAN_COIN_ID};
-use sp_core::{sr25519, Pair, Public, U256, H160};
+use sp_core::{sr25519, Pair, Public, U256, H160, ByteArray};
 use sp_finality_grandpa::AuthorityId as GrandpaId;
 use sp_runtime::traits::{IdentifyAccount, Verify};
 use sp_std::collections::btree_map::BTreeMap;
 use sp_std::str::FromStr;
 
+use fp_evm::GenesisAccount;
+
 use pallet_im_online::sr25519::AuthorityId as ImOnlineId;
+use super::Runtime;
 
 /// Helper function to generate a crypto pair from seed
 fn get_from_seed<TPublic: Public>(seed: &str) -> <TPublic::Pair as Pair>::Public {
@@ -63,6 +66,8 @@ pub fn dev_genesis(wasm_binary: &[u8]) -> GenesisConfig {
 	)
 }
 
+use crate::FrontierPrecompiles;
+
 /// Helper function to build a genesis configuration
 pub fn testnet_genesis(
 	wasm_binary: &[u8],
@@ -71,6 +76,8 @@ pub fn testnet_genesis(
 	endowed_accounts: Vec<AccountId>,
 	initial_difficulty: U256,
 ) -> GenesisConfig {
+	let revert_bytecode = vec![0x60, 0x00, 0x60, 0x00, 0xFD];
+
 	GenesisConfig {
 		system: SystemConfig {
 			code: wasm_binary.to_vec(),
@@ -131,52 +138,76 @@ pub fn testnet_genesis(
 				.collect::<Vec<_>>(),
 		},
 		// EVM compatibility
-		evm_chain_id: EVMChainIdConfig { chain_id: POSCAN_COIN_ID  as u64},
+		evm_chain_id: EVMChainIdConfig { chain_id: 123  as u64},
 		evm: EVMConfig {
-			accounts: {
-				let mut map = BTreeMap::new();
-				map.insert(
-					// H160 address of Alice dev account
-					// Derived from SS58 (42 prefix) address
-					// SS58: 5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY
-					// hex: 0xd43593c715fdd31c61141abd04a99fd6822c8558854ccde39a5684e7a56da27d
-					// Using the full hex key, truncating to the first 20 bytes (the first 40 hex chars)
-					H160::from_str("d43593c715fdd31c61141abd04a99fd6822c8558")
-						.expect("internal H160 is valid; qed"),
-					fp_evm::GenesisAccount {
-						balance: U256::from_str("0xffffffffffffffffffffffffffffffff")
-							.expect("internal U256 is valid; qed"),
-						code: Default::default(),
-						nonce: Default::default(),
-						storage: Default::default(),
-					},
-				);
-				map.insert(
-					// H160 address of CI test runner account
-					H160::from_str("6be02d1d3665660d22ff9624b7be0551ee1ac91b")
-						.expect("internal H160 is valid; qed"),
-					fp_evm::GenesisAccount {
-						balance: U256::from_str("0xffffffffffffffffffffffffffffffff")
-							.expect("internal U256 is valid; qed"),
-						code: Default::default(),
-						nonce: Default::default(),
-						storage: Default::default(),
-					},
-				);
-				map.insert(
-					// H160 address for benchmark usage
-					H160::from_str("1000000000000000000000000000000000000001")
-						.expect("internal H160 is valid; qed"),
-					fp_evm::GenesisAccount {
-						nonce: U256::from(1),
-						balance: U256::from(1_000_000_000_000_000_000_000_000u128),
-						storage: Default::default(),
-						code: vec![0x00],
-					},
-				);
-				map
-			},
+			// We need _some_ code inserted at the precompile address so that
+			// the evm will actually call the address.
+			accounts: FrontierPrecompiles::<Runtime>::used_addresses()
+				.map(|addr| {
+					(
+						//addr.into(),
+						H160::from_slice(&addr.as_slice()[0..20]),
+
+						GenesisAccount {
+							nonce: Default::default(),
+							balance: Default::default(),
+							storage: Default::default(),
+							code: revert_bytecode.clone(),
+						},
+					)
+				})
+				.collect(),
 		},
+
+			// accounts: {
+			// 	let mut map = BTreeMap::new();
+			// 	//let mut buf: &[u8; 20] = AccountId::from_str("d7b6PWkynfechps4xKCkGTB5cmXPxuVxUbJzdf2eKZseBqt4K").unwrap().as_slice().try_into().unwrap();
+			// 	let mut acc: H160 = H160::from_slice(&AccountId::from_str("d7b6PWkynfechps4xKCkGTB5cmXPxuVxUbJzdf2eKZseBqt4K").unwrap().as_slice()[0..20]);
+			//
+			// 	map.insert(
+			// 		// H160 address of Alice dev account
+			// 		// Derived from SS58 (42 prefix) address
+			// 		// SS58: 5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY
+			// 		// hex: 0xd43593c715fdd31c61141abd04a99fd6822c8558854ccde39a5684e7a56da27d
+			// 		// Using the full hex key, truncating to the first 20 bytes (the first 40 hex chars)
+			// 		//H160::from_("d43593c715fdd31c61141abd04a99fd6822c8558")
+			// 		//H160::from_str("142d480d26ef1281acabcd10a508aaedb3f4a43e")
+			// 		//	.expect("internal H160 is valid; qed"),
+			// 		acc,
+			// 		fp_evm::GenesisAccount {
+			// 			balance: U256::from(1_000_000_000_000_000_000u128),
+			// 			//	.expect("internal U256 is valid; qed"),
+			// 			code: Default::default(),
+			// 			nonce: Default::default(),
+			// 			storage: Default::default(),
+			// 		},
+			// 	);
+			// 	map.insert(
+			// 		// H160 address of CI test runner account
+			// 		H160::from_str("6be02d1d3665660d22ff9624b7be0551ee1ac91b")
+			// 			.expect("internal H160 is valid; qed"),
+			// 		fp_evm::GenesisAccount {
+			// 			balance: U256::from_str("0xffffffffffffffffffffffffffffffff")
+			// 				.expect("internal U256 is valid; qed"),
+			// 			code: Default::default(),
+			// 			nonce: Default::default(),
+			// 			storage: Default::default(),
+			// 		},
+			// 	);
+			// 	map.insert(
+			// 		// H160 address for benchmark usage
+			// 		H160::from_str("1000000000000000000000000000000000000001")
+			// 			.expect("internal H160 is valid; qed"),
+			// 		fp_evm::GenesisAccount {
+			// 			nonce: U256::from(1),
+			// 			balance: U256::from(1_000_000_000_000_000_000_000_000u128),
+			// 			storage: Default::default(),
+			// 			code: vec![0x00],
+			// 		},
+			// 	);
+			// 	map
+		// 	},
+		// },
 		ethereum: Default::default(),
 		dynamic_fee: Default::default(),
 		base_fee: Default::default(),

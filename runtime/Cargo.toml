@@ -97,6 +97,12 @@ pallet-evm-precompile-sha3fips = { path = "../pallets/evm/precompile/sha3fips", 
 pallet-evm-precompile-simple = { path = "../pallets/evm/precompile/simple", default-features = false }
 pallet-hotfix-sufficients = { path = "../pallets/hotfix-sufficients", default-features = false }
 
+pallet-evm-precompile-bn128 = { path = "../pallets/evm/precompile/bn128", default-features = false }
+pallet-evm-precompile-blake2 = { path = "../pallets/evm/precompile/blake2", default-features = false }
+pallet-evm-precompile-balances-erc20 = { path = "../precompiles/balances-erc20", default-features = false }
+pallet-evm-precompileset-assets-erc20 = { path = "../precompiles/assets-erc20", default-features = false }
+
+precompile-utils = { path = "../precompiles/utils", default-features = false }
 
 # Used for the node's RPCs
 frame-system-rpc-runtime-api = { git = "https://github.com/paritytech/substrate", rev = "b0777b4c7f7", package = "frame-system-rpc-runtime-api", default-features = false }
@@ -199,6 +205,12 @@ std = [
 	"rewards/std",
 	# "lockdrop/std",
 	"poscan-api/std",
+
+	"pallet-evm-precompile-balances-erc20/std",
+	"pallet-evm-precompileset-assets-erc20/std",
+	"pallet-evm-precompile-bn128/std",
+	"pallet-evm-precompile-blake2/std",
+	"precompile-utils/std",
 
 	"fp-rpc/std",
 	"fp-self-contained/std",
