@@ -138,7 +138,7 @@ pub fn testnet_genesis(
 				.collect::<Vec<_>>(),
 		},
 		// EVM compatibility
-		evm_chain_id: EVMChainIdConfig { chain_id: 123  as u64},
+		evm_chain_id: EVMChainIdConfig { chain_id: 1333  as u64},
 		evm: EVMConfig {
 			// We need _some_ code inserted at the precompile address so that
 			// the evm will actually call the address.
