@@ -15,6 +15,9 @@ pub struct Cli {
 
 	#[clap(long)]
 	pub threads: Option<usize>,
+
+	#[clap(long, help = "Skip verification checks for finalized blocks")]
+	pub skip_check: bool,
 }
 
 #[derive(Debug, clap::Parser)]

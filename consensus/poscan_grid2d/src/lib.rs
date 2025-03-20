@@ -176,6 +176,7 @@ impl DoubleHash {
 pub struct PoscanAlgorithm<Block, C, AccountId, BlockNumber> {
 	client: Arc<C>,
 	_phantom: PhantomData<(Block, AccountId, BlockNumber)>,
+	skip_check: bool,
 }
 
 impl<Block, C, AccountId, BlockNumber> PoscanAlgorithm<Block, C, AccountId, BlockNumber> {
@@ -183,13 +184,26 @@ impl<Block, C, AccountId, BlockNumber> PoscanAlgorithm<Block, C, AccountId, Bloc
 		Self {
 			client,
 			_phantom: PhantomData,
+			skip_check: false,
+		}
+	}
+
+	pub fn with_skip_check(client: Arc<C>, skip_check: bool) -> Self {
+		Self {
+			client,
+			_phantom: PhantomData,
+			skip_check,
 		}
 	}
 }
 
 impl<Block, C, AccountId, BlockNumber> Clone for PoscanAlgorithm<Block, C, AccountId, BlockNumber> {
 	fn clone(&self) -> Self {
-		Self::new(self.client.clone())
+		Self {
+			client: self.client.clone(),
+			_phantom: PhantomData,
+			skip_check: self.skip_check,
+		}
 	}
 }
 
@@ -297,6 +311,10 @@ where
 			}
 		};
 
+		if self.skip_check {
+			return Ok(true);
+		}
+
 		let parent_id = BlockId::<B>::hash(*parent);
 		let parent_num = self
 			.client
@@ -322,17 +340,6 @@ where
 		let algo_id = poscan_data.alg_id.clone();
 		let obj = poscan_data.obj.clone().to_vec();
 		let hashes = poscan_data.hashes.clone();
-
-		// let ver = self.client
-		// 	.runtime_api()
-		// 	.version(&parent_id)
-		// 	// .map(|d| if parent_num >= SCALE_DIFF_SINCE.into() { d / SCALE_DIFF_BY } else { d })
-		// 	.map_err(|err| {
-		// 		sc_consensus_poscan::Error::<B>::Environment(format!(
-		// 			">>> get version call failed: {:?}",
-		// 			err
-		// 		))
-		// 	})?;
 
 		if ver.spec_version >= 123 {
 			info!("poscan: start validate");
@@ -460,6 +467,10 @@ where
 				return Ok(false);
 			}
 		};
+
+		if self.skip_check {
+			return Ok(true);
+		}
 
 		let parent_id = BlockId::<B>::hash(*parent);
 		let parent_num = self
