@@ -33,7 +33,7 @@ The scope of potential 3Dpass applications goes way beyond 3D object recognition
 
 ### Download the latest release
 ```sh
-wget https://github.com/3Dpass/3DP/releases/download/v25/poscan-consensus-linux-x86_64.tar.gz
+wget https://github.com/3Dpass/3DP/releases/download/v28/poscan-consensus-linux-x86_64.tar.gz
 tar xzf poscan-consensus-linux-x86_64.tar.gz
 ```
 
