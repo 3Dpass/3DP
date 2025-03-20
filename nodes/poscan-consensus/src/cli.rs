@@ -2,7 +2,6 @@ use sc_cli::RunCmd;
 // use std::str::FromStr;
 // use structopt::StructOpt;
 
-
 #[derive(Debug, clap::Parser)]
 pub struct Cli {
 	#[clap(subcommand)]
@@ -67,8 +66,12 @@ pub struct ImportMiningKeyCommand {
 }
 
 impl sc_cli::CliConfiguration for ImportMiningKeyCommand {
-	fn shared_params(&self) -> &sc_cli::SharedParams { &self.shared_params }
-	fn keystore_params(&self) -> Option<&sc_cli::KeystoreParams> { Some(&self.keystore_params) }
+	fn shared_params(&self) -> &sc_cli::SharedParams {
+		&self.shared_params
+	}
+	fn keystore_params(&self) -> Option<&sc_cli::KeystoreParams> {
+		Some(&self.keystore_params)
+	}
 }
 
 #[derive(Debug, clap::Parser)]
@@ -83,6 +86,10 @@ pub struct GenerateMiningKeyCommand {
 }
 
 impl sc_cli::CliConfiguration for GenerateMiningKeyCommand {
-	fn shared_params(&self) -> &sc_cli::SharedParams { &self.shared_params }
-	fn keystore_params(&self) -> Option<&sc_cli::KeystoreParams> { Some(&self.keystore_params) }
+	fn shared_params(&self) -> &sc_cli::SharedParams {
+		&self.shared_params
+	}
+	fn keystore_params(&self) -> Option<&sc_cli::KeystoreParams> {
+		Some(&self.keystore_params)
+	}
 }
