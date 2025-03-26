@@ -6,12 +6,10 @@ use super::{
 	ValidatorSetConfig,
 	EVMChainIdConfig, EVMConfig,
 };
-use sp_consensus_poscan::{DOLLARS, POSCAN_COIN_ID};
+use sp_consensus_poscan::DOLLARS;
 use sp_core::{sr25519, Pair, Public, U256, H160, ByteArray};
 use sp_finality_grandpa::AuthorityId as GrandpaId;
 use sp_runtime::traits::{IdentifyAccount, Verify};
-use sp_std::collections::btree_map::BTreeMap;
-use sp_std::str::FromStr;
 
 use fp_evm::GenesisAccount;
 
@@ -118,6 +116,7 @@ pub fn testnet_genesis(
 		transaction_storage: Default::default(),
 		poscan_assets: Default::default(),
 		poscan_pool_assets: Default::default(),
+		foreign_assets: Default::default(),
 		scored_pool: Default::default(),
 		validator_set: ValidatorSetConfig {
 			initial_validators: initial_authorities
