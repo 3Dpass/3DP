@@ -38,6 +38,8 @@ use sp_std::{
 	marker::PhantomData,
 };
 
+use pallet_poscan_assets as pallet_assets;
+
 mod eip2612;
 use eip2612::Eip2612;
 
@@ -433,7 +435,7 @@ where
 		// Build call with origin.
 		{
 			let origin = Runtime::AddressMapping::into_account_id(handle.context().caller);
-			let to = Runtime::AddressMapping::into_account_id(to);
+			let _to = Runtime::AddressMapping::into_account_id(to);
 
 			// Dispatch call (if enough gas).
 			RuntimeHelper::<Runtime>::try_dispatch(
@@ -441,7 +443,8 @@ where
 				Some(origin).into(),
 				pallet_assets::Call::<Runtime, Instance>::mint {
 					id: asset_id,
-					beneficiary: Runtime::Lookup::unlookup(to),
+					// TODO:
+					//beneficiary: Runtime::Lookup::unlookup(to),
 					amount: value,
 				},
 			)?;
