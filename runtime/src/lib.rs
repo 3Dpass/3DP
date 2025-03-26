@@ -38,6 +38,8 @@ use pallet_evm::{
 	Account as EVMAccount, EnsureAddressTruncated, FeeCalculator, HashedAddressMapping, Runner,
 };
 
+use pallet_evm_precompileset_assets_erc20::AccountIdAssetIdConversion;
+
 use frame_support::{
 	construct_runtime, parameter_types, ord_parameter_types,
 	traits::{
@@ -104,6 +106,9 @@ pub type Signature = MultiSignature;
 /// Some way of identifying an account on the chain. We intentionally make it equivalent
 /// to the public key of our transaction signing scheme.
 pub type AccountId = <<Signature as Verify>::Signer as IdentifyAccount>::AccountId;
+
+/// AssetId type
+pub type AssetId = u32;
 
 /// The type for looking up accounts. We don't expect more than 4 billion of them, but you
 /// never know...
@@ -1312,7 +1317,7 @@ impl frame_system::offchain::SigningTypes for Runtime {
 }
 
 use codec::Encode;
-use frame_support::instances::{Instance1, Instance2};
+use frame_support::instances::{Instance1, Instance2, Instance3};
 use frame_support::traits::FindAuthor;
 
 impl<LocalCall> frame_system::offchain::CreateSignedTransaction<LocalCall> for Runtime
@@ -1479,6 +1484,28 @@ impl pallet_poscan_assets::Config<Instance2> for Runtime {
 	type AssetId = u32;
 	type Currency = Balances;
 	type CreateOrigin = AsEnsureOriginWithArg<EnsureSignedBy<AssetConversionOrigin, AccountId>>;
+	type ForceOrigin = EnsureRoot<AccountId>;
+	type Poscan = pallet_poscan::Pallet::<Self>;
+	type AssetDeposit = PosAssetDeposit;
+	type AssetAccountDeposit = ConstU128<DOLLARS>;
+	type MetadataDepositBase = PosMetadataDepositBase;
+	type MetadataDepositPerByte = PosMetadataDepositPerByte;
+	type ApprovalDeposit = PosApprovalDeposit;
+	type StringLimit = PosStringLimit;
+	type Freezer = ();
+	type Extra = ();
+	type WeightInfo = pallet_poscan_assets::weights::SubstrateWeight<Runtime>;
+}
+
+//pub type ForeignAssetInstance = Instance3;
+// pub type LocalAssetInstance = Instance1;
+
+impl pallet_poscan_assets::Config<Instance3> for Runtime {
+	type Event = Event;
+	type Balance = u128;
+	type AssetId = u32;
+	type Currency = Balances;
+	type CreateOrigin = AsEnsureOriginWithArg<EnsureSigned<AccountId>>;
 	type ForceOrigin = EnsureRoot<AccountId>;
 	type Poscan = pallet_poscan::Pallet::<Self>;
 	type AssetDeposit = PosAssetDeposit;
@@ -1663,6 +1690,7 @@ construct_runtime!(
 		PoScan: pallet_poscan, // ::{Pallet, Call, Storage, Event<T>, Inherent},
 		PoscanAssets: pallet_poscan_assets::<Instance1>,
 		PoscanPoolAssets: pallet_poscan_assets::<Instance2>,
+		ForeignAssets: pallet_poscan_assets::<Instance3>,
 		MiningPool: pallet_mining_pool,
 		Sudo: pallet_sudo,
 		Ethereum: pallet_ethereum,
@@ -2188,6 +2216,42 @@ impl_runtime_apis! {
 		fn execute_block_no_check(block: Block) -> Weight {
 			Executive::execute_block_no_check(block)
 		}
+	}
+}
+
+use precompiles::FOREIGN_ASSET_PRECOMPILE_ADDRESS_PREFIX;
+use precompiles::LOCAL_ASSET_PRECOMPILE_ADDRESS_PREFIX;
+
+// Instruct how to go from an H160 to an AssetID
+// We just take the lowest 128 bits
+impl AccountIdAssetIdConversion<AccountId, AssetId> for Runtime {
+	/// The way to convert an account to assetId is by ensuring that the prefix is 0XFFFFFFFF
+	/// and by taking the lowest 128 bits as the assetId
+	fn account_to_asset_id(account: AccountId) -> Option<(Vec<u8>, AssetId)> {
+		let h160_account: &[u8] = account.as_ref();
+		let mut data = [0u8; 4];
+		let (prefix_part, _padding, id_part) = (&h160_account[0..4], &h160_account[5..16], &h160_account[16..20]); //; h160_account.as_fixed_bytes().split_at(4);
+		if prefix_part == FOREIGN_ASSET_PRECOMPILE_ADDRESS_PREFIX
+			|| prefix_part == LOCAL_ASSET_PRECOMPILE_ADDRESS_PREFIX
+		{
+			data.copy_from_slice(id_part);
+			let asset_id: AssetId = u32::from_be_bytes(data).into();
+			Some((prefix_part.to_vec(), asset_id))
+		} else {
+			None
+		}
+	}
+
+	// The opposite conversion
+	fn asset_id_to_account(prefix: &[u8], asset_id: AssetId) -> AccountId {
+		let mut data = [0u8; 32];
+		data[0..4].copy_from_slice(prefix);
+		data[5..16].copy_from_slice(&[0;12]);
+		data[16..20].copy_from_slice(&asset_id.to_be_bytes());
+		// AccountId::from(data)
+		//use scale_info::prelude::format;
+		//let dd: [u8;32] = [1,2,3,4,5,6,7,8,9,0,1,2,3,4,5,6,7,8,9,0,1,2,3,4,5,6,7,8,9,0,1,2];
+		AccountId::new(data)
 	}
 }
 

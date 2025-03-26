@@ -710,35 +710,37 @@ pub mod pallet {
 			Ok(())
 		}
 
-		// /// Reduce the balance of `who` by as much as possible up to `amount` assets of `id`.
-		// ///
-		// /// Origin must be Signed and the sender should be the Manager of the asset `id`.
-		// ///
-		// /// Bails with `NoAccount` if the `who` is already dead.
-		// ///
-		// /// - `id`: The identifier of the asset to have some amount burned.
-		// /// - `who`: The account to be debited from.
-		// /// - `amount`: The maximum amount by which `who`'s balance should be reduced.
-		// ///
-		// /// Emits `Burned` with the actual amount burned. If this takes the balance to below the
-		// /// minimum for the asset, then the amount burned is increased to take it to zero.
-		// ///
-		// /// Weight: `O(1)`
-		// /// Modes: Post-existence of `who`; Pre & post Zombie-status of `who`.
-		// #[pallet::weight(T::WeightInfo::burn())]
-		// pub fn burn(
-		// 	origin: OriginFor<T>,
-		// 	#[pallet::compact] id: T::AssetId,
-		// 	who: <T::Lookup as StaticLookup>::Source,
-		// 	#[pallet::compact] amount: T::Balance,
-		// ) -> DispatchResult {
-		// 	let origin = ensure_signed(origin)?;
-		// 	let who = T::Lookup::lookup(who)?;
-		//
-		// 	let f = DebitFlags { keep_alive: false, best_effort: true };
-		// 	let _ = Self::do_burn(id, &who, amount, Some(origin), f)?;
-		// 	Ok(())
-		// }
+		/// Reduce the balance of `who` by as much as possible up to `amount` assets of `id`.
+		///
+		/// Origin must be Signed and the sender should be the Manager of the asset `id`.
+		///
+		/// Bails with `NoAccount` if the `who` is already dead.
+		///
+		/// - `id`: The identifier of the asset to have some amount burned.
+		/// - `who`: The account to be debited from.
+		/// - `amount`: The maximum amount by which `who`'s balance should be reduced.
+		///
+		/// Emits `Burned` with the actual amount burned. If this takes the balance to below the
+		/// minimum for the asset, then the amount burned is increased to take it to zero.
+		///
+		/// Weight: `O(1)`
+		/// Modes: Post-existence of `who`; Pre & post Zombie-status of `who`.
+		#[pallet::weight(T::WeightInfo::burn())]
+		pub fn burn(
+			origin: OriginFor<T>,
+			#[pallet::compact] id: T::AssetId,
+			who: <T::Lookup as StaticLookup>::Source,
+			#[pallet::compact] amount: T::Balance,
+		) -> DispatchResult {
+			let origin = ensure_signed(origin)?;
+			let who = T::Lookup::lookup(who)?;
+
+			// TODO: check objects not exist
+
+			let f = DebitFlags { keep_alive: false, best_effort: true };
+			let _ = Self::do_burn(id, &who, amount, Some(origin), f)?;
+			Ok(())
+		}
 
 		/// Move some assets from the sender account to another.
 		///

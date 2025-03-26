@@ -19,6 +19,10 @@
 // 	xcm_config::XcmExecutorConfig,
 // 	CouncilInstance, TechCommitteeInstance, TreasuryCouncilInstance,
 //};
+
+// use super::{ForeignAssetInstance}; // , LocalAssetInstance};
+use frame_support::instances::{Instance1, Instance3};
+
 use frame_support::parameter_types;
 //use moonbeam_relay_encoder::westend::WestendEncoder;
 // use pallet_evm_precompile_author_mapping::AuthorMappingPrecompile;
@@ -73,10 +77,10 @@ impl Erc20Metadata for NativeErc20Metadata {
 
 /// The asset precompile address prefix. Addresses that match against this prefix will be routed
 /// to Erc20AssetsPrecompileSet being marked as foreign
-pub const FOREIGN_ASSET_PRECOMPILE_ADDRESS_PREFIX: &[u8] = &[255u8; 4];
+pub const FOREIGN_ASSET_PRECOMPILE_ADDRESS_PREFIX: &[u8] = &[251u8; 4];
 /// The asset precompile address prefix. Addresses that match against this prefix will be routed
 /// to Erc20AssetsPrecompileSet being marked as local
-pub const LOCAL_ASSET_PRECOMPILE_ADDRESS_PREFIX: &[u8] = &[255u8, 255u8, 255u8, 254u8];
+pub const LOCAL_ASSET_PRECOMPILE_ADDRESS_PREFIX: &[u8] = &[251u8, 251u8, 251u8, 250u8];
 
 parameter_types! {
 	pub ForeignAssetPrefix: &'static [u8] = FOREIGN_ASSET_PRECOMPILE_ADDRESS_PREFIX;
@@ -133,14 +137,14 @@ pub type FrontierPrecompiles<R> = PrecompileSetBuilder<
 				// PrecompileAt<AddressU64<2064>, CollectivePrecompile<R, TreasuryCouncilInstance>>,
 			),
 		>,
-		// // Prefixed precompile sets (XC20)
-		// PrecompileSetStartingWith<
-		// 	ForeignAssetPrefix,
-		// 	Erc20AssetsPrecompileSet<R, IsForeign, ForeignAssetInstance>,
-		// >,
-		// PrecompileSetStartingWith<
-		// 	LocalAssetPrefix,
-		// 	Erc20AssetsPrecompileSet<R, IsLocal, LocalAssetInstance>,
-		// >,
+		// Prefixed precompile sets (XC20)
+		PrecompileSetStartingWith<
+			ForeignAssetPrefix,
+			Erc20AssetsPrecompileSet<R, IsForeign, Instance3>,
+		>,
+		PrecompileSetStartingWith<
+			LocalAssetPrefix,
+			Erc20AssetsPrecompileSet<R, IsLocal, Instance1>,
+		>,
 	),
 >;
