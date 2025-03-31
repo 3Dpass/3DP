@@ -101,6 +101,7 @@ pallet-evm-precompile-bn128 = { path = "../pallets/evm/precompile/bn128", defaul
 pallet-evm-precompile-blake2 = { path = "../pallets/evm/precompile/blake2", default-features = false }
 pallet-evm-precompile-balances-erc20 = { path = "../precompiles/balances-erc20", default-features = false }
 pallet-evm-precompileset-assets-erc20 = { path = "../precompiles/assets-erc20", default-features = false }
+pallet-evm-precompile-call-permit = { path = "../precompiles/call-permit", default-features = false }
 
 precompile-utils = { path = "../precompiles/utils", default-features = false }
 
@@ -211,6 +212,7 @@ std = [
 	"pallet-evm-precompile-bn128/std",
 	"pallet-evm-precompile-blake2/std",
 	"precompile-utils/std",
+	"pallet-evm-precompile-call-permit/std",
 
 	"fp-rpc/std",
 	"fp-self-contained/std",
