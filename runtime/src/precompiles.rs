@@ -27,7 +27,7 @@ use frame_support::parameter_types;
 //use moonbeam_relay_encoder::westend::WestendEncoder;
 // use pallet_evm_precompile_author_mapping::AuthorMappingPrecompile;
 use pallet_evm_precompile_balances_erc20::{Erc20BalancesPrecompile, Erc20Metadata};
-//use pallet_evm_precompile_batch::BatchPrecompile;
+use pallet_evm_precompile_batch::BatchPrecompile;
 use pallet_evm_precompile_blake2::Blake2F;
 use pallet_evm_precompile_bn128::{Bn128Add, Bn128Mul, Bn128Pairing};
 use pallet_evm_precompile_call_permit::CallPermitPrecompile;
@@ -126,7 +126,7 @@ pub type FrontierPrecompiles<R> = PrecompileSetBuilder<
 				// PrecompileAt<AddressU64<2053>, RelayEncoderPrecompile<R, WestendEncoder>>,
 				// PrecompileAt<AddressU64<2054>, XcmTransactorPrecompileV1<R>>,
 				// PrecompileAt<AddressU64<2055>, AuthorMappingPrecompile<R>>,
-				// PrecompileAt<AddressU64<2056>, BatchPrecompile<R>, LimitRecursionTo<2>>,
+				PrecompileAt<AddressU64<2056>, BatchPrecompile<R>, LimitRecursionTo<2>>,
 				// PrecompileAt<AddressU64<2057>, RandomnessPrecompile<R>>,
 				PrecompileAt<AddressU64<2058>, CallPermitPrecompile<R>>,
 				// PrecompileAt<AddressU64<2059>, ProxyPrecompile<R>>,
