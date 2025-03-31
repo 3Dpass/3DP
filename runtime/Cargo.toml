@@ -102,6 +102,7 @@ pallet-evm-precompile-blake2 = { path = "../pallets/evm/precompile/blake2", defa
 pallet-evm-precompile-balances-erc20 = { path = "../precompiles/balances-erc20", default-features = false }
 pallet-evm-precompileset-assets-erc20 = { path = "../precompiles/assets-erc20", default-features = false }
 pallet-evm-precompile-call-permit = { path = "../precompiles/call-permit", default-features = false }
+pallet-evm-precompile-batch = { path = "../precompiles/batch", default-features = false }
 
 precompile-utils = { path = "../precompiles/utils", default-features = false }
 
@@ -213,6 +214,7 @@ std = [
 	"pallet-evm-precompile-blake2/std",
 	"precompile-utils/std",
 	"pallet-evm-precompile-call-permit/std",
+	"pallet-evm-precompile-batch/std",
 
 	"fp-rpc/std",
 	"fp-self-contained/std",

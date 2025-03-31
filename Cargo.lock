@@ -5145,6 +5145,26 @@ dependencies = [
 ]
 
 [[package]]
+name = "pallet-evm-precompile-batch"
+version = "0.1.0"
+dependencies = [
+ "evm",
+ "fp-evm",
+ "frame-support",
+ "frame-system",
+ "log",
+ "num_enum",
+ "pallet-evm",
+ "parity-scale-codec",
+ "paste",
+ "precompile-utils",
+ "slices",
+ "sp-core",
+ "sp-io",
+ "sp-std",
+]
+
+[[package]]
 name = "pallet-evm-precompile-blake2"
 version = "2.0.0-dev"
 dependencies = [
@@ -6322,6 +6342,7 @@ dependencies = [
  "pallet-evm",
  "pallet-evm-chain-id",
  "pallet-evm-precompile-balances-erc20",
+ "pallet-evm-precompile-batch",
  "pallet-evm-precompile-blake2",
  "pallet-evm-precompile-bn128",
  "pallet-evm-precompile-call-permit",
