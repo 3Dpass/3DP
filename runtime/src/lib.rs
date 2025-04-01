@@ -2230,7 +2230,7 @@ impl AccountIdAssetIdConversion<AccountId, AssetId> for Runtime {
 	fn account_to_asset_id(account: AccountId) -> Option<(Vec<u8>, AssetId)> {
 		let h160_account: &[u8] = account.as_ref();
 		let mut data = [0u8; 4];
-		let (prefix_part, _padding, id_part) = (&h160_account[0..4], &h160_account[5..16], &h160_account[16..20]); //; h160_account.as_fixed_bytes().split_at(4);
+		let (prefix_part, _padding, id_part) = (&h160_account[0..4], &h160_account[4..16], &h160_account[16..20]); //; h160_account.as_fixed_bytes().split_at(4);
 		if prefix_part == FOREIGN_ASSET_PRECOMPILE_ADDRESS_PREFIX
 			|| prefix_part == LOCAL_ASSET_PRECOMPILE_ADDRESS_PREFIX
 		{
@@ -2246,7 +2246,7 @@ impl AccountIdAssetIdConversion<AccountId, AssetId> for Runtime {
 	fn asset_id_to_account(prefix: &[u8], asset_id: AssetId) -> AccountId {
 		let mut data = [0u8; 32];
 		data[0..4].copy_from_slice(prefix);
-		data[5..16].copy_from_slice(&[0;12]);
+		data[4..16].copy_from_slice(&[0;12]);
 		data[16..20].copy_from_slice(&asset_id.to_be_bytes());
 		// AccountId::from(data)
 		//use scale_info::prelude::format;
