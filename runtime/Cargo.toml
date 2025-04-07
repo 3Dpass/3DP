@@ -17,6 +17,7 @@ codec = { package = "parity-scale-codec", version = "3.1", default-features = fa
 scale-info = { version = "2.1.1", default-features = false, features = ["derive"] }
 smallvec = "1.4.0"
 static_assertions = "1.1.0"
+serde = { version = "1.0.101", optional = true, default-features = false, features = [ "derive" ] }
 
 pallet-authorship = { git = "https://github.com/paritytech/substrate", rev = "b0777b4c7f7", package = "pallet-authorship", default-features = false }
 pallet-balances = { git = "https://github.com/paritytech/substrate", rev = "b0777b4c7f7", package = "pallet-balances", default-features = false }
@@ -70,6 +71,7 @@ pallet-elections-phragmen = { default-features = false, git = "https://github.co
 pallet-ranked-collective = { default-features = false, git = "https://github.com/paritytech/substrate", rev = "b0777b4c7f7" }
 pallet-utility = { default-features = false, git = "https://github.com/paritytech/substrate", rev = "b0777b4c7f7" }
 pallet-offences = { default-features = false, git = "https://github.com/paritytech/substrate", rev = "b0777b4c7f7" }
+pallet-proxy = { default-features = false, git = "https://github.com/paritytech/substrate", rev = "b0777b4c7f7" }
 
 pallet-validator-set = { path = "../pallets/validator-set", default-features = false }
 pallet-atomic-swap = { path = "../pallets/atomic-swap", default-features = false }
@@ -103,6 +105,7 @@ pallet-evm-precompile-balances-erc20 = { path = "../precompiles/balances-erc20",
 pallet-evm-precompileset-assets-erc20 = { path = "../precompiles/assets-erc20", default-features = false }
 pallet-evm-precompile-call-permit = { path = "../precompiles/call-permit", default-features = false }
 pallet-evm-precompile-batch = { path = "../precompiles/batch", default-features = false }
+pallet-evm-precompile-proxy = { path = "../precompiles/proxy", default-features = false }
 
 precompile-utils = { path = "../precompiles/utils", default-features = false }
 
@@ -140,6 +143,7 @@ default = [
 ]
 std = [
 	"codec/std",
+	"serde",
 	"scale-info/std",
 	"frame-executive/std",
 	"frame-support/std",
@@ -193,6 +197,8 @@ std = [
 	"pallet-session/std",
 	"pallet-im-online/std",
 	# "pallet-offences/std",
+	"pallet-proxy/std",
+	"pallet-evm-precompile-proxy/std",
 	"pallet-referenda/std",
 	"pallet-asset-rate/std",
 	"pallet-membership/std",
