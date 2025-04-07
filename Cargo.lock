@@ -5214,6 +5214,25 @@ dependencies = [
 ]
 
 [[package]]
+name = "pallet-evm-precompile-proxy"
+version = "0.1.0"
+dependencies = [
+ "fp-evm",
+ "frame-support",
+ "frame-system",
+ "log",
+ "num_enum",
+ "pallet-evm",
+ "pallet-proxy",
+ "parity-scale-codec",
+ "precompile-utils",
+ "rustc-hex",
+ "sp-core",
+ "sp-runtime",
+ "sp-std",
+]
+
+[[package]]
 name = "pallet-evm-precompile-sha3fips"
 version = "2.0.0-dev"
 dependencies = [
@@ -5485,6 +5504,20 @@ dependencies = [
  "parity-scale-codec",
  "scale-info",
  "sp-core",
+ "sp-io",
+ "sp-runtime",
+ "sp-std",
+]
+
+[[package]]
+name = "pallet-proxy"
+version = "4.0.0-dev"
+source = "git+https://github.com/paritytech/substrate?rev=b0777b4c7f7#b0777b4c7f7d8d3c635319d0153953d0a22aa58e"
+dependencies = [
+ "frame-support",
+ "frame-system",
+ "parity-scale-codec",
+ "scale-info",
  "sp-io",
  "sp-runtime",
  "sp-std",
@@ -6347,6 +6380,7 @@ dependencies = [
  "pallet-evm-precompile-bn128",
  "pallet-evm-precompile-call-permit",
  "pallet-evm-precompile-modexp",
+ "pallet-evm-precompile-proxy",
  "pallet-evm-precompile-sha3fips",
  "pallet-evm-precompile-simple",
  "pallet-evm-precompileset-assets-erc20",
@@ -6362,6 +6396,7 @@ dependencies = [
  "pallet-poscan",
  "pallet-poscan-assets",
  "pallet-preimage",
+ "pallet-proxy",
  "pallet-randomness-collective-flip",
  "pallet-ranked-collective",
  "pallet-recovery",
@@ -6386,6 +6421,7 @@ dependencies = [
  "poscan-api",
  "precompile-utils",
  "scale-info",
+ "serde",
  "smallvec",
  "sp-api",
  "sp-application-crypto",

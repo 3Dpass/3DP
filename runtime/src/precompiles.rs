@@ -36,7 +36,7 @@ use pallet_evm_precompile_call_permit::CallPermitPrecompile;
 //use pallet_evm_precompile_democracy::DemocracyPrecompile;
 use pallet_evm_precompile_modexp::Modexp;
 //use pallet_evm_precompile_parachain_staking::ParachainStakingPrecompile;
-//use pallet_evm_precompile_proxy::ProxyPrecompile;
+use pallet_evm_precompile_proxy::ProxyPrecompile;
 //use pallet_evm_precompile_randomness::RandomnessPrecompile;
 //use pallet_evm_precompile_relay_encoder::RelayEncoderPrecompile;
 use pallet_evm_precompile_sha3fips::Sha3FIPS256;
@@ -129,7 +129,7 @@ pub type FrontierPrecompiles<R> = PrecompileSetBuilder<
 				PrecompileAt<AddressU64<2056>, BatchPrecompile<R>, LimitRecursionTo<2>>,
 				// PrecompileAt<AddressU64<2057>, RandomnessPrecompile<R>>,
 				PrecompileAt<AddressU64<2058>, CallPermitPrecompile<R>>,
-				// PrecompileAt<AddressU64<2059>, ProxyPrecompile<R>>,
+				PrecompileAt<AddressU64<2059>, ProxyPrecompile<R>>,
 				// PrecompileAt<AddressU64<2060>, XcmUtilsPrecompile<R, XcmExecutorConfig>>,
 				// PrecompileAt<AddressU64<2061>, XcmTransactorPrecompileV2<R>>,
 				// PrecompileAt<AddressU64<2062>, CollectivePrecompile<R, CouncilInstance>>,

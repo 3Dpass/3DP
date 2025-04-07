@@ -45,7 +45,7 @@ use frame_support::{
 	traits::{
 		AsEnsureOriginWithArg, ChangeMembers, ConstU128, ConstU16, ConstU32, ConstU64, Currency,
 		EitherOfDiverse, EqualPrivilegeOnly, InitializeMembers, KeyOwnerProofSystem,
-		LockIdentifier, OnRuntimeUpgrade, OnUnbalanced, U128CurrencyToVote,
+		LockIdentifier, OnRuntimeUpgrade, OnUnbalanced, U128CurrencyToVote, InstanceFilter,
 	},
 	weights::{
 		constants::{BlockExecutionWeight, ExtrinsicBaseWeight, RocksDbWeight, WEIGHT_PER_SECOND},
@@ -1610,6 +1610,113 @@ impl pallet_hotfix_sufficients::Config for Runtime {
 }
 
 
+use scale_info::TypeInfo;
+use codec::MaxEncodedLen;
+
+/// The type used to represent the kinds of proxying allowed.
+#[cfg_attr(feature = "std", derive(serde::Serialize, serde::Deserialize))]
+#[derive(
+Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Encode, Decode, Debug, MaxEncodedLen, TypeInfo,
+)]
+pub enum ProxyType {
+	/// All calls can be proxied. This is the trivial/most permissive filter.
+	Any = 0,
+	/// Only extrinsics that do not transfer funds.
+	NonTransfer = 1,
+	/// Only extrinsics related to governance (democracy and collectives).
+	Governance = 2,
+	/// Only extrinsics related to staking.
+	//Staking = 3,
+	/// Allow to veto an announced proxy call.
+	CancelProxy = 4,
+	/// Allow extrinsic related to Balances.
+	Balances = 5,
+	/// Allow extrinsic related to AuthorMapping.
+	// AuthorMapping = 6,
+	/// Allow extrinsic related to IdentityJudgement.
+	IdentityJudgement = 7,
+}
+
+impl Default for ProxyType {
+	fn default() -> Self {
+		Self::Any
+	}
+}
+
+impl InstanceFilter<Call> for ProxyType {
+	fn filter(&self, c: &Call) -> bool {
+		match self {
+			ProxyType::Any => true,
+			ProxyType::NonTransfer => {
+				matches!(
+					c,
+					Call::System(..)
+						//| Call::Timestamp(..) | Call::ParachainStaking(..)
+						| Call::Democracy(..) | Call::Council(..)
+						| Call::Identity(..) | Call::TechnicalCommittee(..)
+						| Call::Utility(..) | Call::Proxy(..)
+						//| Call::AuthorMapping(..)
+						// | Call::CrowdloanRewards(pallet_crowdloan_rewards::Call::claim { .. })
+				)
+			}
+			ProxyType::Governance => matches!(
+				c,
+				Call::Democracy(..)
+					| Call::Council(..)
+					| Call::TechnicalCommittee(..)
+					| Call::Utility(..)
+			),
+			// ProxyType::Staking => matches!(
+			// 	c,
+			// 	Call::ParachainStaking(..)
+			// 		| Call::Utility(..) | Call::AuthorMapping(..)
+			// 		 Call::MoonbeamOrbiters(..)
+			// ),
+			ProxyType::CancelProxy => matches!(
+				c,
+				Call::Proxy(pallet_proxy::Call::reject_announcement { .. })
+			),
+			ProxyType::Balances => matches!(c, Call::Balances(..) | Call::Utility(..)),
+			// ProxyType::AuthorMapping => matches!(c, Call::AuthorMapping(..)),
+			ProxyType::IdentityJudgement => matches!(
+				c,
+				Call::Identity(pallet_identity::Call::provide_judgement { .. }) | Call::Utility(..)
+			),
+		}
+	}
+
+	fn is_superset(&self, o: &Self) -> bool {
+		match (self, o) {
+			(x, y) if x == y => true,
+			(ProxyType::Any, _) => true,
+			(_, ProxyType::Any) => false,
+			_ => false,
+		}
+	}
+}
+
+impl pallet_proxy::Config for Runtime {
+	type Event = Event;
+	type Call = Call;
+	type Currency = Balances;
+	type ProxyType = ProxyType;
+	// One storage item; key size 32, value size 8
+	type ProxyDepositBase = ConstU128<{ deposit(1, 8) }>;
+	// Additional storage item size of 21 bytes (20 bytes AccountId + 1 byte sizeof(ProxyType)).
+	type ProxyDepositFactor = ConstU128<{ deposit(0, 21) }>;
+	type MaxProxies = ConstU32<32>;
+	type WeightInfo = pallet_proxy::weights::SubstrateWeight<Runtime>;
+	type MaxPending = ConstU32<32>;
+	type CallHasher = BlakeTwo256;
+	type AnnouncementDepositBase = ConstU128<{ deposit(1, 8) }>;
+	// Additional storage item size of 56 bytes:
+	// - 20 bytes AccountId
+	// - 32 bytes Hasher (Blake2256)
+	// - 4 bytes BlockNumber (u32)
+	type AnnouncementDepositFactor = ConstU128<{ deposit(0, 56) }>;
+}
+
+
 pub struct Migrations;
 impl OnRuntimeUpgrade for Migrations {
 	fn on_runtime_upgrade() -> Weight {
@@ -1699,6 +1806,7 @@ construct_runtime!(
 		DynamicFee: pallet_dynamic_fee,
 		BaseFee: pallet_base_fee,
 		HotfixSufficients: pallet_hotfix_sufficients,
+		Proxy: pallet_proxy,
 	}
 );
 
