@@ -17,7 +17,7 @@
   ],
   "telemetryEndpoints": [
     [
-      "/dns/telemetry-submit.3dpass.org/tcp/443/x-parity-wss/%2Fsubmit",
+      "/dns/submit.3dpass.network/tcp/443/x-parity-wss/%2Fsubmit",
       0
     ]
   ],
