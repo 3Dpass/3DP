@@ -9,4 +9,4 @@ GRANDPA_KEY="$(./p3d key inspect --scheme Ed25519 "$MEMO_SEED" | sed -n 's/.*Sec
 # inserting ImOnline key
 ./p3d key insert --scheme Sr25519 --base-path /var/chain --chain mainnetSpecRaw.json --key-type imon --suri $GRANDPA_KEY
 # running the Node
-./p3d --chain mainnetSpecRaw.json --unsafe-ws-external --unsafe-rpc-external --rpc-cors=all --no-mdns --validator --base-path /var/chain --author "$ADDRESS" --telemetry-url "wss://submit.telemetry.3dpscan.io/submit 0" --name MY_NODE_NAME
+./p3d --chain mainnetSpecRaw.json --unsafe-ws-external --unsafe-rpc-external --rpc-cors=all --no-mdns --validator --base-path /var/chain --author "$ADDRESS" --telemetry-url "wss://submit.3dpass.network/submit 0" --name MY_NODE_NAME
