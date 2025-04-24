@@ -195,7 +195,10 @@ where
 		v: u8,
 		r: H256,
 		s: H256,
-	) -> EvmResult {
+	) -> EvmResult
+	where
+		<Runtime as pallet_poscan_assets::Config<Instance>>::AssetId: Display + From<u32>,
+	{
 		handle.record_cost(RuntimeHelper::<Runtime>::db_read_gas_cost())?;
 
 		let owner: H160 = owner.into();
