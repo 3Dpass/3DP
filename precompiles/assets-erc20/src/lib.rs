@@ -131,17 +131,18 @@ where
 	<<Runtime as frame_system::Config>::Call as Dispatchable>::Origin: OriginTrait,
 	IsLocal: Get<bool>,
 	<Runtime as pallet_timestamp::Config>::Moment: Into<U256>,
-	AssetIdOf<Runtime, Instance>: Display,
+	<Runtime as pallet_poscan_assets::Config<Instance>>::AssetId: Display + From<u32>,
 {
 	/// PrecompileSet discrimiant. Allows to knows if the address maps to an asset id,
 	/// and if this is the case which one.
 	#[precompile::discriminant]
 	fn discriminant(address: H160) -> Option<AssetIdOf<Runtime, Instance>> {
-		let account_id = Runtime::AddressMapping::into_account_id(address);
-		let asset_id = match Runtime::account_to_asset_id(account_id) {
-			Some((_, asset_id)) => asset_id,
-			None => return None,
-		};
+		// Extract the last 4 bytes of the H160 address.
+		let address_bytes: [u8; 20] = address.to_fixed_bytes();
+		let asset_id_bytes: [u8; 4] = address_bytes[16..20].try_into().ok()?;
+
+		let asset_id_u32 = u32::from_be_bytes(asset_id_bytes);
+		let asset_id: AssetIdOf<Runtime, Instance> = asset_id_u32.into();
 
 		if pallet_assets::Pallet::<Runtime, Instance>::maybe_total_supply(asset_id).is_some() {
 			Some(asset_id)
