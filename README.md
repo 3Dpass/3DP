@@ -190,5 +190,7 @@ Run the second Node:
 ```bash
 target/release/poscan-consensus --base-path /tmp/bob --chain local --bob --port 30334 --ws-port 9945 --rpc-port 9934  --bootnodes /ip4/127.0.0.1/tcp/30333/p2p/12D3KooWEyoppNCUx8Yx66oV9fJnriXwCcXwDDUA2kj6vnc6iDEp --validator
 ```
+### Responsibility disclaimer
+This is an open source free p2p software. Use it at your own risk. 3dpass platform is non-profit and community-supported.
 
-Copyright (C) 2022-2025 3Dpass https://3dpass.org/
+Copyright (C) 2022-2025 3Dpass
