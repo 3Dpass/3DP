@@ -65,7 +65,7 @@ impl Erc20Metadata for NativeErc20Metadata {
 
 	/// Returns the decimals places of the token.
 	fn decimals() -> u8 {
-		18
+		12
 	}
 
 	/// Must return `true` only if it represents the main native currency of
