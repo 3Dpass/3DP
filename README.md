@@ -1,6 +1,5 @@
 
-[![logo](https://github.com/3Dpass/3DP/assets/107915078/11de380f-7f77-4cf6-831d-e6ac8d7ab1ec)](https://3dpass.org)
-
+<img width="1199" alt="LoT-min" src="https://github.com/user-attachments/assets/36474db1-598e-49ac-9bca-385e0858939b" />
 
 # The Ledger of Things Node
 
