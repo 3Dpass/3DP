@@ -133,6 +133,8 @@ version: "3.9"
 You can generate your ADDRESS and MEMO_SEED phrase in the [wallet](https://wallet.3dpass.org/). 
 Follow this [tutorial](https://3dpass.org/mainnet#docker) for more details.
 
+##  Validator set (Masternodes)
+Validators represent a set of the most reliable Nodes (authorities) eligible to vote for Best chain finalization in accordance with the GRANDPA [deterministic finality](https://3dpass.org/features#ledger-why-deterministic-blockchain-finality) protocol rules. The validator set is open to join for any Node that meets the [SLA](https://3dpass.org/mainnet#validator-requirements) requirements. Current members are automatically selected and managed by the validator set module, which exploits a [collateral-based mechanism](https://3dpass.org/mainnet#validator-threshold) to prevent the protocol rules violations. Follow [this](https://3dpass.org/mainnet#validator) tutorial to set up Validator.
 
 ## Connect to the web3 wallet Front-end
 Open the wallet page: https://wallet.3dpass.org/. In order to connect your Node to the wallet in local you need to set up your local API endpoint as `ws://127.0.0.1:9944` in the Settings.
