@@ -7,7 +7,7 @@
 
 [Proof of Scan](https://3dpass.org/proof-of-scan) is a hybrid decentralized protocol "[PoW](https://github.com/3Dpass/3DP/wiki/Proof-of-Scan:-PoW-component-(ASIC%E2%80%90resistant)) `ASIC-resistant, CPU-oriented` + [PoA](https://github.com/3Dpass/3DP/wiki/Proof-of-Scan:-PoA-component) (Proof of Authority)", which is based on recognition technology. Every object, transformed by 3DPass, obtains its own unique and sustainable identity ([HASH ID](https://3dpass.org/features#recognition-hash-id)) the object can be recognized by. This will prevent the copying of digital assets and thus open a door for the entire blockchain space to potentially trillions in deals all over the globe.
 
-[Grid2d](https://3dpass.org/grid2d) is 3D shape recognition algorithm, which is utilized as one of hash functions in the Proof of Scan protocol. The implementations of the algorithm are the [pass3d](https://github.com/3Dpass/pass3d) recognition toolkit and its WASM analog [p3d](https://github.com/3Dpass/p3d). 
+[Grid2d](https://3dpass.org/grid2d) is 3D shape recognition algorithm, which is utilized as one of hash functions in the Proof of Scan protocol. The implementations of the algorithm are the [pass3d](https://github.com/3Dpass/pass3d) recognition toolkit and its WASM analog [p3d](https://github.com/3Dpass/p3d).
 
 [3DPRC-2](https://github.com/3Dpass/whitepaper/blob/main/3DPRC-2.md) (3Dpass Request for Comments) is a standard p2p protocol for the tokenization of the User objects operating within “The Ledger of Things”, by which the most useful aspect of the "Proof of Scan" consensus is getting uncovered. 3DPRC-2 provides decentralized [PoScan API](https://github.com/3Dpass/3DP/wiki/3DPRC%E2%80%902-PoScan-API) available for customers.
 
@@ -15,7 +15,11 @@ The scope of potential 3Dpass applications goes way beyond 3D object recognition
 
 [3DPass Coin (P3D)](https://3dpass.org/coin) is a native utility token, operating within "The Ledger of Things" eco-system, which aims to incentivize the efforts of community members maintaining the network infrastructure. Such aspects as: Storage fee, Gas fee, The object authentication fee, Transaction fee, The validator collaterals, Penalties - are all being counted in P3D.
 
+<<<<<<< HEAD
  [AI dev deepWiKi](https://deepwiki.com/3Dpass/3DP) | [Contribution Grant Program](https://3dpass.org/grants)  |  [Contributing guidelines](https://github.com/3Dpass/3DP/blob/main/CONTRIBUTING.md)  |  [Discord](https://discord.gg/u24WkXcwug)
+=======
+[Contribution Grant Program](https://3dpass.org/grants)  |  [Contributing guidelines](https://github.com/3Dpass/3DP/blob/main/CONTRIBUTING.md)  |  [Discord](https://discord.gg/u24WkXcwug)
+>>>>>>> b6e057cb (Update README.md)
 
 ## Getting started with 3Dpass Node
 
@@ -82,7 +86,7 @@ sh keygen_seed.sh
 The keys will be imported into `~/3dp-chain/chains/3dpass/keystore`
 
 #### Manual set up
-- Follow [manual set up guidelines](https://3dpass.org/mainnet#manual), if you'd like to set up your keys manually. 
+- Follow [manual set up guidelines](https://3dpass.org/mainnet#manual), if you'd like to set up your keys manually.
 Learn more about [addresses and keys](https://3dpass.org/mainnet#addresses).
 
 ### Run the Node
@@ -129,29 +133,58 @@ version: "3.9"
           - ADDRESS=PLACE MINER ADDRESS HERE
 
 ```
-You can generate your ADDRESS and MEMO_SEED phrase in the [wallet](https://wallet.3dpass.org/). 
+You can generate your ADDRESS and MEMO_SEED phrase in the [wallet](https://wallet.3dpass.org/).
 Follow this [tutorial](https://3dpass.org/mainnet#docker) for more details.
 
 
-## Connect to the wallet Front-end
+## Connect to the web3 wallet Front-end
 Open the wallet page: https://wallet.3dpass.org/. In order to connect your Node to the wallet in local you need to set up your local API endpoint as `ws://127.0.0.1:9944` in the Settings.
 Follow this [guidelines](https://3dpass.org/mainnet#wallet) for more details.
 
-##  Validator set (Masternodes)
-Validators represent a set of the most reliable Nodes (authorities) eligible to vote for Best chain finalization in accordance with the GRANDPA [deterministic finality](https://github.com/3Dpass/3DP/wiki/Proof-of-Scan:-PoA-component#deterministic-blockchain-finality) protocol rules. The validator set is open to join for any Node that meets the [SLA](https://3dpass.org/mainnet#validator-requirements) requirements. Current members are automatically selected and managed by the validator set module, which exploits a [collateral-based mechanism](https://3dpass.org/mainnet#validator-threshold) to prevent the protocol rules violations. Follow [this](https://3dpass.org/mainnet#validator) tutorial to set up Validator.
+## EVM and cross-platform options
+The Node is equipped with EVM compatibility layer comprised of the [EVM pallet](/pallets/evm) (Solidity code executor) as well as eth blockchain emulator with full client on top of the Substrate based master chain.
 
-## Assets 
-The [poScan](/pallets/poscan/) module serves as a mean of users' [objects authentication](https://3dpass.org/features#3dprc-2) within The Ledger of Things. 
+### Connect to Metamask and Remix in Local
+- Run the Node with the `--rpc-port 9978` flag (any port can be set up)
+- Add a custom chain to the Metamask wallet:
+   - Name: `3dpass - The Ledger of Things (testnet)`
+   - Testnet chain id: `1333`
+   - RPC provider: `https://127.0.0.1:9978`
+- Open [Remix](https://remix.ethereum.org) and connect it through the Metamask to be able to deploy and run Solidity smart contracts
 
-Additionally, the Node is equipped with the [poscanAssets](/pallets/poscan-assets/) module, which allows for Real World Objects (RWA) tokenization. Either [3DPRC2](https://3dpass.org/assets#3dprc-2) tokens or conventional [fungible tokens](https://3dpass.org/assets#conventional-assets) and NFTs can be issued.
+### EVM accounts
+There is a cross-platform mapping in place between the Substrate (H256) and EVM (H160) accounts, which allows for cross
+platfom actions - native token transfers, assets methods, etc. E.g. you can transfer tokens from EVM to any Substrate account and vice versa.
+And every account must have its `H256` version.
+
+- H256 -> H160 (derived by cutting the tail 20 bytes)
+  - e.g. `0xc6006fea43ccce14f9432f8e6b9403113c935cc17160cd438af2e7a02624124c` -> `0xc6006fea43ccce14f9432f8e6b9403113c935cc1`
+- H160 (private key) -> H256 address (mapped, **irreversible**)
+  - e.g. `0xc6006fea43ccce14f9432f8e6b9403113c935cc1` -> `0xceb75620b9f3bc3a039b8e78efed58fa3c7422d18c97f1fd44abf3f2499d0760` (prefix 72: d7fJyRyHivFfDXsDs14oYgtqCt3scfHgaLT5NxHs5f6e5ycsN)
+
+Use this [converter](https://hoonsubin.github.io/evm-substrate-address-converter/) to create a cross-platform alias for either Substrate or EVM account (testnet address prefix:`72`).
+
+### Custom precompiles
+Although the EVM exploits the [standard ethereum precompiles](https://github.com/3Dpass/3DP/tree/test/pallets/evm/precompile), there is a buch of
+[custom precompiles](/precompiles/), of which each one serves as a cross-platform `EVM -> Substrate` interface, so that native substrate functions can be called from Solidity.
+
+- Interaction with native token (P3Dt): [balances-erc20](/precompiles/balances-erc20) precompile, Contract address: `0x0000000000000000000000000000000000000802`
+- Interaction with Local assets 3DPRC2 - [assets-erc20](https://github.com/3Dpass/3DP/tree/test/precompiles/assets-erc20) precompile,
+Contract address format: `0xFBFBFBFA + <assetid in hex>`, where the `assetid` is the asset index in [poscanAssets]() runtime module.
+  e.g. You have created an asset with the `assetid 222`. The hex value of `222` is `DE`  . So, the `H160` address to run the contract at is going to be as follows: `0xFBFBFBFA000000000000000000000000000000DE`.
+
+## Assets
+The [poScan](/pallets/poscan/) module serves as a mean of users' [objects authenication](https://3dpass.org/features#3dprc-2) within The Ledger of Things.
+
+Additionaly, the Node is equipped with the [poscanAssets](/pallets/poscan-assets/) module, which allows for Real World Objects (RWA) tokenization. Either [3DPRC2](https://3dpass.org/assets#3dprc-2) tokens or conventional [fungible tokens](https://3dpass.org/assets#conventional-assets) and NFTs can be issued.
 
 ## Assets conversion (DEX)
 The [assetConversion](/pallets/asset-conversion) module is a custom version of a decentralized exchange based on Uniswap v2 protocol rules and integrated into The Ledger of Things runtime. Explore the module [API](https://github.com/3Dpass/3DP/wiki/DEX-module-API) and its [Web UI](https://github.com/3Dpass/3DP/tree/main/pallets/asset-conversion).
 
 ## "Ink" smart contracts
-The Node supports native Substrate Smart contract trait using [ink](https://use.ink/), a Rust-based embedded domain specific language (eDSL) for writing [WebAssembly](https://webassembly.org/) smart contracts. Learn [how ink can be compared to Solidity](https://use.ink/ink-vs-solidity/). Follow these [guidelines](https://3dpass.org/assets#smart-contracts) to run your smart contract on LoT.
+The Node supports native Substrate Smart contract trait using [ink](https://use.ink/), a Rust-based embedded domain specific language (eDSL) for writing [WebAssembly](https://webassembly.org/) smart contracts. Learn [how ink can be commpared to Solidity](https://use.ink/ink-vs-solidity/). Follow these [guiudelines](https://3dpass.org/assets#smart-contracts) to run your smart contract on LoT.
 
-## Development
+## Development mode
 
 ### Single-Node Development Chain
 
@@ -194,15 +227,18 @@ target/release/poscan-consensus --base-path /tmp/bob --chain local --bob --port 
 ```
 # Integration
 
-- NODE - the Node is based on [Substrate](https://substrate.io/) framework and implemented as two-piece design the `Rust native` part and the `Runtime` component ([WASM](https://webassembly.org/)-based), which is upgradable online and allows for multiple useful modules to operate (see more [forkless upgrade](https://3dpass.org/proof-of-scan#forkless-upgrade)). 
+# Integration
+
+- NODE - the Node is based on [Substrate](https://substrate.io/) framework and implemented as two-piece design the `Rust native` part and the `Runtime` component ([WASM](https://webassembly.org/)-based), which is upgradable online and allows for multiple useful modules to operate (see more [forkless upgrade](https://3dpass.org/proof-of-scan#forkless-upgrade)).
 - RPC (remote procedure call) - the capabilities that allow blockchain users to interact with the network. The NODE provides HTTP and [WebSocket](https://github.com/3Dpass/3DP/wiki/Set-up-WSS-for-Remote-Connections) RPC servers.
 - CORE Networking - the [`libp2p`](https://libp2p.io/) is used as as networking stack for the Nodes to communicate with each other.
 - [3Dpass light wallet](https://github.com/3Dpass/wallet) - desktop users and 3D printing labs integration
 - [Pass3d mobile](https://github.com/3Dpass/threedpass) - smartphone and tablets users integration
 
  <img width="719" alt="Node_integration" src="https://github.com/user-attachments/assets/93f186eb-c9db-4fd8-96b7-efc3b451a6b8">
- 
-### Responsibility disclaimer
+
+
+## Responsibility disclaimer
 This is an open source free p2p software. Use it at your own risk. 3dpass platform is non-profit and community-supported.
 
-Copyright (C) 2022-2025 3Dpass
+Copyright (C) 2002-2025 3Dpass https://3dpass.org/
