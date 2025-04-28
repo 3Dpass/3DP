@@ -18,17 +18,6 @@ The scope of potential 3Dpass applications goes way beyond 3D object recognition
 
 [Contribution Grant Program](https://3dpass.org/grants)  |  [Contributing guidelines](https://github.com/3Dpass/3DP/blob/main/CONTRIBUTING.md)  |  [Discord](https://discord.gg/u24WkXcwug)
 
-# Integration
-
-- NODE - the Node is based on [Substrate](https://substrate.io/) framework and implemented as two-piece design the `Rust native` part and the `Runtime` component ([WASM](https://webassembly.org/)-based), which is upgradable online and allows for multiple useful modules to operate (see more [forkless upgrade](https://3dpass.org/proof-of-scan#forkless-upgrade)). 
-- RPC (remote procedure call) - the capabilities that allow blockchain users to interact with the network. The NODE provides HTTP and [WebSocket](https://github.com/3Dpass/3DP/wiki/Set-up-WSS-for-Remote-Connections) RPC servers.
-- CORE Networking - the [`libp2p`](https://libp2p.io/) is used as as networking stack for the Nodes to communicate with each other.
-- [3Dpass light wallet](https://github.com/3Dpass/wallet) - desktop users and 3D printing labs integration
-- [Pass3d mobile](https://github.com/3Dpass/threedpass) - smartphone and tablets users integration
-
- <img width="719" alt="Node_integration" src="https://github.com/user-attachments/assets/93f186eb-c9db-4fd8-96b7-efc3b451a6b8">
-
-
 ## Getting started with 3Dpass Node
 
 ### Download the latest release
@@ -149,6 +138,20 @@ Follow this [tutorial](https://3dpass.org/mainnet#docker) for more details.
 Open the wallet page: https://wallet.3dpass.org/. In order to connect your Node to the wallet in local you need to set up your local API endpoint as `ws://127.0.0.1:9944` in the Settings.
 Follow this [guidelines](https://3dpass.org/mainnet#wallet) for more details.
 
+##  Validator set (Masternodes)
+Validators represent a set of the most reliable Nodes (authorities) eligible to vote for Best chain finalization in accordance with the GRANDPA [deterministic finality](https://3dpass.org/features#ledger-why-deterministic-blockchain-finality) protocol rules. The validator set is open to join for any Node that meets the [SLA](https://3dpass.org/mainnet#validator-requirements) requirements. Current members are automatically selected and managed by the validator set module, which exploits a [collateral-based mechanism](https://3dpass.org/mainnet#validator-threshold) to prevent the protocol rules violations. Follow [this](https://3dpass.org/mainnet#validator) tutorial to set up Validator.
+
+## Assets 
+The [poScan](/pallets/poscan/) module serves as a mean of users' [objects authentication](https://3dpass.org/features#3dprc-2) within The Ledger of Things. 
+
+Additionally, the Node is equipped with the [poscanAssets](/pallets/poscan-assets/) module, which allows for Real World Objects (RWA) tokenization. Either [3DPRC2](https://3dpass.org/assets#3dprc-2) tokens or conventional [fungible tokens](https://3dpass.org/assets#conventional-assets) and NFTs can be issued.
+
+## Assets conversion (DEX)
+The [assetConversion](/pallets/asset-conversion) module is a custom version of a decentralized exchange based on Uniswap v2 protocol rules and integrated into The Ledger of Things runtime. Explore the module [API](https://github.com/3Dpass/3DP/wiki/DEX-module-API) and its [Web UI](https://github.com/3Dpass/3DP/tree/main/pallets/asset-conversion).
+
+## "Ink" smart contracts
+The Node supports native Substrate Smart contract trait using [ink](https://use.ink/), a Rust-based embedded domain specific language (eDSL) for writing [WebAssembly](https://webassembly.org/) smart contracts. Learn [how ink can be compared to Solidity](https://use.ink/ink-vs-solidity/). Follow these [guidelines](https://3dpass.org/assets#smart-contracts) to run your smart contract on LoT.
+
 ## Development
 
 ### Single-Node Development Chain
@@ -190,6 +193,16 @@ Run the second Node:
 ```bash
 target/release/poscan-consensus --base-path /tmp/bob --chain local --bob --port 30334 --ws-port 9945 --rpc-port 9934  --bootnodes /ip4/127.0.0.1/tcp/30333/p2p/12D3KooWEyoppNCUx8Yx66oV9fJnriXwCcXwDDUA2kj6vnc6iDEp --validator
 ```
+# Integration
+
+- NODE - the Node is based on [Substrate](https://substrate.io/) framework and implemented as two-piece design the `Rust native` part and the `Runtime` component ([WASM](https://webassembly.org/)-based), which is upgradable online and allows for multiple useful modules to operate (see more [forkless upgrade](https://3dpass.org/proof-of-scan#forkless-upgrade)). 
+- RPC (remote procedure call) - the capabilities that allow blockchain users to interact with the network. The NODE provides HTTP and [WebSocket](https://github.com/3Dpass/3DP/wiki/Set-up-WSS-for-Remote-Connections) RPC servers.
+- CORE Networking - the [`libp2p`](https://libp2p.io/) is used as as networking stack for the Nodes to communicate with each other.
+- [3Dpass light wallet](https://github.com/3Dpass/wallet) - desktop users and 3D printing labs integration
+- [Pass3d mobile](https://github.com/3Dpass/threedpass) - smartphone and tablets users integration
+
+ <img width="719" alt="Node_integration" src="https://github.com/user-attachments/assets/93f186eb-c9db-4fd8-96b7-efc3b451a6b8">
+ 
 ### Responsibility disclaimer
 This is an open source free p2p software. Use it at your own risk. 3dpass platform is non-profit and community-supported.
 
