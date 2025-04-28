@@ -311,9 +311,9 @@ where
 			}
 		};
 
-		if self.skip_check {
-			return Ok(true);
-		}
+		// if self.skip_check {
+		// 	return Ok(true);
+		// }
 
 		let parent_id = BlockId::<B>::hash(*parent);
 		let parent_num = self
@@ -468,9 +468,9 @@ where
 			}
 		};
 
-		if self.skip_check {
-			return Ok(true);
-		}
+		// if self.skip_check {
+		// 	return Ok(true);
+		// }
 
 		let parent_id = BlockId::<B>::hash(*parent);
 		let parent_num = self
