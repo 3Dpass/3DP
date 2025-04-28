@@ -178,13 +178,13 @@ Contract address format: `0xFBFBFBFA + <assetid in hex>`, where the `assetid` is
 ## Assets
 The [poScan](/pallets/poscan/) module serves as a mean of users' [objects authenication](https://3dpass.org/features#3dprc-2) within The Ledger of Things.
 
-Additionaly, the Node is equipped with the [poscanAssets](/pallets/poscan-assets/) module, which allows for Real World Objects (RWA) tokenization. Either [3DPRC2](https://3dpass.org/assets#3dprc-2) tokens or conventional [fungible tokens](https://3dpass.org/assets#conventional-assets) and NFTs can be issued.
+Additionally, the Node is equipped with the [poscanAssets](/pallets/poscan-assets/) module, which allows for Real World Objects (RWA) tokenization. Either [3DPRC2](https://3dpass.org/assets#3dprc-2) tokens or conventional [fungible tokens](https://3dpass.org/assets#conventional-assets) and NFTs can be issued.
 
 ## Assets conversion (DEX)
 The [assetConversion](/pallets/asset-conversion) module is a custom version of a decentralized exchange based on Uniswap v2 protocol rules and integrated into The Ledger of Things runtime. Explore the module [API](https://github.com/3Dpass/3DP/wiki/DEX-module-API) and its [Web UI](https://github.com/3Dpass/3DP/tree/main/pallets/asset-conversion).
 
 ## "Ink" smart contracts
-The Node supports native Substrate Smart contract trait using [ink](https://use.ink/), a Rust-based embedded domain specific language (eDSL) for writing [WebAssembly](https://webassembly.org/) smart contracts. Learn [how ink can be commpared to Solidity](https://use.ink/ink-vs-solidity/). Follow these [guiudelines](https://3dpass.org/assets#smart-contracts) to run your smart contract on LoT.
+The Node supports native Substrate Smart contract trait using [ink](https://use.ink/), a Rust-based embedded domain specific language (eDSL) for writing [WebAssembly](https://webassembly.org/) smart contracts. Learn [how ink can be compared to Solidity](https://use.ink/ink-vs-solidity/). Follow these [guidelines](https://3dpass.org/assets#smart-contracts) to run your smart contract on LoT.
 
 ## Development mode
 
