@@ -17,12 +17,12 @@ RUN --mount=type=cache,target=/usr/local/cargo/registry \
 
 FROM ubuntu:jammy
 ARG APP=/usr/src/app
+# Windows fix:
+RUN apt-get update && apt-get install -y --no-install-recommends dos2unix
 COPY --from=builder /app/target/release/poscan-consensus ${APP}/p3d
 COPY ./mainnetSpecRaw.json ${APP}/mainnetSpecRaw.json
 COPY ./docker/node.sh ${APP}/node.sh
-# Windows fix:
-RUN apt-get update && apt-get install -y --no-install-recommends dos2unix && dos2unix ${APP}/node.sh
-RUN chmod +x ${APP}/node.sh
+RUN chmod +x ${APP}/node.sh && dos2unix ${APP}/node.sh
 WORKDIR ${APP}
 EXPOSE 9933
 EXPOSE 9944
