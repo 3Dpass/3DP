@@ -15,7 +15,7 @@ The scope of potential 3Dpass applications goes way beyond 3D object recognition
 
 [3DPass Coin (P3D)](https://3dpass.org/coin) is a native utility token, operating within "The Ledger of Things" eco-system, which aims to incentivize the efforts of community members maintaining the network infrastructure. Such aspects as: Storage fee, Gas fee, The object authentication fee, Transaction fee, The validator collaterals, Penalties - are all being counted in P3D.
 
-[Contribution Grant Program](https://3dpass.org/grants)  |  [Contributing guidelines](https://github.com/3Dpass/3DP/blob/main/CONTRIBUTING.md)  |  [Discord](https://discord.gg/u24WkXcwug)
+ [AI dev deepWiKi](https://deepwiki.com/3Dpass/3DP) | [Contribution Grant Program](https://3dpass.org/grants)  |  [Contributing guidelines](https://github.com/3Dpass/3DP/blob/main/CONTRIBUTING.md)  |  [Discord](https://discord.gg/u24WkXcwug)
 
 ## Getting started with 3Dpass Node
 
