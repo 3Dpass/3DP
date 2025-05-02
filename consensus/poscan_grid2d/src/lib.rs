@@ -311,6 +311,14 @@ where
 			}
 		};
 
+		// Light Client Mode (Simple Nodes Only).
+		// This feature is currently unstable and still under development.
+
+		// The skip_check option allows for simple nodes to skip the blockchain seal verification
+		// and rely solely on GRANDPA finality digests.
+		// While the light client mode facilitates easier synchronization,
+		// it is strictly prohibited during the mining or validation processes.
+
 		// if self.skip_check {
 		// 	return Ok(true);
 		// }
@@ -467,6 +475,14 @@ where
 				return Ok(false);
 			}
 		};
+
+		// Light Client Mode (Simple Nodes Only).
+		// This feature is currently unstable and still under development.
+
+		// The skip_check option allows for simple nodes to skip the blockchain seal verification
+		// and rely solely on GRANDPA finality digests.
+		// While the light client mode facilitates easier synchronization,
+		// it is strictly prohibited during the mining or validation processes.
 
 		// if self.skip_check {
 		// 	return Ok(true);
