@@ -24,13 +24,14 @@ use ethereum_types::{H160, H256, U256};
 use sc_client_api::backend::{Backend, StateBackend, StorageProvider};
 use sp_api::BlockId;
 use sp_runtime::{
-	traits::{BlakeTwo256, Block as BlockT},
+	traits::{BlakeTwo256, Block as BlockT, Get},
 	Permill,
 };
 use sp_storage::StorageKey;
 // Frontier
 use fp_rpc::TransactionStatus;
 use fp_storage::*;
+use precompile_utils::precompile_set::AddressU64;
 
 use super::{blake2_128_extend, storage_prefix_build, StorageOverride};
 
@@ -75,6 +76,15 @@ where
 {
 	/// For a given account address, returns pallet_evm::AccountCodes.
 	fn account_code_at(&self, block: &BlockId<B>, address: H160) -> Option<Vec<u8>> {
+		let addr_bytes = address.as_bytes();
+		// Asset prefixes: 0xFBFBFBFB and 0xFBFBFBFA
+		let is_foreign = addr_bytes[0..4] == [0xFB, 0xFB, 0xFB, 0xFB];
+		let is_local = addr_bytes[0..4] == [0xFB, 0xFB, 0xFB, 0xFA];
+		let is_native = address == AddressU64::<2050>::get();
+		if is_foreign || is_local || is_native {
+			// Return dummy contract code for MetaMask compatibility
+			return Some(vec![0x60, 0x00, 0x60, 0x00, 0xfd]);
+		}
 		let mut key: Vec<u8> = storage_prefix_build(PALLET_EVM, EVM_ACCOUNT_CODES);
 		key.extend(blake2_128_extend(address.as_bytes()));
 		self.query_storage::<Vec<u8>>(block, &StorageKey(key))
