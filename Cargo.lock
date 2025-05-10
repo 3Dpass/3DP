@@ -1965,6 +1965,7 @@ dependencies = [
  "lru 0.8.1",
  "parity-scale-codec",
  "poscan-runtime",
+ "precompile-utils",
  "prometheus",
  "rand 0.8.5",
  "rlp",
