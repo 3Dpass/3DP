@@ -38,3 +38,5 @@ There is a legitimate way for Validators to exit without getting penalized, whic
 - `unlock(amount)` - unlocks certain amount of P3D is the lock period has expireed
 - `payPenalty` - allows to pay off all the penalties set for the validator
 - `submitEstimation (est, signature)` - system method leveraged by validators to submit the estimation on the user objects processing time (see more: [3DPRC2](https://github.com/3Dpass/whitepaper/blob/main/3DPRC-2.md))
+
+
