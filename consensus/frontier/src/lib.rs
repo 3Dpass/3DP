@@ -21,7 +21,7 @@ use std::{collections::HashMap, marker::PhantomData, sync::Arc};
 // Substrate
 use sc_client_api::{backend::AuxStore, BlockOf};
 use sc_consensus::{BlockCheckParams, BlockImport, BlockImportParams, ImportResult};
-use sp_api::ProvideRuntimeApi;
+use sp_api::{ProvideRuntimeApi, BlockId, Core};
 use sp_block_builder::BlockBuilder as BlockBuilderApi;
 use sp_blockchain::{well_known_cache_keys::Id as CacheKeyId, HeaderBackend};
 use sp_consensus::Error as ConsensusError;
@@ -115,6 +115,18 @@ where
 		&mut self,
 		block: BlockCheckParams<B>,
 	) -> Result<ImportResult, Self::Error> {
+
+		let parent_id: BlockId<B> = BlockId::hash(block.parent_hash);
+
+		let ver = self.client
+			.runtime_api()
+			.version(&parent_id)
+			.map_err(|_err| Error::RuntimeApiCallFailed)?;
+
+		if ver.spec_version <= 128u32 {
+			return Ok(ImportResult::imported(true))
+		}
+
 		self.inner.check_block(block).await.map_err(Into::into)
 	}
 
@@ -123,6 +135,18 @@ where
 		block: BlockImportParams<B, Self::Transaction>,
 		new_cache: HashMap<CacheKeyId, Vec<u8>>,
 	) -> Result<ImportResult, Self::Error> {
+
+		let parent_id: BlockId<B> = BlockId::hash(*block.header.parent_hash());
+
+		let ver = self.client
+			.runtime_api()
+			.version(&parent_id)
+			.map_err(|_err| Error::RuntimeApiCallFailed)?;
+
+		if ver.spec_version <= 128u32 {
+			return Ok(ImportResult::imported(true))
+		}
+
 		// We validate that there are only one frontier log. No other
 		// actions are needed and mapping syncing is delegated to a separate
 		// worker.
