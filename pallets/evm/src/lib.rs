@@ -609,17 +609,14 @@ impl AddressMapping<H160> for IdentityAddressMapping {
 /// Hashed address mapping.
 pub struct HashedAddressMapping<H>(sp_std::marker::PhantomData<H>);
 
-const FOREIGN_ASSET_PRECOMPILE_ADDRESS_PREFIX: &[u8] = &[251u8; 4];
-use sp_core::crypto::ByteArray;
-
 impl<H: Hasher<Out = H256>> AddressMapping<AccountId32> for HashedAddressMapping<H> {
 	fn into_account_id(address: H160) -> AccountId32 {
-		let mut data = [0u8; 32];
-		data[0..4].copy_from_slice(FOREIGN_ASSET_PRECOMPILE_ADDRESS_PREFIX);
-		data[4..12].copy_from_slice(&[0u8;8]);
-		data[12..32].copy_from_slice(&address[..]);
+		let mut data = [0u8; 24];
+		data[0..4].copy_from_slice(b"evm:");
+		data[4..24].copy_from_slice(&address[..]);
+		let hash = H::hash(&data);
 
-		AccountId32::from_slice(&data).unwrap()
+		AccountId32::from(Into::<[u8; 32]>::into(hash))
 	}
 }
 
