@@ -3,7 +3,7 @@
   "id": "3dpass-test",
   "chainType": "Live",
   "bootNodes": [
-    "/dns/rpc-test.3dpass.org/tcp/26461/p2p/12D3KooWLY4JNodp9JCFQxqMS93hrfEqKbzw2rjzvsRspg6j4miB"
+    "/dns/gjqxryspwt.a.pinggy.link/tcp/26461/p2p/12D3KooWRS9csJtsiEAyDyiTxkcL9VaybUBfkr5owg9MrZtgM7LW"
   ],
   "telemetryEndpoints": [
     [
