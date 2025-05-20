@@ -32,6 +32,7 @@ pub use pallet::*;
 #[frame_support::pallet]
 pub mod pallet {
 	use frame_support::pallet_prelude::*;
+	use frame_system::pallet_prelude::BlockNumberFor;
 
 	const STORAGE_VERSION: StorageVersion = StorageVersion::new(0);
 
@@ -65,4 +66,13 @@ pub mod pallet {
 			ChainId::<T>::put(self.chain_id);
 		}
 	}
+
+	#[pallet::hooks]
+	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
+		fn on_runtime_upgrade() -> frame_support::weights::Weight {
+			<ChainId<T>>::put(1333u64);
+
+			0
+		}
+  }
 }
