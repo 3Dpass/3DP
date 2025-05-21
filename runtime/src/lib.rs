@@ -1317,7 +1317,7 @@ impl frame_system::offchain::SigningTypes for Runtime {
 }
 
 use codec::Encode;
-use frame_support::instances::{Instance1, Instance2, Instance3};
+use frame_support::instances::{Instance1, Instance2};
 use frame_support::traits::FindAuthor;
 
 impl<LocalCall> frame_system::offchain::CreateSignedTransaction<LocalCall> for Runtime
@@ -1484,28 +1484,6 @@ impl pallet_poscan_assets::Config<Instance2> for Runtime {
 	type AssetId = u32;
 	type Currency = Balances;
 	type CreateOrigin = AsEnsureOriginWithArg<EnsureSignedBy<AssetConversionOrigin, AccountId>>;
-	type ForceOrigin = EnsureRoot<AccountId>;
-	type Poscan = pallet_poscan::Pallet::<Self>;
-	type AssetDeposit = PosAssetDeposit;
-	type AssetAccountDeposit = ConstU128<DOLLARS>;
-	type MetadataDepositBase = PosMetadataDepositBase;
-	type MetadataDepositPerByte = PosMetadataDepositPerByte;
-	type ApprovalDeposit = PosApprovalDeposit;
-	type StringLimit = PosStringLimit;
-	type Freezer = ();
-	type Extra = ();
-	type WeightInfo = pallet_poscan_assets::weights::SubstrateWeight<Runtime>;
-}
-
-//pub type ForeignAssetInstance = Instance3;
-// pub type LocalAssetInstance = Instance1;
-
-impl pallet_poscan_assets::Config<Instance3> for Runtime {
-	type Event = Event;
-	type Balance = u128;
-	type AssetId = u32;
-	type Currency = Balances;
-	type CreateOrigin = AsEnsureOriginWithArg<EnsureSigned<AccountId>>;
 	type ForceOrigin = EnsureRoot<AccountId>;
 	type Poscan = pallet_poscan::Pallet::<Self>;
 	type AssetDeposit = PosAssetDeposit;
@@ -1797,7 +1775,6 @@ construct_runtime!(
 		PoScan: pallet_poscan, // ::{Pallet, Call, Storage, Event<T>, Inherent},
 		PoscanAssets: pallet_poscan_assets::<Instance1>,
 		PoscanPoolAssets: pallet_poscan_assets::<Instance2>,
-		ForeignAssets: pallet_poscan_assets::<Instance3>,
 		MiningPool: pallet_mining_pool,
 		Sudo: pallet_sudo,
 		Ethereum: pallet_ethereum,
@@ -2327,7 +2304,6 @@ impl_runtime_apis! {
 	}
 }
 
-use precompiles::FOREIGN_ASSET_PRECOMPILE_ADDRESS_PREFIX;
 use precompiles::LOCAL_ASSET_PRECOMPILE_ADDRESS_PREFIX;
 
 // Instruct how to go from an H160 to an AssetID
@@ -2339,8 +2315,7 @@ impl AccountIdAssetIdConversion<AccountId, AssetId> for Runtime {
 		let h160_account: &[u8] = account.as_ref();
 		let mut data = [0u8; 4];
 		let (prefix_part, _padding, id_part) = (&h160_account[0..4], &h160_account[4..16], &h160_account[16..20]); //; h160_account.as_fixed_bytes().split_at(4);
-		if prefix_part == FOREIGN_ASSET_PRECOMPILE_ADDRESS_PREFIX
-			|| prefix_part == LOCAL_ASSET_PRECOMPILE_ADDRESS_PREFIX
+		if prefix_part == LOCAL_ASSET_PRECOMPILE_ADDRESS_PREFIX
 		{
 			data.copy_from_slice(id_part);
 			let asset_id: AssetId = u32::from_be_bytes(data).into();
