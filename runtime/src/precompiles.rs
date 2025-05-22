@@ -37,12 +37,12 @@ pub struct NativeErc20Metadata;
 impl Erc20Metadata for NativeErc20Metadata {
 	/// Returns the name of the token.
 	fn name() -> &'static str {
-		"P3Dt token"
+		"P3D token"
 	}
 
 	/// Returns the symbol of the token.
 	fn symbol() -> &'static str {
-		"P3Dt"
+		"P3D"
 	}
 
 	/// Returns the decimals places of the token.
