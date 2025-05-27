@@ -53,6 +53,7 @@ use core::ops::Bound::{Excluded, Included};
 use lazy_static::lazy_static;
 use log::*;
 use prometheus_endpoint::Registry;
+use sp_runtime::ConsensusEngineId;
 use sp_api::ProvideRuntimeApi;
 use sp_block_builder::BlockBuilder as BlockBuilderApi;
 use sp_consensus::{
@@ -104,6 +105,8 @@ pub enum Error<B: BlockT> {
 	HeaderUnsealed(B::Hash),
 	#[display(fmt = "PoScan validation error: invalid seal")]
 	InvalidSeal,
+	#[display(fmt = "PoScan validation error: frontier preruntime not found or not valid")]
+	NoFrontierPreRuntime,
 	#[display(fmt = "PoScan validation error: preliminary verification failed")]
 	FailedPreliminaryVerify,
 	#[display(fmt = "Rejecting block too far in future")]
@@ -559,7 +562,7 @@ where
 
 		let digest_size = block.post_digests.len();
 
-		let pre_digest: Vec<u8> = find_pre_digest::<B>(&block.header)?.unwrap();
+		let pre_digest: Vec<u8> = find_pre_digest::<B>(&block.header, POSCAN_ENGINE_ID)?.unwrap();
 
 		let pscan_obj =
 			fetch_seal::<B>(block.post_digests.get(digest_size - 1), block.header.hash())?;
@@ -596,6 +599,13 @@ where
 					err
 				))
 			})?;
+
+		if ver.spec_version >= 130 {
+			let pre_digest = find_pre_digest::<B>(&block.header, FRONTIER_ENGINE_ID)?;
+			if pre_digest.is_none() {
+				return Err(Error::<B>::NoFrontierPreRuntime.into());
+			}
+		}
 
 		let (inner_seal, psdata) = if ver.spec_version < CONS_V2_SPEC_VER {
 			let inner_seal =
@@ -889,15 +899,15 @@ where
 }
 
 /// Find PoW pre-runtime.
-fn find_pre_digest<B: BlockT>(header: &B::Header) -> Result<Option<Vec<u8>>, Error<B>> {
+fn find_pre_digest<B: BlockT>(header: &B::Header, engine_id: ConsensusEngineId) -> Result<Option<Vec<u8>>, Error<B>> {
 	let mut pre_digest: Option<_> = None;
 	for log in header.digest().logs() {
 		trace!(target: "pow", "Checking log {:?}, looking for pre runtime digest", log);
 		match (log, pre_digest.is_some()) {
-			(DigestItem::PreRuntime(POSCAN_ENGINE_ID, _), true) => {
+			(DigestItem::PreRuntime(engine_id, _), true) => {
 				return Err(Error::MultiplePreRuntimeDigests)
 			}
-			(DigestItem::PreRuntime(POSCAN_ENGINE_ID, v), false) => {
+			(DigestItem::PreRuntime(engine_id, v), false) => {
 				pre_digest = Some(v.clone());
 			}
 			(_, _) => trace!(target: "pow", "Ignoring digest not meant for us"),
