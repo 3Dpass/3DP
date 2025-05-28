@@ -562,7 +562,7 @@ where
 
 		let digest_size = block.post_digests.len();
 
-		let pre_digest: Vec<u8> = find_pre_digest::<B>(&block.header, POSCAN_ENGINE_ID)?.unwrap();
+		let pre_digest: Vec<u8> = find_pre_digest::<B>(&block.header, &POSCAN_ENGINE_ID)?.unwrap();
 
 		let pscan_obj =
 			fetch_seal::<B>(block.post_digests.get(digest_size - 1), block.header.hash())?;
@@ -601,7 +601,7 @@ where
 			})?;
 
 		if ver.spec_version >= 130 {
-			let pre_digest = find_pre_digest::<B>(&block.header, FRONTIER_ENGINE_ID)?;
+			let pre_digest = find_pre_digest::<B>(&block.header, &FRONTIER_ENGINE_ID)?;
 			if pre_digest.is_none() {
 				return Err(Error::<B>::NoFrontierPreRuntime.into());
 			}
@@ -899,16 +899,21 @@ where
 }
 
 /// Find PoW pre-runtime.
-fn find_pre_digest<B: BlockT>(header: &B::Header, engine_id: ConsensusEngineId) -> Result<Option<Vec<u8>>, Error<B>> {
+fn find_pre_digest<B: BlockT>(header: &B::Header, eng_id: &ConsensusEngineId) -> Result<Option<Vec<u8>>, Error<B>> {
 	let mut pre_digest: Option<_> = None;
+	let eng_id = eng_id.to_vec();
 	for log in header.digest().logs() {
 		trace!(target: "pow", "Checking log {:?}, looking for pre runtime digest", log);
 		match (log, pre_digest.is_some()) {
 			(DigestItem::PreRuntime(engine_id, _), true) => {
-				return Err(Error::MultiplePreRuntimeDigests)
+				if engine_id.to_vec() == eng_id {
+					return Err(Error::MultiplePreRuntimeDigests)
+				}
 			}
 			(DigestItem::PreRuntime(engine_id, v), false) => {
-				pre_digest = Some(v.clone());
+				if engine_id.to_vec() == eng_id {
+					pre_digest = Some(v.clone());
+				}
 			}
 			(_, _) => trace!(target: "pow", "Ignoring digest not meant for us"),
 		}
