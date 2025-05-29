@@ -604,7 +604,7 @@ where
 		let pre_digest_frn = find_pre_digest::<B>(&block.header, &FRONTIER_ENGINE_ID)?;
 		match pre_digest_frn {
 			Some(ref data) =>
-				if ver.spec_version < 130 || data != &pre_digest {
+				if data != &pre_digest {
 						return Err(Error::<B>::FrontierPreRuntime.into());
 				},
 			None =>
@@ -1108,9 +1108,9 @@ where
 
 				match ver {
 					Ok(ver) =>
-					    if ver.spec_version >= 130 { 
+					    if ver.spec_version >= 130 {
 							inherent_digest.push(
-								DigestItem::PreRuntime(FRONTIER_ENGINE_ID, 
+								DigestItem::PreRuntime(FRONTIER_ENGINE_ID,
 								pre_runtime.to_vec())
 							);
 						},
