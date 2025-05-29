@@ -265,6 +265,7 @@ pub mod pallet {
 			}
 			poscan_algo::hashable_object::try_call();
 			poscan_algo::hashable_object::try_call_128();
+			poscan_algo::hashable_object::try_call_130();
 
 			for obj_idx in Objects::<T>::iter_keys() {
 				Objects::<T>::mutate(obj_idx, |obj_data| {
