@@ -106,7 +106,7 @@ pub enum Error<B: BlockT> {
 	#[display(fmt = "PoScan validation error: invalid seal")]
 	InvalidSeal,
 	#[display(fmt = "PoScan validation error: frontier preruntime not found or not valid")]
-	NoFrontierPreRuntime,
+	FrontierPreRuntime,
 	#[display(fmt = "PoScan validation error: preliminary verification failed")]
 	FailedPreliminaryVerify,
 	#[display(fmt = "Rejecting block too far in future")]
@@ -488,6 +488,7 @@ use scale_info::TypeInfo;
 use sp_runtime::traits::Member;
 use sp_std::fmt::Debug;
 
+
 #[async_trait::async_trait]
 impl<B, I, C, S, Algorithm, CAW, CIDP, AccountId, BlockNumber> BlockImport<B>
 	for PowBlockImport<B, I, C, S, Algorithm, CAW, CIDP, AccountId, BlockNumber>
@@ -600,11 +601,16 @@ where
 				))
 			})?;
 
-		if ver.spec_version >= 130 {
-			let pre_digest = find_pre_digest::<B>(&block.header, &FRONTIER_ENGINE_ID)?;
-			if pre_digest.is_none() {
-				return Err(Error::<B>::NoFrontierPreRuntime.into());
-			}
+		let pre_digest_frn = find_pre_digest::<B>(&block.header, &FRONTIER_ENGINE_ID)?;
+		match pre_digest_frn {
+			Some(ref data) =>
+				if ver.spec_version < 130 || data != &pre_digest {
+						return Err(Error::<B>::FrontierPreRuntime.into());
+				},
+			None =>
+				if ver.spec_version >= 130 {
+					return Err(Error::<B>::FrontierPreRuntime.into());
+				}
 		}
 
 		let (inner_seal, psdata) = if ver.spec_version < CONS_V2_SPEC_VER {
@@ -990,6 +996,7 @@ where
 		+ BlockBackend<Block>
 		+ HeaderBackend<Block>
 		+ HeaderMetadata<Block, Error = sp_blockchain::Error>,
+	C::Api: BlockBuilderApi<Block>,
 	S: SelectChain<Block> + 'static,
 	Algorithm: PowAlgorithm<Block> + Clone,
 	Algorithm::Difficulty: Send + 'static,
@@ -1093,7 +1100,29 @@ where
 			let mut inherent_digest = Digest::default();
 			if let Some(pre_runtime) = &pre_runtime {
 				inherent_digest.push(DigestItem::PreRuntime(POSCAN_ENGINE_ID, pre_runtime.to_vec()));
-				inherent_digest.push(DigestItem::PreRuntime(FRONTIER_ENGINE_ID, pre_runtime.to_vec()));
+
+				let parent_id: BlockId<Block> = BlockId::hash(best_hash);
+				let ver = client
+					.runtime_api()
+					.version(&parent_id);
+
+				match ver {
+					Ok(ver) =>
+					    if ver.spec_version >= 130 { 
+							inherent_digest.push(
+								DigestItem::PreRuntime(FRONTIER_ENGINE_ID, 
+								pre_runtime.to_vec())
+							);
+						},
+					Err(err) => {
+						warn!(
+							target: "pow",
+							"Unable get runtime version in start_mining_worker {:?}",
+							err,
+					    );
+					    continue;
+					},
+				}
 			}
 
 			let pre_runtime = pre_runtime.clone();
