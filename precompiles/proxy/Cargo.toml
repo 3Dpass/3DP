@@ -1,0 +1,42 @@
+[package]
+name = "pallet-evm-precompile-proxy"
+authors = [ "PureStake" ]
+description = "A Precompile to make proxy calls encoding accessible to pallet-evm"
+edition = "2021"
+version = "0.1.0"
+
+[dependencies]
+log = "0.4"
+num_enum = { version = "0.5.3", default-features = false }
+rustc-hex = { version = "2.0.1", default-features = false }
+
+# Moonbeam
+precompile-utils = { path = "../utils", default-features = false }
+
+# Substrate
+frame-support = { git = "https://github.com/paritytech/substrate", rev = "b0777b4c7f7", default-features = false  }
+frame-system = { git = "https://github.com/paritytech/substrate", rev = "b0777b4c7f7", default-features = false  }
+pallet-proxy = { git = "https://github.com/paritytech/substrate", rev = "b0777b4c7f7", default-features = false  }
+parity-scale-codec = { version = "3.0.0", default-features = false, features = [ "derive" ] }
+sp-core = { git = "https://github.com/paritytech/substrate", rev = "b0777b4c7f7", default-features = false  }
+sp-runtime = { git = "https://github.com/paritytech/substrate", rev = "b0777b4c7f7", default-features = false  }
+sp-std = { git = "https://github.com/paritytech/substrate", rev = "b0777b4c7f7", default-features = false  }
+
+# Frontier
+fp-evm = { version = "3.0.0-dev", path = "../../primitives/evm", default-features = false }
+pallet-evm = { path = "../../pallets/evm", default-features = false, features = [ "forbid-evm-reentrancy" ] }
+
+[features]
+default = [ "std" ]
+std = [
+	"fp-evm/std",
+	"frame-support/std",
+	"frame-system/std",
+	"pallet-evm/std",
+	"pallet-proxy/std",
+	"parity-scale-codec/std",
+	"parity-scale-codec/std",
+	"precompile-utils/std",
+	"sp-runtime/std",
+	"sp-std/std",
+]

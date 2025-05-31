@@ -17,6 +17,7 @@ codec = { package = "parity-scale-codec", version = "3.1", default-features = fa
 scale-info = { version = "2.1.1", default-features = false, features = ["derive"] }
 smallvec = "1.4.0"
 static_assertions = "1.1.0"
+serde = { version = "1.0.101", optional = true, default-features = false, features = [ "derive" ] }
 
 pallet-authorship = { git = "https://github.com/paritytech/substrate", rev = "b0777b4c7f7", package = "pallet-authorship", default-features = false }
 pallet-balances = { git = "https://github.com/paritytech/substrate", rev = "b0777b4c7f7", package = "pallet-balances", default-features = false }
@@ -70,6 +71,7 @@ pallet-elections-phragmen = { default-features = false, git = "https://github.co
 pallet-ranked-collective = { default-features = false, git = "https://github.com/paritytech/substrate", rev = "b0777b4c7f7" }
 pallet-utility = { default-features = false, git = "https://github.com/paritytech/substrate", rev = "b0777b4c7f7" }
 pallet-offences = { default-features = false, git = "https://github.com/paritytech/substrate", rev = "b0777b4c7f7" }
+pallet-proxy = { default-features = false, git = "https://github.com/paritytech/substrate", rev = "b0777b4c7f7" }
 
 pallet-validator-set = { path = "../pallets/validator-set", default-features = false }
 pallet-atomic-swap = { path = "../pallets/atomic-swap", default-features = false }
@@ -81,6 +83,31 @@ rewards = { package = "pallet-rewards", path = "../pallets/rewards", default-fea
 pallet-referenda = { default-features = false, path = "../pallets/referenda" }
 pallet-asset-rate = { default-features = false, path = "../pallets/asset-rate" }
 pallet-identity = { default-features = false, path =  "../pallets/identity" }
+
+# Frontier
+fp-rpc = { path = "../primitives/rpc", default-features = false }
+fp-self-contained = { path = "../primitives/self-contained", default-features = false }
+fp-evm = { path = "../primitives/evm", default-features = false }
+# Frontier FRAME
+pallet-base-fee = { path = "../pallets/base-fee", default-features = false }
+pallet-dynamic-fee = { path = "../pallets/dynamic-fee", default-features = false }
+pallet-ethereum = { path = "../pallets/ethereum", default-features = false }
+pallet-evm = { path = "../pallets/evm", default-features = false }
+pallet-evm-chain-id = { path = "../pallets/evm-chain-id", default-features = false }
+pallet-evm-precompile-modexp = { path = "../pallets/evm/precompile/modexp", default-features = false }
+pallet-evm-precompile-sha3fips = { path = "../pallets/evm/precompile/sha3fips", default-features = false }
+pallet-evm-precompile-simple = { path = "../pallets/evm/precompile/simple", default-features = false }
+pallet-hotfix-sufficients = { path = "../pallets/hotfix-sufficients", default-features = false }
+
+pallet-evm-precompile-bn128 = { path = "../pallets/evm/precompile/bn128", default-features = false }
+pallet-evm-precompile-blake2 = { path = "../pallets/evm/precompile/blake2", default-features = false }
+pallet-evm-precompile-balances-erc20 = { path = "../precompiles/balances-erc20", default-features = false }
+pallet-evm-precompileset-assets-erc20 = { path = "../precompiles/assets-erc20", default-features = false }
+pallet-evm-precompile-call-permit = { path = "../precompiles/call-permit", default-features = false }
+pallet-evm-precompile-batch = { path = "../precompiles/batch", default-features = false }
+pallet-evm-precompile-proxy = { path = "../precompiles/proxy", default-features = false }
+
+precompile-utils = { path = "../precompiles/utils", default-features = false }
 
 # Used for the node's RPCs
 frame-system-rpc-runtime-api = { git = "https://github.com/paritytech/substrate", rev = "b0777b4c7f7", package = "frame-system-rpc-runtime-api", default-features = false }
@@ -116,6 +143,7 @@ default = [
 ]
 std = [
 	"codec/std",
+	"serde",
 	"scale-info/std",
 	"frame-executive/std",
 	"frame-support/std",
@@ -169,6 +197,8 @@ std = [
 	"pallet-session/std",
 	"pallet-im-online/std",
 	# "pallet-offences/std",
+	"pallet-proxy/std",
+	"pallet-evm-precompile-proxy/std",
 	"pallet-referenda/std",
 	"pallet-asset-rate/std",
 	"pallet-membership/std",
@@ -183,6 +213,28 @@ std = [
 	"rewards/std",
 	# "lockdrop/std",
 	"poscan-api/std",
+
+	"pallet-evm-precompile-balances-erc20/std",
+	"pallet-evm-precompileset-assets-erc20/std",
+	"pallet-evm-precompile-bn128/std",
+	"pallet-evm-precompile-blake2/std",
+	"precompile-utils/std",
+	"pallet-evm-precompile-call-permit/std",
+	"pallet-evm-precompile-batch/std",
+
+	"fp-rpc/std",
+	"fp-self-contained/std",
+	"fp-evm/std",
+	"pallet-base-fee/std",
+	"pallet-dynamic-fee/std",
+	"pallet-ethereum/std",
+	"pallet-evm/std",
+	"pallet-evm-chain-id/std",
+	"pallet-evm-precompile-modexp/std",
+	"pallet-evm-precompile-sha3fips/std",
+	"pallet-evm-precompile-simple/std",
+	"pallet-hotfix-sufficients/std",
+
 ]
 runtime-benchmarks = [
 	"frame-benchmarking/runtime-benchmarks",

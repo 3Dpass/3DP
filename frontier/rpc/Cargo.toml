@@ -1,0 +1,71 @@
+[package]
+name = "fc-rpc"
+version = "2.0.0-dev"
+authors = ["Parity Technologies <admin@parity.io>"]
+edition = "2021"
+license = "GPL-3.0-or-later WITH Classpath-exception-2.0"
+description = "Ethereum RPC (web3) compatibility layer for Substrate."
+repository = "https://github.com/paritytech/frontier/"
+
+[package.metadata.docs.rs]
+targets = ["x86_64-unknown-linux-gnu"]
+
+[dependencies]
+ethereum = { version = "0.12.0", features = ["with-codec"] }
+evm = { git = "https://github.com/rust-blockchain/evm", rev = "6534c1dd8ad77b53d05032f80e8a5f2de4d37fd2" }
+futures = "0.3"
+hex = "0.4.3"
+log = "0.4.17"
+lru = "0.8.0"
+prometheus = { version = "0.13.1", default-features = false }
+rand = "0.8"
+tokio = { version = "1.19", features = ["sync"] }
+
+# Parity
+codec = { package = "parity-scale-codec", version = "3.0.0" }
+ethereum-types = "0.13.1"
+jsonrpsee = { version = "0.14.0", features = ["server", "macros"] }
+jsonrpsee-types = { version = "0.14.0" }
+libsecp256k1 = "0.7"
+rlp = "0.5"
+
+# Substrate
+prometheus-endpoint = { package = "substrate-prometheus-endpoint", git = "https://github.com/paritytech/substrate", rev = "b0777b4c7f7" }
+sc-client-api = { version = "4.0.0-dev", git = "https://github.com/paritytech/substrate", rev = "b0777b4c7f7" }
+sc-network = { version = "0.10.0-dev", git = "https://github.com/paritytech/substrate", rev = "b0777b4c7f7" }
+sc-network-common = { version = "0.10.0-dev", git = "https://github.com/paritytech/substrate", rev = "b0777b4c7f7" }
+sc-rpc = { version = "4.0.0-dev", git = "https://github.com/paritytech/substrate", rev = "b0777b4c7f7" }
+sc-service = { version = "0.10.0-dev", git = "https://github.com/paritytech/substrate", rev = "b0777b4c7f7" }
+sc-transaction-pool = { version = "4.0.0-dev", git = "https://github.com/paritytech/substrate", rev = "b0777b4c7f7" }
+sc-transaction-pool-api = { version = "4.0.0-dev", git = "https://github.com/paritytech/substrate", rev = "b0777b4c7f7" }
+sp-api = { version = "4.0.0-dev", git = "https://github.com/paritytech/substrate", rev = "b0777b4c7f7" }
+sp-block-builder = { version = "4.0.0-dev", git = "https://github.com/paritytech/substrate", rev = "b0777b4c7f7" }
+sp-blockchain = { version = "4.0.0-dev", git = "https://github.com/paritytech/substrate", rev = "b0777b4c7f7" }
+sp-consensus = { version = "0.10.0-dev", git = "https://github.com/paritytech/substrate", rev = "b0777b4c7f7" }
+sp-core = { version = "6.0.0", git = "https://github.com/paritytech/substrate", rev = "b0777b4c7f7" }
+sp-io = { version = "6.0.0", git = "https://github.com/paritytech/substrate", rev = "b0777b4c7f7" }
+sp-runtime = { version = "6.0.0", git = "https://github.com/paritytech/substrate", rev = "b0777b4c7f7" }
+sp-storage = { version = "6.0.0", git = "https://github.com/paritytech/substrate", rev = "b0777b4c7f7" }
+
+# Frontier
+fc-db = { version = "2.0.0-dev", path = "../db" }
+fc-rpc-core = { version = "1.1.0-dev", path = "../rpc-core" }
+fp-ethereum = { version = "1.0.0-dev", path = "../../primitives/ethereum" }
+fp-evm = { version = "3.0.0-dev", path = "../../primitives/evm" }
+fp-rpc = { version = "3.0.0-dev", path = "../../primitives/rpc" }
+fp-storage = { version = "2.0.0-dev", path = "../../primitives/storage" }
+precompile-utils = { path = "../../precompiles/utils" }
+
+[dev-dependencies]
+tempfile = "3.3.0"
+# Substrate
+beefy-primitives = { version = "4.0.0-dev", git = "https://github.com/paritytech/substrate", rev = "b0777b4c7f7" }
+sc-block-builder = { version = "0.10.0-dev", git = "https://github.com/paritytech/substrate", rev = "b0777b4c7f7" }
+sc-client-db = { version = "0.10.0-dev", git = "https://github.com/paritytech/substrate", rev = "b0777b4c7f7" }
+sp-consensus = { version = "0.10.0-dev", git = "https://github.com/paritytech/substrate", rev = "b0777b4c7f7" }
+substrate-test-runtime-client = { version = "2.0.0", git = "https://github.com/paritytech/substrate", rev = "b0777b4c7f7" }
+# Frontier
+poscan-runtime = { path = "../../runtime" }
+
+[features]
+rpc_binary_search_estimate = []
