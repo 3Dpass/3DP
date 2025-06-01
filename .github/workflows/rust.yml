@@ -24,38 +24,47 @@ jobs:
             os: macos-latest
             name: macos
             suffix: ''
+          - target: x86_64-pc-windows-msvc
+            os: windows-latest
+            name: windows-x86_64
+            suffix: '.exe'
 
     runs-on: ${{ matrix.os }}
 
     steps:
+      # ------------- Checkout -------------
       - uses: actions/checkout@v4.2.2
 
+      # ------------- Rust toolchain -------------
       - uses: actions-rs/toolchain@v1.0.7
         with:
           profile: minimal
           toolchain: stable
           override: true
 
-      - name: Install cross-compilation tools
+      # ------------- Ubuntu-only prerequisites -------------
+      - name: Install AArch64 gcc/g++
+        if: startsWith(matrix.os, 'ubuntu')
         run: |
           sudo apt-get update
           sudo apt-get install -y gcc-aarch64-linux-gnu g++-aarch64-linux-gnu
 
-      - name: Install cross
-        run: cargo install cross
-
-      - name: Add targets
+      # ------------- Add compilation targets -------------
+      - name: Add Rust targets
         run: |
           rustup target add wasm32-unknown-unknown
           rustup target add ${{ matrix.target }}
 
-      - name: Configure cross-compilation
+      # ------------- AArch64 linker env (Ubuntu only) -------------
+      - name: Configure AArch64 linker env
+        if: matrix.target == 'aarch64-unknown-linux-gnu'
         run: |
-          echo "CC_aarch64_unknown_linux_gnu=aarch64-linux-gnu-gcc" >> $GITHUB_ENV
+          echo "CC_aarch64_unknown_linux_gnu=aarch64-linux-gnu-gcc"  >> $GITHUB_ENV
           echo "CXX_aarch64_unknown_linux_gnu=aarch64-linux-gnu-g++" >> $GITHUB_ENV
-          echo "AR_aarch64_unknown_linux_gnu=aarch64-linux-gnu-ar" >> $GITHUB_ENV
+          echo "AR_aarch64_unknown_linux_gnu=aarch64-linux-gnu-ar"   >> $GITHUB_ENV
           echo "CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER=aarch64-linux-gnu-gcc" >> $GITHUB_ENV
 
+      # ------------- Cache -------------
       - uses: actions/cache@v4.2.3
         with:
           path: |
@@ -64,18 +73,31 @@ jobs:
             target
           key: ${{ runner.os }}-${{ matrix.target }}-cargo-${{ hashFiles('**/Cargo.lock') }}
 
-      - name: Build
-        run: cross build --release --target ${{ matrix.target }}
-
-      - name: Package
+      # ------------- Build -------------
+      - name: Build project
         shell: bash
         run: |
+          set -e
+          cargo build --release --target ${{ matrix.target }}
+
+      # ------------- Package -------------
+      - name: Package artifact
+        shell: bash
+        run: |
+          set -e
           cd target/${{ matrix.target }}/release
+
+          # Strip to shrink size (skip on Windows)
+          if [[ "$RUNNER_OS" != "Windows" ]]; then
+            strip poscan-consensus${{ matrix.suffix }} || true
+          fi
+
           tar czvf ../../../poscan-consensus-${{ matrix.name }}.tar.gz poscan-consensus${{ matrix.suffix }}
 
-      - name: Publish
+      # ------------- Publish -------------
+      - name: Publish release assets
         uses: softprops/action-gh-release@v2.2.2
         with:
-          files: poscan-consensus-*
+          files: poscan-consensus-${{ matrix.name }}.tar.gz
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
