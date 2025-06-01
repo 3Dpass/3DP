@@ -146,7 +146,7 @@ The Node is equipped with EVM compatibility layer comprised of the [EVM pallet](
 - Run the Node with the `--rpc-port 9978` flag (any port can be set up)
 - Add a custom chain to the Metamask wallet:
    - Name: `3dpass - The Ledger of Things`
-   - Testnet chain id: `1333`
+   - Mainnet chain id: `1333`
    - Local RPC endpoint: `https://127.0.0.1:9978`
 - Open [Remix](https://remix.ethereum.org) and connect it through the Metamask to be able to deploy and run Solidity smart contracts
 
