@@ -7,9 +7,7 @@ on:
       - "v*"
 
 jobs:
-
   build:
-
     strategy:
       fail-fast: false
       matrix:
@@ -35,50 +33,49 @@ jobs:
       - uses: actions-rs/toolchain@v1.0.7
         with:
           profile: minimal
-          toolchain: nightly-2023-05-20
+          toolchain: stable
           override: true
 
-      - name: Add WASM target
-        run: rustup target add wasm32-unknown-unknown
+      - name: Install cross-compilation tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gcc-aarch64-linux-gnu g++-aarch64-linux-gnu
+
+      - name: Install cross
+        run: cargo install cross
+
+      - name: Add targets
+        run: |
+          rustup target add wasm32-unknown-unknown
+          rustup target add ${{ matrix.target }}
+
+      - name: Configure cross-compilation
+        run: |
+          echo "CC_aarch64_unknown_linux_gnu=aarch64-linux-gnu-gcc" >> $GITHUB_ENV
+          echo "CXX_aarch64_unknown_linux_gnu=aarch64-linux-gnu-g++" >> $GITHUB_ENV
+          echo "AR_aarch64_unknown_linux_gnu=aarch64-linux-gnu-ar" >> $GITHUB_ENV
+          echo "CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER=aarch64-linux-gnu-gcc" >> $GITHUB_ENV
 
       - uses: actions/cache@v4.2.3
         with:
-          path: ~/.cargo/registry
-          key: ${{ runner.os }}-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-${{ matrix.target }}-cargo-${{ hashFiles('**/Cargo.lock') }}
 
-      - uses: actions/cache@v4.2.3
-        with:
-          path: ~/.cargo/git
-          key: ${{ runner.os }}-cargo-git-${{ hashFiles('**/Cargo.lock') }}
-
-      - uses: actions/cache@v4.2.3
-        with:
-          path: target
-          key: ${{ runner.os }}-cargo-build-target-${{ hashFiles('**/Cargo.lock') }}
-
-      - uses: actions-rs/cargo@v1.0.3
-        with:
-          command: build
-          args: '--release'
+      - name: Build
+        run: cross build --release --target ${{ matrix.target }}
 
       - name: Package
         shell: bash
         run: |
-          cd target/release
-          tar czvf ../../poscan-consensus-${{ matrix.name }}.tar.gz poscan-consensus${{ matrix.suffix }}
-          cd -
-
-      - name: Package WASM Artifact
-        if: matrix.name == 'linux-x86_64'
-        run: |
-          cd target/release/wbuild/poscan-runtime
-          tar czvf ../../../../poscan_runtime-wasm32-unknown-unknown.tar.gz poscan_runtime.compact.compressed.wasm
+          cd target/${{ matrix.target }}/release
+          tar czvf ../../../poscan-consensus-${{ matrix.name }}.tar.gz poscan-consensus${{ matrix.suffix }}
 
       - name: Publish
         uses: softprops/action-gh-release@v2.2.2
         with:
-          files: |
-            poscan-consensus-*
-            poscan_runtime-*
+          files: poscan-consensus-*
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
