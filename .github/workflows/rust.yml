@@ -35,8 +35,20 @@ jobs:
       - uses: actions-rs/toolchain@v1.0.7
         with:
           profile: minimal
-          toolchain: nightly-2023-05-20
+          toolchain: nightly-2023-05-05
           override: true
+
+      - name: Install system dependencies
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends libclang-dev cmake
+
+      - name: Install cross-compilation tools
+        if: matrix.target == 'aarch64-unknown-linux-gnu'
+        run: |
+          sudo apt-get install -y gcc-aarch64-linux-gnu
+          rustup target add aarch64-unknown-linux-gnu
 
       - name: Add WASM target
         run: rustup target add wasm32-unknown-unknown
@@ -59,20 +71,24 @@ jobs:
       - uses: actions-rs/cargo@v1.0.3
         with:
           command: build
-          args: '--release'
+          args: '--release --target ${{ matrix.target }}'
+        env:
+          CC_aarch64_unknown_linux_gnu: aarch64-linux-gnu-gcc
+          CXX_aarch64_unknown_linux_gnu: aarch64-linux-gnu-g++
+          AR_aarch64_unknown_linux_gnu: aarch64-linux-gnu-ar
 
       - name: Package
         shell: bash
         run: |
-          cd target/release
-          tar czvf ../../poscan-consensus-${{ matrix.name }}.tar.gz poscan-consensus${{ matrix.suffix }}
+          cd target/${{ matrix.target }}/release
+          tar czvf ../../../poscan-consensus-${{ matrix.name }}.tar.gz poscan-consensus${{ matrix.suffix }}
           cd -
 
       - name: Package WASM Artifact
         if: matrix.name == 'linux-x86_64'
         run: |
-          cd target/release/wbuild/poscan-runtime
-          tar czvf ../../../../poscan_runtime-wasm32-unknown-unknown.tar.gz poscan_runtime.compact.compressed.wasm
+          cd target/${{ matrix.target }}/release/wbuild/poscan-runtime
+          tar czvf ../../../../../poscan_runtime-wasm32-unknown-unknown.tar.gz poscan_runtime.compact.compressed.wasm
 
       - name: Publish
         uses: softprops/action-gh-release@v2.2.2
