@@ -41,16 +41,18 @@ jobs:
         if: matrix.os == 'ubuntu-latest'
         run: |
           sudo apt-get update
-          sudo apt-get install -y --no-install-recommends libclang-dev cmake
+          sudo apt-get install -y --no-install-recommends libclang-dev cmake g++
 
       - name: Install cross-compilation tools
         if: matrix.target == 'aarch64-unknown-linux-gnu'
         run: |
-          sudo apt-get install -y gcc-aarch64-linux-gnu
+          sudo apt-get install -y gcc-aarch64-linux-gnu g++-aarch64-linux-gnu
           rustup target add aarch64-unknown-linux-gnu
 
-      - name: Add WASM target
-        run: rustup target add wasm32-unknown-unknown
+      - name: Add targets
+        run: |
+          rustup target add wasm32-unknown-unknown
+          rustup target add ${{ matrix.target }}
 
       - uses: actions/cache@v4.2.3
         with:
@@ -75,6 +77,7 @@ jobs:
           CC_aarch64_unknown_linux_gnu: aarch64-linux-gnu-gcc
           CXX_aarch64_unknown_linux_gnu: aarch64-linux-gnu-g++
           AR_aarch64_unknown_linux_gnu: aarch64-linux-gnu-ar
+          CMAKE_CXX_COMPILER_aarch64_unknown_linux_gnu: aarch64-linux-gnu-g++
 
       - name: Package
         shell: bash
