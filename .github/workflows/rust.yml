@@ -9,7 +9,6 @@ on:
 jobs:
 
   build:
-
     strategy:
       fail-fast: false
       matrix:
@@ -90,7 +89,31 @@ jobs:
           cd target/${{ matrix.target }}/release/wbuild/poscan-runtime
           tar czvf ../../../../../poscan_runtime-wasm32-unknown-unknown.tar.gz poscan_runtime.compact.compressed.wasm
 
-      - name: Publish
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: poscan-consensus-${{ matrix.name }}
+          path: poscan-consensus-${{ matrix.name }}.tar.gz
+          retention-days: 1
+
+      - name: Upload WASM artifacts
+        if: matrix.name == 'linux-x86_64'
+        uses: actions/upload-artifact@v4
+        with:
+          name: poscan-runtime-wasm
+          path: poscan_runtime-wasm32-unknown-unknown.tar.gz
+          retention-days: 1
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          merge-multiple: true
+
+      - name: Publish release
         uses: softprops/action-gh-release@v2.2.2
         with:
           files: |
