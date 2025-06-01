@@ -15,17 +15,13 @@ The scope of potential 3Dpass applications goes way beyond 3D object recognition
 
 [3DPass Coin (P3D)](https://3dpass.org/coin) is a native utility token, operating within "The Ledger of Things" eco-system, which aims to incentivize the efforts of community members maintaining the network infrastructure. Such aspects as: Storage fee, Gas fee, The object authentication fee, Transaction fee, The validator collaterals, Penalties - are all being counted in P3D.
 
-<<<<<<< HEAD
- [AI dev deepWiKi](https://deepwiki.com/3Dpass/3DP) | [Contribution Grant Program](https://3dpass.org/grants)  |  [Contributing guidelines](https://github.com/3Dpass/3DP/blob/main/CONTRIBUTING.md)  |  [Discord](https://discord.gg/u24WkXcwug)
-=======
-[Contribution Grant Program](https://3dpass.org/grants)  |  [Contributing guidelines](https://github.com/3Dpass/3DP/blob/main/CONTRIBUTING.md)  |  [Discord](https://discord.gg/u24WkXcwug)
->>>>>>> b6e057cb (Update README.md)
+[AI dev deepWiKi](https://deepwiki.com/3Dpass/3DP) | [Contribution Grant Program](https://3dpass.org/grants)  |  [Contributing guidelines](https://github.com/3Dpass/3DP/blob/main/CONTRIBUTING.md)  |  [Discord](https://discord.gg/u24WkXcwug)
 
 ## Getting started with 3Dpass Node
 
 ### Download the latest release
 ```sh
-wget https://github.com/3Dpass/3DP/releases/download/v28/poscan-consensus-linux-x86_64.tar.gz
+wget https://github.com/3Dpass/3DP/releases/download/v31/poscan-consensus-linux-x86_64.tar.gz
 tar xzf poscan-consensus-linux-x86_64.tar.gz
 ```
 
@@ -149,9 +145,9 @@ The Node is equipped with EVM compatibility layer comprised of the [EVM pallet](
 ### Connect to Metamask and Remix in Local
 - Run the Node with the `--rpc-port 9978` flag (any port can be set up)
 - Add a custom chain to the Metamask wallet:
-   - Name: `3dpass - The Ledger of Things (testnet)`
+   - Name: `3dpass - The Ledger of Things`
    - Testnet chain id: `1333`
-   - RPC provider: `https://127.0.0.1:9978`
+   - Local RPC endpoint: `https://127.0.0.1:9978`
 - Open [Remix](https://remix.ethereum.org) and connect it through the Metamask to be able to deploy and run Solidity smart contracts
 
 ### EVM accounts
@@ -237,7 +233,7 @@ target/release/poscan-consensus --base-path /tmp/bob --chain local --bob --port 
 - [3Dpass light wallet](https://github.com/3Dpass/wallet) - desktop users and 3D printing labs integration
 - [Pass3d mobile](https://github.com/3Dpass/threedpass) - smartphone and tablets users integration
 
- <img width="719" alt="Node_integration" src="https://github.com/user-attachments/assets/93f186eb-c9db-4fd8-96b7-efc3b451a6b8">
+<img width="780" alt="LoT_Node-min" src="https://github.com/user-attachments/assets/28568a51-8fa4-46ac-92a3-77b9e9fa859a" />
 
 
 ## Responsibility disclaimer
