@@ -36,6 +36,7 @@ jobs:
           profile: minimal
           toolchain: nightly-2023-05-05
           override: true
+          components: rustfmt
 
       - name: Install system dependencies
         if: matrix.os == 'ubuntu-latest'
@@ -82,6 +83,9 @@ jobs:
           CMAKE_CXX_COMPILER_aarch64_unknown_linux_gnu: aarch64-linux-gnu-g++
           CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER: aarch64-linux-gnu-gcc
           RUSTFLAGS_aarch64_unknown_linux_gnu: -C linker=aarch64-linux-gnu-gcc
+          CXXFLAGS: -std=c++17
+          CXXFLAGS_aarch64_unknown_linux_gnu: -std=c++17
+          ROCKSDB_DISABLE_JEMALLOC: 1
 
       - name: Package
         shell: bash
