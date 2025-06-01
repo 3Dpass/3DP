@@ -4627,7 +4627,7 @@ dependencies = [
 [[package]]
 name = "obj-rs"
 version = "0.7.0"
-source = "git+https://github.com/3Dpass/obj-rs?branch=dev#e2ce997504f2106ccdfc054490131a2501e59e00"
+source = "git+https://github.com/3Dpass/obj-rs?branch=dev#1e61a670c284c4d4d05b6265958edffa6eee813a"
 dependencies = [
  "anyhow",
  "core2",

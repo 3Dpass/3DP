@@ -9,7 +9,6 @@ on:
 jobs:
 
   build:
-
     strategy:
       fail-fast: false
       matrix:
@@ -23,7 +22,7 @@ jobs:
             name: linux-aarch64
             suffix: ''
           - target: x86_64-apple-darwin
-            os: macos-latest
+            os: macos-13
             name: macos
             suffix: ''
 
@@ -35,11 +34,28 @@ jobs:
       - uses: actions-rs/toolchain@v1.0.7
         with:
           profile: minimal
-          toolchain: nightly-2023-05-20
+          toolchain: nightly-2023-05-05
           override: true
+          components: rustfmt
 
-      - name: Add WASM target
-        run: rustup target add wasm32-unknown-unknown
+      - name: Install system dependencies
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends libclang-dev cmake g++
+          sudo ln -sf /usr/bin/g++ /usr/bin/c++
+
+      - name: Install cross-compilation tools
+        if: matrix.target == 'aarch64-unknown-linux-gnu'
+        run: |
+          sudo apt-get install -y gcc-aarch64-linux-gnu g++-aarch64-linux-gnu
+          sudo ln -sf /usr/bin/aarch64-linux-gnu-g++ /usr/bin/aarch64-linux-gnu-c++
+          rustup target add aarch64-unknown-linux-gnu
+
+      - name: Add targets
+        run: |
+          rustup target add wasm32-unknown-unknown
+          rustup target add ${{ matrix.target }}
 
       - uses: actions/cache@v4.2.3
         with:
@@ -59,22 +75,56 @@ jobs:
       - uses: actions-rs/cargo@v1.0.3
         with:
           command: build
-          args: '--release'
+          args: '--release --target ${{ matrix.target }}'
+        env:
+          CC_aarch64_unknown_linux_gnu: aarch64-linux-gnu-gcc
+          CXX_aarch64_unknown_linux_gnu: aarch64-linux-gnu-g++
+          AR_aarch64_unknown_linux_gnu: aarch64-linux-gnu-ar
+          CMAKE_CXX_COMPILER_aarch64_unknown_linux_gnu: aarch64-linux-gnu-g++
+          CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER: aarch64-linux-gnu-gcc
+          RUSTFLAGS_aarch64_unknown_linux_gnu: -C linker=aarch64-linux-gnu-gcc
+          CXXFLAGS: -std=c++17 -include cstdint -include cinttypes
+          CXXFLAGS_aarch64_unknown_linux_gnu: -std=c++17 -include cstdint -include cinttypes
+          ROCKSDB_DISABLE_JEMALLOC: 1
 
       - name: Package
         shell: bash
         run: |
-          cd target/release
-          tar czvf ../../poscan-consensus-${{ matrix.name }}.tar.gz poscan-consensus${{ matrix.suffix }}
+          cd target/${{ matrix.target }}/release
+          tar czvf ../../../poscan-consensus-${{ matrix.name }}.tar.gz poscan-consensus${{ matrix.suffix }}
           cd -
 
       - name: Package WASM Artifact
         if: matrix.name == 'linux-x86_64'
         run: |
-          cd target/release/wbuild/poscan-runtime
-          tar czvf ../../../../poscan_runtime-wasm32-unknown-unknown.tar.gz poscan_runtime.compact.compressed.wasm
+          cd target/${{ matrix.target }}/release/wbuild/poscan-runtime
+          tar czvf ../../../../../poscan_runtime-wasm32-unknown-unknown.tar.gz poscan_runtime.compact.compressed.wasm
 
-      - name: Publish
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: poscan-consensus-${{ matrix.name }}
+          path: poscan-consensus-${{ matrix.name }}.tar.gz
+          retention-days: 1
+
+      - name: Upload WASM artifacts
+        if: matrix.name == 'linux-x86_64'
+        uses: actions/upload-artifact@v4
+        with:
+          name: poscan-runtime-wasm
+          path: poscan_runtime-wasm32-unknown-unknown.tar.gz
+          retention-days: 1
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          merge-multiple: true
+
+      - name: Publish release
         uses: softprops/action-gh-release@v2.2.2
         with:
           files: |
