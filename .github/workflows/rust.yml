@@ -7,7 +7,9 @@ on:
       - "v*"
 
 jobs:
+
   build:
+
     strategy:
       fail-fast: false
       matrix:
@@ -24,80 +26,59 @@ jobs:
             os: macos-latest
             name: macos
             suffix: ''
-          - target: x86_64-pc-windows-msvc
-            os: windows-latest
-            name: windows-x86_64
-            suffix: '.exe'
 
     runs-on: ${{ matrix.os }}
 
     steps:
-      # ------------- Checkout -------------
       - uses: actions/checkout@v4.2.2
 
-      # ------------- Rust toolchain -------------
       - uses: actions-rs/toolchain@v1.0.7
         with:
           profile: minimal
           toolchain: nightly-2023-05-20
           override: true
 
-      # ------------- Ubuntu-only prerequisites -------------
-      - name: Install AArch64 gcc/g++
-        if: startsWith(matrix.os, 'ubuntu')
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y gcc-aarch64-linux-gnu g++-aarch64-linux-gnu
+      - name: Add WASM target
+        run: rustup target add wasm32-unknown-unknown
 
-      # ------------- Add compilation targets -------------
-      - name: Add Rust targets
-        run: |
-          rustup target add wasm32-unknown-unknown
-          rustup target add ${{ matrix.target }}
-
-      # ------------- AArch64 linker env (Ubuntu only) -------------
-      - name: Configure AArch64 linker env
-        if: matrix.target == 'aarch64-unknown-linux-gnu'
-        run: |
-          echo "CC_aarch64_unknown_linux_gnu=aarch64-linux-gnu-gcc"  >> $GITHUB_ENV
-          echo "CXX_aarch64_unknown_linux_gnu=aarch64-linux-gnu-g++" >> $GITHUB_ENV
-          echo "AR_aarch64_unknown_linux_gnu=aarch64-linux-gnu-ar"   >> $GITHUB_ENV
-          echo "CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER=aarch64-linux-gnu-gcc" >> $GITHUB_ENV
-
-      # ------------- Cache -------------
       - uses: actions/cache@v4.2.3
         with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            target
-          key: ${{ runner.os }}-${{ matrix.target }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          path: ~/.cargo/registry
+          key: ${{ runner.os }}-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
 
-      # ------------- Build -------------
-      - name: Build project
+      - uses: actions/cache@v4.2.3
+        with:
+          path: ~/.cargo/git
+          key: ${{ runner.os }}-cargo-git-${{ hashFiles('**/Cargo.lock') }}
+
+      - uses: actions/cache@v4.2.3
+        with:
+          path: target
+          key: ${{ runner.os }}-cargo-build-target-${{ hashFiles('**/Cargo.lock') }}
+
+      - uses: actions-rs/cargo@v1.0.3
+        with:
+          command: build
+          args: '--release'
+
+      - name: Package
         shell: bash
         run: |
-          set -e
-          cargo build --release --target ${{ matrix.target }}
+          cd target/release
+          tar czvf ../../poscan-consensus-${{ matrix.name }}.tar.gz poscan-consensus${{ matrix.suffix }}
+          cd -
 
-      # ------------- Package -------------
-      - name: Package artifact
-        shell: bash
+      - name: Package WASM Artifact
+        if: matrix.name == 'linux-x86_64'
         run: |
-          set -e
-          cd target/${{ matrix.target }}/release
+          cd target/release/wbuild/poscan-runtime
+          tar czvf ../../../../poscan_runtime-wasm32-unknown-unknown.tar.gz poscan_runtime.compact.compressed.wasm
 
-          # Strip to shrink size (skip on Windows)
-          if [[ "$RUNNER_OS" != "Windows" ]]; then
-            strip poscan-consensus${{ matrix.suffix }} || true
-          fi
-
-          tar czvf ../../../poscan-consensus-${{ matrix.name }}.tar.gz poscan-consensus${{ matrix.suffix }}
-
-      # ------------- Publish -------------
-      - name: Publish release assets
+      - name: Publish
         uses: softprops/action-gh-release@v2.2.2
         with:
-          files: poscan-consensus-${{ matrix.name }}.tar.gz
+          files: |
+            poscan-consensus-*
+            poscan_runtime-*
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
