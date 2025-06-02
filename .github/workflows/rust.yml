@@ -14,11 +14,11 @@ jobs:
       matrix:
         include:
           - target: x86_64-unknown-linux-gnu
-            os: ubuntu-latest
+            os: ubuntu-22.04
             name: linux-x86_64
             suffix: ''
           - target: aarch64-unknown-linux-gnu
-            os: ubuntu-latest
+            os: ubuntu-22.04-arm
             name: linux-aarch64
             suffix: ''
           - target: x86_64-apple-darwin
@@ -39,14 +39,14 @@ jobs:
           components: rustfmt
 
       - name: Install system dependencies
-        if: matrix.os == 'ubuntu-latest'
+        if: matrix.os == 'ubuntu-22.04' || matrix.os == 'ubuntu-22.04-arm'
         run: |
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends libclang-dev cmake g++
           sudo ln -sf /usr/bin/g++ /usr/bin/c++
 
       - name: Install cross-compilation tools
-        if: matrix.target == 'aarch64-unknown-linux-gnu'
+        if: matrix.target == 'aarch64-unknown-linux-gnu' && matrix.os != 'ubuntu-22.04-arm'
         run: |
           sudo apt-get install -y gcc-aarch64-linux-gnu g++-aarch64-linux-gnu
           sudo ln -sf /usr/bin/aarch64-linux-gnu-g++ /usr/bin/aarch64-linux-gnu-c++
@@ -77,12 +77,12 @@ jobs:
           command: build
           args: '--release --target ${{ matrix.target }}'
         env:
-          CC_aarch64_unknown_linux_gnu: aarch64-linux-gnu-gcc
-          CXX_aarch64_unknown_linux_gnu: aarch64-linux-gnu-g++
-          AR_aarch64_unknown_linux_gnu: aarch64-linux-gnu-ar
-          CMAKE_CXX_COMPILER_aarch64_unknown_linux_gnu: aarch64-linux-gnu-g++
-          CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER: aarch64-linux-gnu-gcc
-          RUSTFLAGS_aarch64_unknown_linux_gnu: -C linker=aarch64-linux-gnu-gcc
+          CC_aarch64_unknown_linux_gnu: ${{ matrix.os != 'ubuntu-22.04-arm' && 'aarch64-linux-gnu-gcc' || 'gcc' }}
+          CXX_aarch64_unknown_linux_gnu: ${{ matrix.os != 'ubuntu-22.04-arm' && 'aarch64-linux-gnu-g++' || 'g++' }}
+          AR_aarch64_unknown_linux_gnu: ${{ matrix.os != 'ubuntu-22.04-arm' && 'aarch64-linux-gnu-ar' || 'ar' }}
+          CMAKE_CXX_COMPILER_aarch64_unknown_linux_gnu: ${{ matrix.os != 'ubuntu-22.04-arm' && 'aarch64-linux-gnu-g++' || 'g++' }}
+          CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER: ${{ matrix.os != 'ubuntu-22.04-arm' && 'aarch64-linux-gnu-gcc' || 'gcc' }}
+          RUSTFLAGS_aarch64_unknown_linux_gnu: ${{ matrix.os != 'ubuntu-22.04-arm' && '-C linker=aarch64-linux-gnu-gcc' || '' }}
           CXXFLAGS: -std=c++17 -include cstdint -include cinttypes
           CXXFLAGS_aarch64_unknown_linux_gnu: -std=c++17 -include cstdint -include cinttypes
           ROCKSDB_DISABLE_JEMALLOC: 1
