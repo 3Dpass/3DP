@@ -158,15 +158,15 @@ And every account must have its `H256` version.
 - H256 -> H160 (derived by cutting the tail 20 bytes)
   - e.g. `0xc6006fea43ccce14f9432f8e6b9403113c935cc17160cd438af2e7a02624124c` -> `0xc6006fea43ccce14f9432f8e6b9403113c935cc1`
 - H160 (private key) -> H256 address (mapped, **irreversible**)
-  - e.g. `0xc6006fea43ccce14f9432f8e6b9403113c935cc1` -> `0xceb75620b9f3bc3a039b8e78efed58fa3c7422d18c97f1fd44abf3f2499d0760` (prefix 72: d7fJyRyHivFfDXsDs14oYgtqCt3scfHgaLT5NxHs5f6e5ycsN)
+  - e.g. `0xc6006fea43ccce14f9432f8e6b9403113c935cc1` -> `0xceb75620b9f3bc3a039b8e78efed58fa3c7422d18c97f1fd44abf3f2499d0760` (prefix 71: d1GvktUdvKdghY7LB2zW2XDp1Wzio9ZPGGFcyaYhp2Nasy5LS)
 
-Use this [converter](https://hoonsubin.github.io/evm-substrate-address-converter/) to create a cross-platform alias for either Substrate or EVM account (testnet address prefix:`72`).
+Use this [converter](https://hoonsubin.github.io/evm-substrate-address-converter/) to create a cross-platform alias for either Substrate or EVM account (mainnet address prefix:`71`).
 
 ### Custom precompiles
 Although the EVM exploits the [standard ethereum precompiles](https://github.com/3Dpass/3DP/tree/test/pallets/evm/precompile), there is a buch of
 [custom precompiles](/precompiles/), of which each one serves as a cross-platform `EVM -> Substrate` interface, so that native substrate functions can be called from Solidity.
 
-- Interaction with native token (P3Dt): [balances-erc20](/precompiles/balances-erc20) precompile, Contract address: `0x0000000000000000000000000000000000000802`
+- Interaction with native token (P3D): [balances-erc20](/precompiles/balances-erc20) precompile, Contract address: `0x0000000000000000000000000000000000000802`
 - Interaction with Local assets 3DPRC2 - [assets-erc20](https://github.com/3Dpass/3DP/tree/test/precompiles/assets-erc20) precompile,
 Contract address format: `0xFBFBFBFA + <assetid in hex>`, where the `assetid` is the asset index in [poscanAssets]() runtime module.
   e.g. You have created an asset with the `assetid 222`. The hex value of `222` is `DE`  . So, the `H160` address to run the contract at is going to be as follows: `0xFBFBFBFA000000000000000000000000000000DE`.
