@@ -313,14 +313,6 @@ where
 			}
 		};
 
-		// Light Client Mode (Simple Nodes Only).
-		// This feature is currently unstable and still under development.
-
-		// The skip_check option allows for simple nodes to skip the blockchain seal verification
-		// and rely solely on GRANDPA finality digests.
-		// While the light client mode facilitates easier synchronization,
-		// it is strictly prohibited during the mining or validation processes.
-
 		let parent_id = BlockId::<B>::hash(*parent);
 		let parent_num = self
 			.client
@@ -330,7 +322,7 @@ where
 
 		let best_num = self.client.info().best_number;
 
-		if self.skip_check && (best_num - parent_num) > NO_SKIP_CHECK_BLOCKS.into() {
+		if self.skip_check && (best_num > parent_num + NO_SKIP_CHECK_BLOCKS.into()) {
 			return Ok(true);
 		}
 
@@ -498,7 +490,7 @@ where
 
 		let best_num = self.client.info().best_number;
 
-		if self.skip_check && (best_num - parent_num) > NO_SKIP_CHECK_BLOCKS.into() {
+		if self.skip_check && (best_num > parent_num + NO_SKIP_CHECK_BLOCKS.into()) {
 			return Ok(true);
 		}
 
