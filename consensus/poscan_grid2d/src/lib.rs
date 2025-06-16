@@ -21,6 +21,8 @@ use std::fmt::Debug;
 use std::marker::PhantomData;
 use std::sync::Arc;
 
+const NO_SKIP_CHECK_BLOCKS: u32 = 120;
+
 /// Determine whether the given hash satisfies the given difficulty.
 /// The test is done by multiplying the two together. If the product
 /// overflows the bounds of U256, then the product (and thus the hash)
@@ -311,24 +313,19 @@ where
 			}
 		};
 
-		// Light Client Mode (Simple Nodes Only).
-		// This feature is currently unstable and still under development.
-
-		// The skip_check option allows for simple nodes to skip the blockchain seal verification
-		// and rely solely on GRANDPA finality digests.
-		// While the light client mode facilitates easier synchronization,
-		// it is strictly prohibited during the mining or validation processes.
-
-		// if self.skip_check {
-		// 	return Ok(true);
-		// }
-
 		let parent_id = BlockId::<B>::hash(*parent);
 		let parent_num = self
 			.client
 			.block_number_from_id(&parent_id)
 			.unwrap()
 			.unwrap();
+
+		let best_num = self.client.info().best_number;
+
+		if self.skip_check && (best_num > parent_num + NO_SKIP_CHECK_BLOCKS.into()) {
+			return Ok(true);
+		}
+
 		if parent_num >= REJECT_OLD_ALGO_SINCE.into() {
 			if poscan_data.hashes.len() == 0 {
 				info!(">>> verify: no poscan hashes");
@@ -484,16 +481,19 @@ where
 		// While the light client mode facilitates easier synchronization,
 		// it is strictly prohibited during the mining or validation processes.
 
-		// if self.skip_check {
-		// 	return Ok(true);
-		// }
-
 		let parent_id = BlockId::<B>::hash(*parent);
 		let parent_num = self
 			.client
 			.block_number_from_id(&parent_id)
 			.unwrap()
 			.unwrap();
+
+		let best_num = self.client.info().best_number;
+
+		if self.skip_check && (best_num > parent_num + NO_SKIP_CHECK_BLOCKS.into()) {
+			return Ok(true);
+		}
+
 		if parent_num >= REJECT_OLD_ALGO_SINCE.into() {
 			if poscan_data.hashes.len() == 0 {
 				info!(">>> verify: no poscan hashes");
