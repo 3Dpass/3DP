@@ -25,7 +25,7 @@ use pallet_proxy::Call as ProxyCall;
 use pallet_proxy::Pallet as ProxyPallet;
 use precompile_utils::data::Address;
 use precompile_utils::prelude::*;
-use sp_runtime::{codec::Decode, traits::StaticLookup};
+use sp_runtime::{codec::Decode};
 use sp_std::marker::PhantomData;
 
 #[cfg(test)]

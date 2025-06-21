@@ -1,9 +1,9 @@
 [workspace]
 members = [
-    'runtime',
-    'nodes/poscan-consensus',
+    "runtime",
+    "nodes/poscan-consensus",
 ]
-[profile.release]
-panic = 'unwind'
+resolver = "2"
 
-workspace.resolver = "2"
+[profile.release]
+panic = "unwind"
