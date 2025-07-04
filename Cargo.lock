@@ -5252,6 +5252,30 @@ dependencies = [
 ]
 
 [[package]]
+name = "pallet-evm-precompileset-assets-conversion"
+version = "0.1.0"
+dependencies = [
+ "fp-evm",
+ "frame-support",
+ "frame-system",
+ "log",
+ "num_enum",
+ "pallet-asset-conversion",
+ "pallet-balances",
+ "pallet-evm",
+ "pallet-timestamp",
+ "parity-scale-codec",
+ "paste",
+ "precompile-utils",
+ "scale-info",
+ "slices",
+ "sp-core",
+ "sp-io",
+ "sp-runtime",
+ "sp-std",
+]
+
+[[package]]
 name = "pallet-evm-precompileset-assets-erc20"
 version = "0.1.0"
 dependencies = [
@@ -5269,6 +5293,56 @@ dependencies = [
  "precompile-utils",
  "scale-info",
  "slices",
+ "sp-core",
+ "sp-io",
+ "sp-runtime",
+ "sp-std",
+]
+
+[[package]]
+name = "pallet-evm-precompileset-identity"
+version = "0.1.0"
+dependencies = [
+ "fp-evm",
+ "frame-support",
+ "frame-system",
+ "log",
+ "num_enum",
+ "pallet-balances",
+ "pallet-evm",
+ "pallet-identity",
+ "pallet-timestamp",
+ "parity-scale-codec",
+ "paste",
+ "precompile-utils",
+ "scale-info",
+ "slices",
+ "sp-core",
+ "sp-io",
+ "sp-runtime",
+ "sp-std",
+]
+
+[[package]]
+name = "pallet-evm-precompileset-poscan"
+version = "0.1.0"
+dependencies = [
+ "fp-evm",
+ "frame-support",
+ "frame-system",
+ "log",
+ "num_enum",
+ "pallet-balances",
+ "pallet-evm",
+ "pallet-poscan",
+ "pallet-timestamp",
+ "parity-scale-codec",
+ "paste",
+ "precompile-utils",
+ "scale-info",
+ "slices",
+ "sp-arithmetic",
+ "sp-consensus-poscan",
  "sp-core",
  "sp-io",
  "sp-runtime",
@@ -6384,7 +6458,10 @@ dependencies = [
  "pallet-evm-precompile-proxy",
  "pallet-evm-precompile-sha3fips",
  "pallet-evm-precompile-simple",
+ "pallet-evm-precompileset-assets-conversion",
  "pallet-evm-precompileset-assets-erc20",
+ "pallet-evm-precompileset-identity",
+ "pallet-evm-precompileset-poscan",
  "pallet-grandpa",
  "pallet-hotfix-sufficients",
  "pallet-identity",
