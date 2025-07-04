@@ -26,6 +26,12 @@ pub trait PoscanRpcApi<BlockHash> {
 		&self,
 		obj_idx: ObjIdx,
 	) -> RpcResult<Option<ObjData<AccountId, BlockNumber>>>;
+
+	#[method(name = "poscan_getReplicasOf")]
+	fn get_replicas_of(
+		&self,
+		original_idx: ObjIdx,
+	) -> RpcResult<Vec<ObjIdx>>;
 }
 
 pub struct PoscanRpc<C, Block>
@@ -63,6 +69,24 @@ impl<C, Block> PoscanRpcApiServer<<Block as BlockT>::Hash> for PoscanRpc<C, Bloc
 		let resp = self.client.runtime_api().get_poscan_object(&block_id, obj_idx);
 		match resp {
 			Ok(maybe_obj) => Ok(maybe_obj),
+			Err(e) => {
+				Err(JsonRpseeError::Call(CallError::Custom(ErrorObject::owned(
+					ErrorCode::ServerError(RES_NOT_FOUND).code(),
+					format!("Error: {}", e),
+					None::<()>,
+				))))
+			},
+		}
+	}
+
+	fn get_replicas_of(
+		&self,
+		original_idx: ObjIdx,
+	) -> RpcResult<Vec<ObjIdx>> {
+		let block_id = BlockId::Hash(self.client.info().best_hash);
+		let resp = self.client.runtime_api().replicas_of(&block_id, original_idx);
+		match resp {
+			Ok(list) => Ok(list),
 			Err(e) => {
 				Err(JsonRpseeError::Call(CallError::Custom(ErrorObject::owned(
 					ErrorCode::ServerError(RES_NOT_FOUND).code(),

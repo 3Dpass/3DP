@@ -174,7 +174,7 @@ where
 
     /// Submit a new object to the PoScan pallet
     /// @custom:selector 0x0c53c51c
-    #[precompile::public("putObject(uint8,uint8,bool,bytes,uint8,bytes32[],(uint32,uint128)[])")]
+    #[precompile::public("putObject(uint8,uint8,bool,bytes,uint8,bytes32[],(uint32,uint128)[],bool,uint32)")]
     fn put_object(
         handle: &mut impl PrecompileHandle,
         category: u8,
@@ -184,6 +184,8 @@ where
         num_approvals: u8,
         hashes: Vec<H256>,
         properties: Vec<(u32, u128)>,
+        is_replica: bool,
+        original_obj: u32,
     ) -> EvmResult<bool> {
         use sp_consensus_poscan::{ObjectCategory, Algo3D, PropValue};
         use frame_support::BoundedVec;
@@ -201,7 +203,7 @@ where
             5 => ObjectCategory::Texts,
             _ => return Err(revert("Invalid category")),
         };
-        // BoundedVec conversions
+        // BoundedVec conversions and checks (as before)
         // Validate OBJ file format and size
         if obj.len() > 1_048_576 { // 1MB = 1024 * 1024 bytes
             return Err(revert("Object file too large (max 1MB)"));
@@ -243,13 +245,13 @@ where
                 num_approvals,
                 hashes,
                 properties,
+                is_replica,
+                original_obj: if is_replica { Some(original_obj) } else { None },
             },
         );
         match result {
             Ok(_) => {
                 // Emit ObjectSubmitted event
-                // Note: If you have access to the object index, include it as a topic or data
-                // Here, we emit with submitter and 0 as a placeholder for objIdx
                 let _ = logs::log1(
                     handle.context().address,
                     TOPIC_OBJECT_SUBMITTED,
@@ -259,5 +261,50 @@ where
             },
             Err(e) => Err(e.into()),
         }
+    }
+
+    /// Set permissions for private object replicas
+    /// @custom:selector 0x0c53c51d
+    #[precompile::public("setPrivateObjectPermissions(uint32,(address,uint32,uint64)[])")]
+    fn set_private_object_permissions(
+        handle: &mut impl PrecompileHandle,
+        obj_idx: u32,
+        permissions: Vec<(Address, u32, u64)>,
+    ) -> EvmResult<bool> {
+        use sp_consensus_poscan::CopyPermission;
+        use frame_support::BoundedVec;
+        let who: Runtime::AccountId = <Runtime as pallet_evm::Config>::AddressMapping::into_account_id(handle.context().caller);
+        let perms = permissions.into_iter().map(|(addr, max_copies, until)| {
+            CopyPermission {
+                who: <Runtime as pallet_evm::Config>::AddressMapping::into_account_id(addr.into()),
+                max_copies,
+                until: until.saturated_into(),
+            }
+        }).collect::<Vec<_>>();
+        let perms = BoundedVec::try_from(perms).map_err(|_| revert("too many permissions"))?;
+        let result = RuntimeHelper::<Runtime>::try_dispatch(
+            handle,
+            Some(who.clone()).into(),
+            pallet_poscan::Call::<Runtime>::set_private_object_permissions {
+                obj_idx,
+                permissions: perms,
+            },
+        );
+        match result {
+            Ok(_) => Ok(true),
+            Err(e) => Err(e.into()),
+        }
+    }
+
+    /// Get a list of replica indexes for a given object index
+    /// @custom:selector 0x0c53c51e
+    #[precompile::public("getReplicasOf(uint32)")]
+    fn get_replicas_of(
+        _handle: &mut impl PrecompileHandle,
+        original_obj: u32,
+    ) -> EvmResult<Vec<u32>> {
+        use pallet_poscan::Pallet as PoScanPallet;
+        let replicas = PoScanPallet::<Runtime>::replicas_of(original_obj);
+        Ok(replicas)
     }
 } 

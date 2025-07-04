@@ -10,14 +10,14 @@ interface I3DPRC2 {
     /// @dev Precompile address for PoScan
     address constant PRECOMPILE_ADDR = 0x0000000000000000000000000000000000000903;
 
-    struct Prop {
+    struct Property {
         uint32 propIdx;
         uint128 maxValue;
     }
-
-    struct PropValue {
-        uint32 propIdx;
-        uint128 maxValue;
+    struct Permission {
+        address who;
+        uint32 maxCopies;
+        uint64 until;
     }
 
     /**
@@ -45,7 +45,7 @@ interface I3DPRC2 {
         bool isPrivate;
         bytes32[] hashes;
         uint8 numApprovals;
-        Prop[] prop;
+        Property[] prop;
     }
 
     /// @dev Emitted when a new object is submitted
@@ -116,6 +116,13 @@ interface I3DPRC2 {
         bytes calldata obj,
         uint8 numApprovals,
         bytes32[] calldata hashes,
-        PropValue[] calldata properties
-    ) external returns (bool success);
+        Property[] calldata properties,
+        bool isReplica,
+        uint32 originalObj
+    ) external returns (bool);
+
+    function setPrivateObjectPermissions(
+        uint32 objIdx,
+        Permission[] calldata permissions
+    ) external returns (bool);
 } 
