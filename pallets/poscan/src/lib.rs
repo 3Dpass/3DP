@@ -61,12 +61,10 @@ use sp_consensus_poscan::{
 	CompressWith,
 	Approval,
 	ObjData,
-	OldObjData,
 	ObjIdx,
 	POSCAN_ALGO_GRID2D_V3A,
 	MAX_OBJECT_SIZE,
 	MAX_PROPERTIES,
-	PROP_NAME_LEN,
 	DEFAULT_OBJECT_HASHES,
 	MAX_OBJECT_HASHES,
 	DEFAULT_MAX_ALGO_TIME,
@@ -76,6 +74,7 @@ use sp_consensus_poscan::{
 	Property,
 	PropClass,
 	PropValue,
+	CopyPermission,
 };
 
 pub mod inherents;
@@ -212,6 +211,10 @@ pub mod pallet {
 	#[pallet::getter(fn fee_per_byte)]
 	pub type FeePerByte<T> = StorageValue<_, u64, OptionQuery>;
 
+	#[pallet::storage]
+	#[pallet::getter(fn private_object_permissions)]
+	pub type PrivateObjectPermissions<T: Config> = StorageMap<_, Twox64Concat, ObjIdx, BoundedVec<CopyPermission<T::AccountId, T::BlockNumber>, ConstU32<32>>, ValueQuery>;
+
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(super) fn deposit_event)]
 	pub enum Event<T: Config> {
@@ -252,6 +255,18 @@ pub mod pallet {
 		InvalidPropValue,
 		/// Share property must be multiple 10
 		InvalidSharePropValue,
+		/// Not permitted to create replica
+		NotPermitted,
+		/// License period expired
+		LicenseExpired,
+		/// Replica must match at least one hash
+		NotAReplica,
+		/// Original object not found
+		OriginalNotFound,
+		/// Too many permissions
+		TooManyPermissions,
+		/// Cannot create replica of not approved object
+		OriginalNotApproved,
 	}
 
 	#[pallet::hooks]
@@ -327,53 +342,15 @@ pub mod pallet {
 		fn on_runtime_upgrade() -> frame_support::weights::Weight {
 			let onchain_version =  Pallet::<T>::on_chain_storage_version();
 			log::info!(target: LOG_TARGET, "on_runtime_upgrade: onchain_version={:?}", &onchain_version);
-			if onchain_version < 2 {
-				let prop_idx = <Pallet::<T>>::prop_count();
-				log::info!(target: LOG_TARGET, "on_runtime_upgrade: prop_idx={}", &prop_idx);
-				if prop_idx == 0 {
-					let name: BoundedVec<u8, ConstU32<PROP_NAME_LEN>> = "Non-Fungible".as_bytes()
-						.to_vec().try_into().unwrap();
-					Properties::<T>::insert(0, Property { name, class: PropClass::Relative, max_value: 1 });
-
-					let name: BoundedVec<u8, ConstU32<PROP_NAME_LEN>> = "Share".as_bytes()
-						.to_vec().try_into().unwrap();
-					Properties::<T>::insert(1, Property { name, class: PropClass::Relative, max_value: 100_000_000 });
-					<PropCount<T>>::put(2);
-				}
-			}
-
-			if onchain_version == 2 {
-				Objects::<T>::translate::<OldObjData<T::AccountId, T::BlockNumber>, _>(|key, old_data| {
-					log::info!(target: LOG_TARGET, "on_runtime_upgrade: migrate object: {}", &key);
-
-					let mut properties = BoundedVec::default();
-						properties.try_push(PropValue { prop_idx: 0, max_value: 1 }).unwrap();
-
-				let old_obj: Vec<_> = old_data.obj.into();
-
-				Some(ObjData::<T::AccountId, T::BlockNumber> {
-					state: old_data.state,
-					obj: old_obj.try_into().unwrap(),
-					compressed_with: old_data.compressed_with,
-					category: old_data.category,
-					is_private: true,
-					hashes: old_data.hashes,
-					when_created: old_data.when_created,
-					when_approved: old_data.when_approved,
-					owner: old_data.owner,
-					estimators: old_data.estimators,
-					est_outliers: old_data.est_outliers,
-					approvers: old_data.approvers,
-					num_approvals: old_data.num_approvals,
-					est_rewards: old_data.est_rewards,
-					author_rewards: old_data.author_rewards,
-					prop: properties,
-				})
-			});
-				StorageVersion::new(2).put::<Pallet::<T>>();
-			}
-			else {
-				log::info!(target: LOG_TARGET, "on_runtime_upgrade: unused migration");
+			if onchain_version < 3 {
+				// Migrate all objects to set is_replica = false and original_obj = None
+				Objects::<T>::translate::<ObjData<T::AccountId, T::BlockNumber>, _>(|_key, mut obj| {
+					obj.is_replica = false;
+					obj.original_obj = None;
+					Some(obj)
+				});
+				StorageVersion::new(3).put::<Pallet::<T>>();
+				log::info!(target: LOG_TARGET, "on_runtime_upgrade: migrated objects to v3");
 			}
 			0
 		}
@@ -393,7 +370,9 @@ pub mod pallet {
 			obj: BoundedVec<u8, ConstU32<MAX_OBJECT_SIZE>>,
 			num_approvals: u8,
 			hashes: Option<BoundedVec<H256, ConstU32<MAX_OBJECT_HASHES>>>,
-			properties: BoundedVec<PropValue, ConstU32<MAX_PROPERTIES>>
+			properties: BoundedVec<PropValue, ConstU32<MAX_PROPERTIES>>,
+			is_replica: bool,
+			original_obj: Option<ObjIdx>,
 		) -> DispatchResultWithPostInfo {
 			let acc = ensure_signed(origin)?;
 			let obj_idx = <Pallet::<T>>::obj_count();
@@ -446,8 +425,40 @@ pub mod pallet {
 				log::debug!(target: LOG_TARGET, "{:#?}", a);
 			}
 
-			if let Some(_) = Self::find_dup(None, &hashes) {
-				return Err(Error::<T>::DuplicatedHashes.into());
+			if is_replica {
+				let orig_idx = original_obj.ok_or(Error::<T>::OriginalNotFound)?;
+				let orig = Objects::<T>::get(orig_idx).ok_or(Error::<T>::OriginalNotFound)?;
+				// Only allow if original is Approved
+				match orig.state {
+					ObjectState::Approved(_) => {},
+					_ => return Err(Error::<T>::OriginalNotApproved.into()),
+				}
+				// At least one hash must match
+				let match_found = hashes.iter().any(|h| orig.hashes.contains(h));
+				if !match_found {
+					return Err(Error::<T>::NotAReplica.into());
+				}
+				// Permission logic for private originals
+				if orig.is_private {
+					let perms = PrivateObjectPermissions::<T>::get(orig_idx);
+					let now = <frame_system::Pallet<T>>::block_number();
+					let mut allowed = false;
+					for perm in perms.iter() {
+						if perm.who == acc && perm.until >= now && perm.max_copies > 0 {
+							allowed = true;
+							break;
+						}
+					}
+					if !allowed {
+						return Err(Error::<T>::NotPermitted.into());
+					}
+				}
+				// Do NOT check for duplicate hashes (replica is allowed)
+			} else {
+				// Normal: reject if duplicate
+				if let Some(_) = Self::find_dup(None, &hashes) {
+					return Err(Error::<T>::DuplicatedHashes.into());
+				}
 			}
 
 			let mut properties = properties.clone();
@@ -495,6 +506,8 @@ pub mod pallet {
 				est_rewards: actual_rewords.0.saturated_into(),
 				author_rewards: actual_rewords.1.saturated_into(),
 				prop: properties,
+				is_replica,
+				original_obj,
 			};
 			<Objects<T>>::insert(obj_idx, obj_data);
 			<ObjCount<T>>::put(obj_idx + 1);
@@ -505,7 +518,25 @@ pub mod pallet {
 			Ok(().into())
 		}
 
-		#[pallet::weight(1_000_000_000)]
+		/// Set permissions for private object replicas
+		#[pallet::weight(1_000_000)]
+		pub fn set_private_object_permissions(
+			origin: OriginFor<T>,
+			obj_idx: ObjIdx,
+			permissions: BoundedVec<CopyPermission<T::AccountId, T::BlockNumber>, ConstU32<32>>,
+		) -> DispatchResultWithPostInfo {
+			let who = ensure_signed(origin)?;
+			let obj = Objects::<T>::get(obj_idx).ok_or(Error::<T>::ObjectNotFound)?;
+			ensure!(obj.owner == who, Error::<T>::NotOwner);
+			use sp_runtime::DispatchError;
+			PrivateObjectPermissions::<T>::try_mutate(obj_idx, |perms| -> Result<(), DispatchError> {
+				*perms = permissions;
+				Ok(())
+			})?;
+			Ok(().into())
+		}
+
+		#[pallet::weight(1_000_000)]
 		pub fn approve(
 			origin: OriginFor<T>,
 			author: T::AccountId,
@@ -955,6 +986,22 @@ impl<T: Config> Pallet<T> {
 			.try_into()
 			.unwrap()
 	}
+
+	/// Returns a list of object indexes that are replicas of the given object index
+	pub fn replicas_of(original_idx: ObjIdx) -> Vec<ObjIdx> {
+		Objects::<T>::iter()
+			.filter_map(|(idx, obj)| {
+				if obj.is_replica {
+					if let Some(orig) = obj.original_obj {
+						if orig == original_idx {
+							return Some(idx);
+						}
+					}
+				}
+				None
+			})
+			.collect()
+	}
 }
 
 
@@ -988,5 +1035,8 @@ impl<T: Config> PoscanApi<T::AccountId, T::BlockNumber> for Pallet<T> {
 							.cloned()
 			)
 			.flatten()
+	}
+	fn replicas_of(original_idx: u32) -> Vec<u32> {
+		Self::replicas_of(original_idx)
 	}
 }

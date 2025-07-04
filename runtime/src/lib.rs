@@ -2286,6 +2286,9 @@ impl_runtime_apis! {
 		fn get_obj_hashes_wasm(ver: &[u8; 16], data: &Vec<u8>, pre: &H256, depth: u32, patch_rot: bool) -> Vec<H256> {
 			algo::get_obj_hashes_wasm(ver, &data[..], pre, depth as usize, patch_rot)
 		}
+		fn replicas_of(original_idx: u32) -> Vec<u32> {
+			<PoScan as PoscanApi<AccountId, BlockNumber>>::replicas_of(original_idx)
+		}
 	}
 
 	#[cfg(feature = "try-runtime")]

@@ -195,6 +195,7 @@ sp_api::decl_runtime_apis! {
 		fn get_poscan_object(i: u32) -> Option<ObjData<AccountId, BlockNum>>;
 		fn check_object(alg_id: &[u8;16], obj: &Vec<u8>, hashes: &Vec<H256>) -> bool;
 		fn get_obj_hashes_wasm(ver: &[u8; 16], data: &Vec<u8>, pre: &H256, depth: u32, patch_rot: bool) -> Vec<H256>;
+		fn replicas_of(original_idx: u32) -> Vec<u32>;
 	}
 }
 
@@ -321,6 +322,18 @@ pub struct Property {
 	pub max_value: u128,
 }
 
+#[derive(Clone, PartialEq, Encode, Decode, TypeInfo, MaxEncodedLen, Debug)]
+#[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
+pub struct CopyPermission<Account, Block>
+where
+    Account: Encode + Decode + TypeInfo + Member,
+    Block: Encode + Decode + TypeInfo + Member,
+{
+    pub who: Account,
+    pub max_copies: u32,
+    pub until: Block,
+}
+
 #[derive(Clone, PartialEq, Encode, Decode, TypeInfo, MaxEncodedLen)]
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
 pub struct ObjData<Account, Block>
@@ -344,6 +357,9 @@ pub struct ObjData<Account, Block>
 	pub est_rewards: u128,
 	pub author_rewards: u128,
 	pub prop: BoundedVec<PropValue, ConstU32<MAX_PROPERTIES>>,
+	// New fields for replica logic
+	pub is_replica: bool,
+	pub original_obj: Option<ObjIdx>,
 }
 
 #[derive(Clone, PartialEq, Encode, Decode, TypeInfo, MaxEncodedLen)]

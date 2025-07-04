@@ -5,6 +5,7 @@ use sp_runtime::scale_info::TypeInfo;
 use sp_runtime::traits::Member;
 use sp_runtime::DispatchResult;
 use codec::{Encode, Decode};
+use sp_std::vec::Vec;
 
 pub type AccountId<T> = <T as Config>::AccountId;
 pub type Block<T> = <T as Config>::BlockNumber;
@@ -17,6 +18,7 @@ pub trait PoscanApi<Account, Block>
 	fn get_poscan_object(i: u32) -> Option<sp_consensus_poscan::ObjData<Account, Block>>;
 	fn is_owner_of(account_id: &Account, obj_idx: u32) -> bool;
 	fn property(obj_idx: u32, prop_idx: u32) -> Option<sp_consensus_poscan::PropValue>;
+	fn replicas_of(original_idx: u32) -> Vec<u32>;
 }
 
 
