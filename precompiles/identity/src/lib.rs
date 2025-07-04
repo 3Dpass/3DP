@@ -1,0 +1,528 @@
+// Copyright 2025 3Dpass
+// Identity precompile for Solidity-friendly access to pallet-identity
+
+#![cfg_attr(not(feature = "std"), no_std)]
+extern crate alloc;
+
+use precompile_utils::prelude::*;
+use sp_std::{marker::PhantomData, vec, vec::Vec, boxed::Box};
+use pallet_evm::AddressMapping;
+use sp_core::U256;
+use frame_support::sp_runtime::SaturatedConversion;
+use codec::Encode;
+use frame_support::BoundedVec;
+use precompile_utils::EvmResult;
+use precompile_utils::{revert};
+use fp_evm::PrecompileFailure;
+use sp_runtime::traits::{StaticLookup, UniqueSaturatedInto};
+use alloc::string::String;
+use alloc::string::ToString;
+
+/// Identity precompile main struct
+#[derive(Debug, Clone)]
+pub struct IdentityPrecompile<Runtime>(PhantomData<Runtime>);
+
+#[precompile_utils::precompile]
+impl<Runtime> IdentityPrecompile<Runtime>
+where
+    Runtime: pallet_evm::Config + pallet_identity::Config,
+    Runtime::Call: frame_support::dispatch::Dispatchable<PostInfo = frame_support::dispatch::PostDispatchInfo> + frame_support::dispatch::GetDispatchInfo,
+    <Runtime::Call as frame_support::dispatch::Dispatchable>::Origin: From<Option<Runtime::AccountId>>,
+    Runtime::Call: From<pallet_identity::Call<Runtime>>,
+    sp_core::U256: From<BalanceOf<Runtime>>,
+{
+    #[precompile::public("identity(address)")]
+    fn identity(
+        _handle: &mut impl PrecompileHandle,
+        account: Address,
+    ) -> EvmResult<(
+        bool, // isValid
+        Vec<(u32, (bool, bool, U256, bool, bool, bool, bool, bool))>, // JudgementInfo[]
+        U256, // deposit
+        (
+            Vec<((bool, Vec<u8>), (bool, Vec<u8>))>, // Additional[]
+            (bool, Vec<u8>), // display
+            (bool, Vec<u8>), // legal
+            (bool, Vec<u8>), // web
+            (bool, Vec<u8>), // riot
+            (bool, Vec<u8>), // email
+            bool, // hasPgpFingerprint
+            Vec<u8>, // pgpFingerprint
+            (bool, Vec<u8>), // image
+            (bool, Vec<u8>), // twitter
+        ) // IdentityInfo
+    )> {
+        let account_id = <Runtime as pallet_evm::Config>::AddressMapping::into_account_id(account.into());
+        let opt = pallet_identity::Pallet::<Runtime>::identity(&account_id);
+        if let Some(reg) = opt {
+            let judgements = reg.judgements.into_iter().map(|(idx, j)| {
+                // Fix 1: Ensure the tuple returned by encode_judgement matches the expected type in the Vec
+                (idx, encode_judgement::<Runtime>(j))
+            }).collect();
+            let deposit = U256::from(reg.deposit);
+            let info = reg.info;
+            let additional = info.additional.into_iter().map(|(k, v)| {
+                (encode_data(k), encode_data(v))
+            }).collect();
+            let display = encode_data(info.display);
+            let legal = encode_data(info.legal);
+            let web = encode_data(info.web);
+            let riot = encode_data(info.riot);
+            let email = encode_data(info.email);
+            let has_pgp = info.pgp_fingerprint.is_some();
+            let pgp_fingerprint = info.pgp_fingerprint.map(|f| f.to_vec()).unwrap_or_default();
+            let image = encode_data(info.image);
+            let twitter = encode_data(info.twitter);
+            Ok((
+                true,
+                judgements,
+                deposit,
+                (additional, display, legal, web, riot, email, has_pgp, pgp_fingerprint, image, twitter)
+            ))
+        } else {
+            Ok((false, vec![], U256::zero(), (vec![], (false, vec![]), (false, vec![]), (false, vec![]), (false, vec![]), (false, vec![]), false, vec![], (false, vec![]), (false, vec![]))))
+        }
+    }
+
+    #[precompile::public("superOf(address)")]
+    fn super_of(
+        _handle: &mut impl PrecompileHandle,
+        who: Address,
+    ) -> EvmResult<(
+        bool, // isValid
+        Vec<u8>, // account (AccountId32 as bytes)
+        (bool, Vec<u8>) // Data
+    )> {
+        let account_id = Runtime::AddressMapping::into_account_id(who.into());
+        if let Some((super_acc, data)) = pallet_identity::Pallet::<Runtime>::super_of(&account_id) {
+            let super_bytes = super_acc.encode();
+            let data_tuple = encode_data(data);
+            Ok((true, super_bytes, data_tuple))
+        } else {
+            Ok((false, vec![], (false, vec![])))
+        }
+    }
+
+    #[precompile::public("subsOf(address)")]
+    fn subs_of(
+        _handle: &mut impl PrecompileHandle,
+        who: Address,
+    ) -> EvmResult<(
+        U256, // deposit
+        Vec<Vec<u8>> // accounts (AccountId32 as bytes)
+    )> {
+        let account_id = Runtime::AddressMapping::into_account_id(who.into());
+        let (deposit, subs) = pallet_identity::Pallet::<Runtime>::subs_of(&account_id);
+        let deposit_u256 = U256::from(deposit);
+        let sub_bytes: Vec<Vec<u8>> = subs.into_iter().map(|acc| acc.encode()).collect();
+        Ok((deposit_u256, sub_bytes))
+    }
+
+    #[precompile::public("registrars()")]
+    fn registrars(
+        _handle: &mut impl PrecompileHandle,
+    ) -> EvmResult<Vec<(
+        bool, // isValid
+        u32, // index
+        Vec<u8>, // account (AccountId32 as bytes)
+        U256, // fee
+        (bool, bool, bool, bool, bool, bool, bool, bool) // IdentityFields
+    )>> {
+        let regs = pallet_identity::Pallet::<Runtime>::registrars();
+        let mut out = Vec::with_capacity(regs.len());
+        for (i, reg) in regs.into_iter().enumerate() {
+            if let Some(info) = reg {
+                let acc_bytes = info.account.encode();
+                let fee = U256::from(info.fee);
+                let fields = encode_identity_fields(info.fields.0.bits());
+                out.push((true, i as u32, acc_bytes, fee, fields));
+            } else {
+                out.push((false, i as u32, vec![], U256::zero(), (false, false, false, false, false, false, false, false)));
+            }
+        }
+        Ok(out)
+    }
+
+    #[precompile::public("suspendedRegistrars()")]
+    #[precompile::view]
+    fn suspended_registrars(
+        _handle: &mut impl PrecompileHandle,
+    ) -> EvmResult<Vec<u32>> {
+        // Query the pallet_identity::SuspendedRegistrars storage item
+        let suspended = pallet_identity::Pallet::<Runtime>::susp_registrars();
+        Ok(suspended.to_vec())
+    }
+
+    #[precompile::public("setIdentity((((bool,uint8[]),(bool,uint8[]))[],(bool,uint8[]),(bool,uint8[]),(bool,uint8[]),(bool,uint8[]),(bool,uint8[]),bool,uint8[],(bool,uint8[]),(bool,uint8[])))")]
+    fn set_identity(
+        handle: &mut impl PrecompileHandle,
+        info: (
+            Vec<((bool, Vec<u8>), (bool, Vec<u8>))>, // additional
+            (bool, Vec<u8>), // display
+            (bool, Vec<u8>), // legal
+            (bool, Vec<u8>), // web
+            (bool, Vec<u8>), // riot
+            (bool, Vec<u8>), // email
+            bool, // hasPgpFingerprint
+            Vec<u8>, // pgpFingerprint
+            (bool, Vec<u8>), // image
+            (bool, Vec<u8>), // twitter
+        ),
+    ) -> EvmResult<bool> {
+        let who: Runtime::AccountId = Runtime::AddressMapping::into_account_id(handle.context().caller);
+        let info = decode_identity_info::<Runtime>(info)?;
+        RuntimeHelper::<Runtime>::try_dispatch(
+            handle,
+            Some(who.clone()).into(),
+            pallet_identity::Call::<Runtime>::set_identity { info: Box::new(info) },
+        )?;
+        Ok(true)
+    }
+
+    #[precompile::public("setSubs((uint8[],(bool,uint8[]))[])")]
+    fn set_subs(
+        handle: &mut impl PrecompileHandle,
+        subs: Vec<(Vec<u8>, (bool, Vec<u8>))>,
+    ) -> EvmResult<bool> {
+        let who: Runtime::AccountId = Runtime::AddressMapping::into_account_id(handle.context().caller);
+        // Fix: closure returns Result, collect, then unwrap, with explicit error type
+        let subs: Result<Vec<_>, PrecompileFailure> = subs.into_iter().map(|(acc, data)| {
+            Ok((decode_account_id::<Runtime>(acc)?, decode_data(data)))
+        }).collect();
+        let subs = subs?;
+        RuntimeHelper::<Runtime>::try_dispatch(
+            handle,
+            Some(who.clone()).into(),
+            pallet_identity::Call::<Runtime>::set_subs { subs },
+        )?;
+        Ok(true)
+    }
+
+    #[precompile::public("clearIdentity()")]
+    fn clear_identity(
+        handle: &mut impl PrecompileHandle,
+    ) -> EvmResult<bool> {
+        let who: Runtime::AccountId = Runtime::AddressMapping::into_account_id(handle.context().caller);
+        RuntimeHelper::<Runtime>::try_dispatch(
+            handle,
+            Some(who.clone()).into(),
+            pallet_identity::Call::<Runtime>::clear_identity {},
+        )?;
+        Ok(true)
+    }
+
+    #[precompile::public("requestJudgement(uint32,uint256)")]
+    fn request_judgement(
+        handle: &mut impl PrecompileHandle,
+        reg_index: u32,
+        max_fee: U256,
+    ) -> EvmResult<bool> {
+        let who: Runtime::AccountId = Runtime::AddressMapping::into_account_id(handle.context().caller);
+        let max_fee = decode_balance::<Runtime>(max_fee)?;
+        RuntimeHelper::<Runtime>::try_dispatch(
+            handle,
+            Some(who.clone()).into(),
+            pallet_identity::Call::<Runtime>::request_judgement { reg_index, max_fee },
+        )?;
+        Ok(true)
+    }
+
+    #[precompile::public("cancelRequest(uint32)")]
+    fn cancel_request(
+        handle: &mut impl PrecompileHandle,
+        reg_index: u32,
+    ) -> EvmResult<bool> {
+        let who: Runtime::AccountId = Runtime::AddressMapping::into_account_id(handle.context().caller);
+        RuntimeHelper::<Runtime>::try_dispatch(
+            handle,
+            Some(who.clone()).into(),
+            pallet_identity::Call::<Runtime>::cancel_request { reg_index },
+        )?;
+        Ok(true)
+    }
+
+    #[precompile::public("setFee(uint32,uint256)")]
+    fn set_fee(
+        handle: &mut impl PrecompileHandle,
+        reg_index: u32,
+        fee: U256,
+    ) -> EvmResult<bool> {
+        let who: Runtime::AccountId = Runtime::AddressMapping::into_account_id(handle.context().caller);
+        let fee = decode_balance::<Runtime>(fee)?;
+        RuntimeHelper::<Runtime>::try_dispatch(
+            handle,
+            Some(who.clone()).into(),
+            pallet_identity::Call::<Runtime>::set_fee { index: reg_index, fee },
+        )?;
+        Ok(true)
+    }
+
+    #[precompile::public("setAccountId(uint32,bytes32)")]
+    fn set_account_id(
+        handle: &mut impl PrecompileHandle,
+        reg_index: u32,
+        new_account: Bytes32,
+    ) -> EvmResult<bool> {
+        let who: Runtime::AccountId = Runtime::AddressMapping::into_account_id(handle.context().caller);
+        let new_account = decode_account_id::<Runtime>(new_account.0.to_vec())?;
+        RuntimeHelper::<Runtime>::try_dispatch(
+            handle,
+            Some(who.clone()).into(),
+            pallet_identity::Call::<Runtime>::set_account_id { index: reg_index, new: new_account },
+        )?;
+        Ok(true)
+    }
+
+    #[precompile::public("setFields(uint32,(bool,bool,bool,bool,bool,bool,bool,bool))")]
+    fn set_fields(
+        handle: &mut impl PrecompileHandle,
+        reg_index: u32,
+        fields: (bool, bool, bool, bool, bool, bool, bool, bool),
+    ) -> EvmResult<bool> {
+        let who: Runtime::AccountId = Runtime::AddressMapping::into_account_id(handle.context().caller);
+        let fields = encode_identity_fields_to_struct(fields);
+        RuntimeHelper::<Runtime>::try_dispatch(
+            handle,
+            Some(who.clone()).into(),
+            pallet_identity::Call::<Runtime>::set_fields { index: reg_index, fields },
+        )?;
+        Ok(true)
+    }
+
+    #[precompile::public("provideJudgement(uint32,bytes32,(bool,bool,uint256,bool,bool,bool,bool,bool),bytes32)")]
+    fn provide_judgement(
+        handle: &mut impl PrecompileHandle,
+        reg_index: u32,
+        target: Bytes32,
+        judgement: (bool, bool, U256, bool, bool, bool, bool, bool),
+        _identity: Bytes32, // Not used in Substrate call, but present in Solidity interface
+    ) -> EvmResult<bool> {
+        let who: Runtime::AccountId = Runtime::AddressMapping::into_account_id(handle.context().caller);
+        let target = decode_account_id::<Runtime>(target.0.to_vec())?;
+        let target = <Runtime as frame_system::Config>::Lookup::unlookup(target); // Fix: use lookup source
+        let judgement = decode_judgement::<Runtime>(judgement)?;
+        RuntimeHelper::<Runtime>::try_dispatch(
+            handle,
+            Some(who.clone()).into(),
+            pallet_identity::Call::<Runtime>::provide_judgement { reg_index, target, judgement },
+        )?;
+        Ok(true)
+    }
+
+    #[precompile::public("addSub(bytes32,(bool,uint8[]))")]
+    fn add_sub(
+        handle: &mut impl PrecompileHandle,
+        sub: Bytes32,
+        data: (bool, Vec<u8>),
+    ) -> EvmResult<bool> {
+        let who: Runtime::AccountId = Runtime::AddressMapping::into_account_id(handle.context().caller);
+        let sub = decode_account_id::<Runtime>(sub.0.to_vec())?;
+        let sub_lookup = <Runtime as frame_system::Config>::Lookup::unlookup(sub);
+        let data = decode_data(data);
+        RuntimeHelper::<Runtime>::try_dispatch(
+            handle,
+            Some(who.clone()).into(),
+            pallet_identity::Call::<Runtime>::add_sub { sub: sub_lookup, data },
+        )?;
+        Ok(true)
+    }
+
+    #[precompile::public("renameSub(bytes32,(bool,uint8[]))")]
+    fn rename_sub(
+        handle: &mut impl PrecompileHandle,
+        sub: Bytes32,
+        data: (bool, Vec<u8>),
+    ) -> EvmResult<bool> {
+        let who: Runtime::AccountId = Runtime::AddressMapping::into_account_id(handle.context().caller);
+        let sub = decode_account_id::<Runtime>(sub.0.to_vec())?;
+        let sub_lookup = <Runtime as frame_system::Config>::Lookup::unlookup(sub);
+        let data = decode_data(data);
+        RuntimeHelper::<Runtime>::try_dispatch(
+            handle,
+            Some(who.clone()).into(),
+            pallet_identity::Call::<Runtime>::rename_sub { sub: sub_lookup, data },
+        )?;
+        Ok(true)
+    }
+
+    #[precompile::public("removeSub(bytes32)")]
+    fn remove_sub(
+        handle: &mut impl PrecompileHandle,
+        sub: Bytes32,
+    ) -> EvmResult<bool> {
+        let who: Runtime::AccountId = Runtime::AddressMapping::into_account_id(handle.context().caller);
+        let sub = decode_account_id::<Runtime>(sub.0.to_vec())?;
+        let sub_lookup = <Runtime as frame_system::Config>::Lookup::unlookup(sub);
+        RuntimeHelper::<Runtime>::try_dispatch(
+            handle,
+            Some(who.clone()).into(),
+            pallet_identity::Call::<Runtime>::remove_sub { sub: sub_lookup },
+        )?;
+        Ok(true)
+    }
+
+    #[precompile::public("quitSub()")]
+    fn quit_sub(
+        handle: &mut impl PrecompileHandle,
+    ) -> EvmResult<bool> {
+        let who: Runtime::AccountId = Runtime::AddressMapping::into_account_id(handle.context().caller);
+        RuntimeHelper::<Runtime>::try_dispatch(
+            handle,
+            Some(who.clone()).into(),
+            pallet_identity::Call::<Runtime>::quit_sub {},
+        )?;
+        Ok(true)
+    }
+}
+
+// Helper: Convert pallet_identity::Data to (bool, Vec<u8>)
+fn encode_data(data: pallet_identity::Data) -> (bool, Vec<u8>) {
+    match data {
+        pallet_identity::Data::None => (false, vec![]),
+        pallet_identity::Data::Raw(bv) => (true, bv.into_inner()),
+        pallet_identity::Data::BlakeTwo256(arr)
+        | pallet_identity::Data::Sha256(arr)
+        | pallet_identity::Data::Keccak256(arr)
+        | pallet_identity::Data::ShaThree256(arr) => (true, arr.to_vec()),
+    }
+}
+
+// Helper: Encode Judgement as (isUnknown, isFeePaid, feePaidDeposit, isReasonable, isKnownGood, isOutOfDate, isLowQuality, isErroneous)
+fn encode_judgement<Runtime: pallet_identity::Config>(j: pallet_identity::Judgement<BalanceOf<Runtime>>) -> (bool, bool, U256, bool, bool, bool, bool, bool) {
+    match j {
+        pallet_identity::Judgement::Unknown => (true, false, U256::zero(), false, false, false, false, false),
+        pallet_identity::Judgement::FeePaid(fee) => (false, true, U256::from(fee.saturated_into::<u128>()), false, false, false, false, false),
+        pallet_identity::Judgement::Reasonable => (false, false, U256::zero(), true, false, false, false, false),
+        pallet_identity::Judgement::KnownGood => (false, false, U256::zero(), false, true, false, false, false),
+        pallet_identity::Judgement::OutOfDate => (false, false, U256::zero(), false, false, true, false, false),
+        pallet_identity::Judgement::LowQuality => (false, false, U256::zero(), false, false, false, true, false),
+        pallet_identity::Judgement::Erroneous => (false, false, U256::zero(), false, false, false, false, true),
+    }
+}
+
+// Helper: Encode IdentityFields as (display, legal, web, riot, email, pgpFingerprint, image, twitter)
+fn encode_identity_fields(bits: u64) -> (bool, bool, bool, bool, bool, bool, bool, bool) {
+    (
+        bits & (1 << 0) != 0,
+        bits & (1 << 1) != 0,
+        bits & (1 << 2) != 0,
+        bits & (1 << 3) != 0,
+        bits & (1 << 4) != 0,
+        bits & (1 << 5) != 0,
+        bits & (1 << 6) != 0,
+        bits & (1 << 7) != 0,
+    )
+}
+
+// Type alias for the correct Balance type
+pub type BalanceOf<Runtime> = <<Runtime as pallet_identity::Config>::Currency as frame_support::traits::Currency<<Runtime as frame_system::Config>::AccountId>>::Balance;
+
+// --- Decoding helpers for extrinsics ---
+// --- Fix 2: decode_account_id returns associated AccountId ---
+fn decode_account_id<Runtime: pallet_identity::Config>(bytes: Vec<u8>) -> EvmResult<<Runtime as frame_system::Config>::AccountId> {
+    use codec::Decode;
+    if bytes.len() != 32 {
+        return Err(revert("AccountId must be 32 bytes"));
+    }
+    <Runtime as frame_system::Config>::AccountId::decode(&mut &bytes[..])
+        .map_err(|_| revert("Failed to decode AccountId"))
+}
+
+fn decode_data(data: (bool, Vec<u8>)) -> pallet_identity::Data {
+    if !data.0 {
+        pallet_identity::Data::None
+    } else if data.1.len() == 32 {
+        // Try to match hash types
+        pallet_identity::Data::BlakeTwo256(data.1.clone().try_into().unwrap_or([0u8; 32]))
+    } else {
+        pallet_identity::Data::Raw(BoundedVec::truncate_from(data.1))
+    }
+}
+
+// --- Fix 3: Use BoundedVec::try_from for additional fields in decode_identity_info ---
+fn decode_identity_info<Runtime: pallet_identity::Config>(info: (
+    Vec<((bool, Vec<u8>), (bool, Vec<u8>))>,
+    (bool, Vec<u8>),
+    (bool, Vec<u8>),
+    (bool, Vec<u8>),
+    (bool, Vec<u8>),
+    (bool, Vec<u8>),
+    bool,
+    Vec<u8>,
+    (bool, Vec<u8>),
+    (bool, Vec<u8>),
+)) -> EvmResult<pallet_identity::IdentityInfo<Runtime::MaxAdditionalFields>> {
+    let additional_vec: Vec<_> = info.0.into_iter().map(|(k, v)| (decode_data(k), decode_data(v))).collect();
+    let additional = BoundedVec::try_from(additional_vec)
+        .map_err(|_| revert("BoundedVec overflow in additional fields"))?;
+    if info.6 && info.7.len() != 20 {
+        return Err(revert("pgp_fingerprint must be 20 bytes if present"));
+    }
+    Ok(pallet_identity::IdentityInfo {
+        additional,
+        display: decode_data(info.1),
+        legal: decode_data(info.2),
+        web: decode_data(info.3),
+        riot: decode_data(info.4),
+        email: decode_data(info.5),
+        pgp_fingerprint: if info.6 { Some(<[u8; 20]>::try_from(info.7.as_slice()).map_err(|_| revert("pgp_fingerprint must be 20 bytes"))?) } else { None },
+        image: decode_data(info.8),
+        twitter: decode_data(info.9),
+    })
+}
+
+fn decode_balance<Runtime: pallet_identity::Config>(val: U256) -> EvmResult<BalanceOf<Runtime>> {
+    // Use UniqueSaturatedInto for robust balance conversion
+    Ok(val.as_u128().unique_saturated_into())
+}
+
+fn decode_judgement<Runtime: pallet_identity::Config>(j: (bool, bool, U256, bool, bool, bool, bool, bool)) -> EvmResult<pallet_identity::Judgement<BalanceOf<Runtime>>> {
+    // Count how many discriminants are set
+    let discriminants = [j.0, j.1, j.3, j.4, j.5, j.6, j.7];
+    let count = discriminants.iter().filter(|&&b| b).count();
+    if count > 1 {
+        return Err(revert("Only one Judgement discriminant can be set"));
+    }
+    use pallet_identity::Judgement;
+    if j.0 { Ok(Judgement::Unknown) }
+    else if j.1 { Ok(Judgement::FeePaid(decode_balance::<Runtime>(j.2)?)) }
+    else if j.3 { Ok(Judgement::Reasonable) }
+    else if j.4 { Ok(Judgement::KnownGood) }
+    else if j.5 { Ok(Judgement::OutOfDate) }
+    else if j.6 { Ok(Judgement::LowQuality) }
+    else if j.7 { Ok(Judgement::Erroneous) }
+    else { Err(revert("Invalid Judgement discriminant")) }
+}
+
+fn encode_identity_fields_to_struct(fields: (bool, bool, bool, bool, bool, bool, bool, bool)) -> pallet_identity::IdentityFields {
+    let mut bits = 0u64;
+    if fields.0 { bits |= 1 << 0; }
+    if fields.1 { bits |= 1 << 1; }
+    if fields.2 { bits |= 1 << 2; }
+    if fields.3 { bits |= 1 << 3; }
+    if fields.4 { bits |= 1 << 4; }
+    if fields.5 { bits |= 1 << 5; }
+    if fields.6 { bits |= 1 << 6; }
+    if fields.7 { bits |= 1 << 7; }
+    pallet_identity::IdentityFields(unsafe { core::mem::transmute(bits) })
+} 
+
+/// Wrapper for bytes32 to support EvmData
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Bytes32(pub [u8; 32]);
+
+impl precompile_utils::EvmData for Bytes32 {
+    fn read(reader: &mut precompile_utils::EvmDataReader) -> MayRevert<Self> {
+        let bytes: Vec<u8> = reader.read()?;
+        if bytes.len() != 32 {
+            return Err(Revert::new(RevertReason::Custom("bytes32 argument must be exactly 32 bytes".to_string())));
+        }
+        let arr: [u8; 32] = bytes.as_slice().try_into().unwrap();
+        Ok(Bytes32(arr))
+    }
+    fn write(writer: &mut precompile_utils::EvmDataWriter, value: Self) {
+        *writer = core::mem::replace(writer, precompile_utils::EvmDataWriter::default()).write(value.0.to_vec());
+    }
+    fn has_static_size() -> bool { true }
+    fn solidity_type() -> String { "bytes32".to_string() }
+} 

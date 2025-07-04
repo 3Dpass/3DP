@@ -2,6 +2,9 @@
 members = [
     "runtime",
     "nodes/poscan-consensus",
+    "precompiles/assets-conversion",
+    "precompiles/poscan",
+    "precompiles/identity",
 ]
 resolver = "2"
 
