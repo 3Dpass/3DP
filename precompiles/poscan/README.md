@@ -54,6 +54,32 @@ struct ObjectInfo {
 }
 ```
 
+## Events
+
+The PoScan precompile emits the following events:
+
+### ObjectSubmitted
+Emitted when a new object is successfully submitted to the PoScan pallet.
+
+```solidity
+event ObjectSubmitted(address indexed submitter, uint32 indexed objIdx);
+```
+
+**Parameters:**
+- `address indexed submitter` - The address that submitted the object
+- `uint32 indexed objIdx` - The index of the submitted object
+
+### PermissionsSet
+Emitted when permissions are set for a private object.
+
+```solidity
+event PermissionsSet(uint32 indexed objIdx, address indexed setter);
+```
+
+**Parameters:**
+- `uint32 indexed objIdx` - The object index for which permissions were set
+- `address indexed setter` - The address that set the permissions
+
 ## Functions
 
 ### View Functions
@@ -192,6 +218,9 @@ Submits a new object to the PoScan pallet.
 **Returns:**
 - `bool` - Success status
 
+**Events:**
+- Emits `ObjectSubmitted(address indexed submitter, uint32 indexed objIdx)` on success
+
 **Example:**
 ```solidity
 // Submit a 3D object
@@ -220,6 +249,9 @@ Sets permissions for private object replicas.
 
 **Returns:**
 - `bool` - Success status
+
+**Events:**
+- Emits `PermissionsSet(uint32 indexed objIdx, address indexed setter)` on success
 
 **Example:**
 ```solidity
@@ -316,6 +348,56 @@ for (uint i = 0; i < myObjects.length; i++) {
         console.log("Required approvals:", obj.numApprovals);
     }
 }
+```
+
+## Event Monitoring
+
+### Listening to ObjectSubmitted Events
+```solidity
+// Listen for new object submissions
+poscan.ObjectSubmitted().watch((address submitter, uint32 objIdx) => {
+    console.log("New object submitted by:", submitter);
+    console.log("Object index:", objIdx);
+});
+```
+
+### Listening to PermissionsSet Events
+```solidity
+// Listen for permission changes
+poscan.PermissionsSet().watch((uint32 objIdx, address setter) => {
+    console.log("Permissions set for object:", objIdx);
+    console.log("Set by:", setter);
+});
+```
+
+### JavaScript/TypeScript Example
+```javascript
+// Using ethers.js
+const poscanContract = new ethers.Contract(
+    '0x0000000000000000000000000000000000000903',
+    poscanABI,
+    provider
+);
+
+// Listen for ObjectSubmitted events
+poscanContract.on('ObjectSubmitted', (submitter, objIdx, event) => {
+    console.log('New object submitted:', {
+        submitter: submitter,
+        objectIndex: objIdx.toString(),
+        blockNumber: event.blockNumber,
+        transactionHash: event.transactionHash
+    });
+});
+
+// Listen for PermissionsSet events
+poscanContract.on('PermissionsSet', (objIdx, setter, event) => {
+    console.log('Permissions updated:', {
+        objectIndex: objIdx.toString(),
+        setter: setter,
+        blockNumber: event.blockNumber,
+        transactionHash: event.transactionHash
+    });
+});
 ```
 
 ## Error Handling

@@ -433,7 +433,7 @@ where
         
         // Find the pair at the specified index
         let mut current_index = 0u32;
-        for (pool_id, pool_info) in Pools::<Runtime>::iter() {
+        for (_pool_id, pool_info) in Pools::<Runtime>::iter() {
             if current_index == index_u32 {
                 let lp_token = pool_info.lp_token;
                 let pair_address = format_lp_token_address(&lp_token);
@@ -543,23 +543,6 @@ fn format_lp_token_address<T: Into<u32> + Copy>(lp_token: &T) -> Address {
     bytes[0..4].copy_from_slice(&[0xfb, 0xfb, 0xfb, 0xfb]);
     bytes[4..8].copy_from_slice(&[0x00, 0x00, 0x00, 0x00]);
     let asset_id: u32 = (*lp_token).into();
-    let asset_bytes = asset_id.to_be_bytes();
-    bytes[16..20].copy_from_slice(&asset_bytes);
-    Address(H160::from(bytes))
-}
-
-fn native_token_address() -> Address {
-    let mut bytes = [0u8; 20];
-    bytes[18] = 0x08;
-    bytes[19] = 0x02;
-    Address(H160::from(bytes))
-}
-
-fn format_non_native_token_address<T: Into<u32> + Copy>(asset: &T) -> Address {
-    let mut bytes = [0u8; 20];
-    bytes[0..4].copy_from_slice(&[0xfb, 0xfb, 0xfb, 0xfa]);
-    bytes[4..8].copy_from_slice(&[0x00, 0x00, 0x00, 0x00]);
-    let asset_id: u32 = (*asset).into();
     let asset_bytes = asset_id.to_be_bytes();
     bytes[16..20].copy_from_slice(&asset_bytes);
     Address(H160::from(bytes))

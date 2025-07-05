@@ -179,6 +179,7 @@ interface Identity {
     /// @dev Set identity info for the caller.
     /// @custom:selector 0x7e08b4cb
     /// @param info The identity info
+    /// @notice Emits IdentitySet(address indexed who) event
     function setIdentity(IdentityInfo memory info) external;
 
     /// @dev Set sub accounts for the caller.
@@ -188,17 +189,20 @@ interface Identity {
 
     /// @dev Clears identity of the caller.
     /// @custom:selector 0x7a6a10c7
+    /// @notice Emits IdentityCleared(address indexed who) event
     function clearIdentity() external;
 
     /// @dev Requests registrar judgement on caller's identity.
     /// @custom:selector 0xd523ceb9
     /// @param regIndex The registrar's index
     /// @param maxFee The maximum fee the caller is willing to pay
+    /// @notice Emits JudgementRequested(address indexed who, uint32 regIndex) event
     function requestJudgement(uint32 regIndex, uint256 maxFee) external;
 
     /// @dev Cancels the caller's request for judgement from a registrar.
     /// @custom:selector 0xc79934a5
     /// @param regIndex The registrar's index
+    /// @notice Emits JudgementUnrequested(address indexed who, uint32 regIndex) event
     function cancelRequest(uint32 regIndex) external;
 
     /// @dev Sets the registrar's fee for providing a judgement. Caller must be the account at the index.
@@ -210,8 +214,8 @@ interface Identity {
     /// @dev Sets the registrar's account. Caller must be the account at the index.
     /// @custom:selector 0x889bc198
     /// @param regIndex The registrar's index
-    /// @param newAccount The new account to set
-    function setAccountId(uint32 regIndex, address newAccount) external;
+    /// @param newAccount The new account to set (bytes32 for AccountId32)
+    function setAccountId(uint32 regIndex, bytes32 newAccount) external;
 
     /// @dev Sets the registrar's identity fields. Caller must be the account at the index.
     /// @custom:selector 0x05297450
@@ -222,35 +226,39 @@ interface Identity {
     /// @dev Provides judgement on an accounts identity.
     /// @custom:selector 0xcd7663a4
     /// @param regIndex The registrar's index
-    /// @param target The target account to provide judgment for
+    /// @param target The target account to provide judgment for (bytes32 for AccountId32)
     /// @param judgement The judgement to provide
     /// @param identity The hash of the identity info
+    /// @notice Emits JudgementGiven(address indexed target, uint32 regIndex) event
     function provideJudgement(
         uint32 regIndex,
-        address target,
+        bytes32 target,
         Judgement memory judgement,
         bytes32 identity
     ) external;
 
     /// @dev Add a "sub" identity account for the caller.
     /// @custom:selector 0x98717196
-    /// @param sub The sub account
+    /// @param sub The sub account (bytes32 for AccountId32)
     /// @param data The associated data
-    function addSub(address sub, Data memory data) external;
+    /// @notice Emits SubIdentityAdded(address indexed sub, address indexed main) event
+    function addSub(bytes32 sub, Data memory data) external;
 
     /// @dev Rename a "sub" identity account of the caller.
     /// @custom:selector 0x452df561
-    /// @param sub The sub account
+    /// @param sub The sub account (bytes32 for AccountId32)
     /// @param data The new associated data
-    function renameSub(address sub, Data memory data) external;
+    function renameSub(bytes32 sub, Data memory data) external;
 
     /// @dev Removes a "sub" identity account of the caller.
     /// @custom:selector 0xb0a323e0
-    /// @param sub The sub account
-    function removeSub(address sub) external;
+    /// @param sub The sub account (bytes32 for AccountId32)
+    /// @notice Emits SubIdentityRemoved(address indexed sub, address indexed main) event
+    function removeSub(bytes32 sub) external;
 
     /// @dev Removes the sender as a sub-account.
     /// @custom:selector 0xd5a3c2c4
+    /// @notice Emits SubIdentityRevoked(address indexed sub) event
     function quitSub() external;
 
     /// @dev An identity was set or reset (which will remove all judgements).
@@ -292,3 +300,4 @@ interface Identity {
 }
 
 // NOTE: All account fields in responses are bytes32 (AccountId32/H256), not address, to match Rust precompile and avoid H256->H160 conversion.
+// NOTE: The precompile automatically emits events for state-changing functions. No need to emit events manually in Solidity contracts.

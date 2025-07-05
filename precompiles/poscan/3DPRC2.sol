@@ -5,7 +5,7 @@ pragma solidity ^0.8.0;
 address constant PRECOMPILE_ADDR = 0x0000000000000000000000000000000000000903;
 
 /**
- * @title I3DPRC2
+ * @title 3DPRC2
  * @notice Interface for the PoScan precompile
  * @dev
  */
@@ -50,6 +50,9 @@ interface I3DPRC2 {
 
     /// @dev Emitted when a new object is submitted
     event ObjectSubmitted(address indexed submitter, uint32 indexed objIdx);
+
+    /// @dev Emitted when permissions are set for a private object
+    event PermissionsSet(uint32 indexed objIdx, address indexed setter);
 
     /**
      * @notice Get object details by index
@@ -107,6 +110,7 @@ interface I3DPRC2 {
      * @param hashes Optional array of object hashes (can be empty for None)
      * @param properties Array of property values
      * @return success True if the object was submitted successfully
+     * @dev Emits an ObjectSubmitted event on success
      * @custom:selector 0x0c53c51c
      */
     function putObject(
@@ -121,6 +125,14 @@ interface I3DPRC2 {
         uint32 originalObj
     ) external returns (bool);
 
+    /**
+     * @notice Set permissions for private object replicas
+     * @param objIdx The object index
+     * @param permissions Array of permission structs
+     * @return success True if permissions were set successfully
+     * @dev Emits a PermissionsSet event on success
+     * @custom:selector 0x0c53c51d
+     */
     function setPrivateObjectPermissions(
         uint32 objIdx,
         Permission[] calldata permissions

@@ -155,6 +155,9 @@ Sets the identity information for the caller.
 **Returns:**
 - `bool` - Success status
 
+**Events:**
+- Emits `IdentitySet(address indexed who)` event
+
 **Example:**
 ```solidity
 // Create identity information
@@ -205,6 +208,9 @@ Clears the caller's identity information.
 **Returns:**
 - `bool` - Success status
 
+**Events:**
+- Emits `IdentityCleared(address indexed who)` event
+
 **Example:**
 ```solidity
 bool success = identity.clearIdentity();
@@ -219,6 +225,9 @@ Requests judgement from a registrar.
 
 **Returns:**
 - `bool` - Success status
+
+**Events:**
+- Emits `JudgementRequested(address indexed who, uint32 regIndex)` event
 
 **Example:**
 ```solidity
@@ -235,6 +244,9 @@ Cancels a pending judgement request.
 
 **Returns:**
 - `bool` - Success status
+
+**Events:**
+- Emits `JudgementUnrequested(address indexed who, uint32 regIndex)` event
 
 **Example:**
 ```solidity
@@ -306,6 +318,9 @@ Provides judgement for an identity (registrar only).
 **Returns:**
 - `bool` - Success status
 
+**Events:**
+- Emits `JudgementGiven(address indexed target, uint32 regIndex)` event
+
 **Example:**
 ```solidity
 uint32 registrarIndex = 0;
@@ -326,6 +341,9 @@ Adds a sub-identity.
 
 **Returns:**
 - `bool` - Success status
+
+**Events:**
+- Emits `SubIdentityAdded(address indexed sub, address indexed main)` event
 
 **Example:**
 ```solidity
@@ -360,6 +378,9 @@ Removes a sub-identity.
 **Returns:**
 - `bool` - Success status
 
+**Events:**
+- Emits `SubIdentityRemoved(address indexed sub, address indexed main)` event
+
 **Example:**
 ```solidity
 bytes32 subAccount = bytes32(0x1234...);
@@ -372,9 +393,223 @@ Quits being a sub-identity.
 **Returns:**
 - `bool` - Success status
 
+**Events:**
+- Emits `SubIdentityRevoked(address indexed sub)` event
+
 **Example:**
 ```solidity
 bool success = identity.quitSub();
+```
+
+## Events
+
+The Identity precompile emits the following events to provide transparency and enable event monitoring:
+
+### `IdentitySet(address indexed who)`
+Emitted when an identity is set or reset (which will remove all judgements).
+
+**Parameters:**
+- `address indexed who` - Address of the target account
+
+**Example:**
+```solidity
+// Listen for identity set events
+event IdentitySet(address indexed who);
+
+function onIdentitySet(address who) external {
+    console.log("Identity set for:", who);
+}
+```
+
+### `IdentityCleared(address indexed who)`
+Emitted when an identity is cleared, and the given balance returned.
+
+**Parameters:**
+- `address indexed who` - Address of the target account
+
+**Example:**
+```solidity
+// Listen for identity cleared events
+event IdentityCleared(address indexed who);
+
+function onIdentityCleared(address who) external {
+    console.log("Identity cleared for:", who);
+}
+```
+
+### `JudgementRequested(address indexed who, uint32 regIndex)`
+Emitted when a judgement is asked from a registrar.
+
+**Parameters:**
+- `address indexed who` - Address of the requesting account
+- `uint32 regIndex` - The registrar's index
+
+**Example:**
+```solidity
+// Listen for judgement request events
+event JudgementRequested(address indexed who, uint32 regIndex);
+
+function onJudgementRequested(address who, uint32 regIndex) external {
+    console.log("Judgement requested by:", who, "from registrar:", regIndex);
+}
+```
+
+### `JudgementUnrequested(address indexed who, uint32 regIndex)`
+Emitted when a judgement request is retracted.
+
+**Parameters:**
+- `address indexed who` - Address of the target account
+- `uint32 regIndex` - The registrar's index
+
+**Example:**
+```solidity
+// Listen for judgement unrequest events
+event JudgementUnrequested(address indexed who, uint32 regIndex);
+
+function onJudgementUnrequested(address who, uint32 regIndex) external {
+    console.log("Judgement unrequested by:", who, "from registrar:", regIndex);
+}
+```
+
+### `JudgementGiven(address indexed target, uint32 regIndex)`
+Emitted when a judgement is given by a registrar.
+
+**Parameters:**
+- `address indexed target` - Address of the target account
+- `uint32 regIndex` - The registrar's index
+
+**Example:**
+```solidity
+// Listen for judgement given events
+event JudgementGiven(address indexed target, uint32 regIndex);
+
+function onJudgementGiven(address target, uint32 regIndex) external {
+    console.log("Judgement given to:", target, "by registrar:", regIndex);
+}
+```
+
+### `SubIdentityAdded(address indexed sub, address indexed main)`
+Emitted when a sub-identity is added to an identity and the deposit paid.
+
+**Parameters:**
+- `address indexed sub` - Address of the sub account
+- `address indexed main` - Address of the main account
+
+**Example:**
+```solidity
+// Listen for sub-identity added events
+event SubIdentityAdded(address indexed sub, address indexed main);
+
+function onSubIdentityAdded(address sub, address main) external {
+    console.log("Sub-identity added:", sub, "to main:", main);
+}
+```
+
+### `SubIdentityRemoved(address indexed sub, address indexed main)`
+Emitted when a sub-identity is removed from an identity and the deposit freed.
+
+**Parameters:**
+- `address indexed sub` - Address of the sub account
+- `address indexed main` - Address of the main account
+
+**Example:**
+```solidity
+// Listen for sub-identity removed events
+event SubIdentityRemoved(address indexed sub, address indexed main);
+
+function onSubIdentityRemoved(address sub, address main) external {
+    console.log("Sub-identity removed:", sub, "from main:", main);
+}
+```
+
+### `SubIdentityRevoked(address indexed sub)`
+Emitted when a sub-identity is cleared and the given deposit repatriated from the main identity account to the sub-identity account.
+
+**Parameters:**
+- `address indexed sub` - Address of the sub account
+
+**Example:**
+```solidity
+// Listen for sub-identity revoked events
+event SubIdentityRevoked(address indexed sub);
+
+function onSubIdentityRevoked(address sub) external {
+    console.log("Sub-identity revoked:", sub);
+}
+```
+
+### Event Monitoring Examples
+
+#### Solidity Event Monitoring
+```solidity
+contract IdentityMonitor {
+    Identity public identity;
+    
+    constructor(address identityAddress) {
+        identity = Identity(identityAddress);
+    }
+    
+    // Monitor all identity events
+    function monitorIdentityEvents() external {
+        // Listen for identity set/cleared events
+        identity.IdentitySet(msg.sender);
+        identity.IdentityCleared(msg.sender);
+        
+        // Listen for judgement events
+        identity.JudgementRequested(msg.sender, 0);
+        identity.JudgementUnrequested(msg.sender, 0);
+        identity.JudgementGiven(msg.sender, 0);
+        
+        // Listen for sub-identity events
+        identity.SubIdentityAdded(msg.sender, msg.sender);
+        identity.SubIdentityRemoved(msg.sender, msg.sender);
+        identity.SubIdentityRevoked(msg.sender);
+    }
+}
+```
+
+#### JavaScript/TypeScript Event Monitoring
+```javascript
+// Using ethers.js
+const identityContract = new ethers.Contract(identityAddress, identityABI, provider);
+
+// Listen for identity set events
+identityContract.on('IdentitySet', (who, event) => {
+    console.log('Identity set for:', who);
+    console.log('Transaction hash:', event.transactionHash);
+    console.log('Block number:', event.blockNumber);
+});
+
+// Listen for judgement requested events
+identityContract.on('JudgementRequested', (who, regIndex, event) => {
+    console.log('Judgement requested by:', who, 'from registrar:', regIndex.toString());
+    console.log('Transaction hash:', event.transactionHash);
+});
+
+// Listen for sub-identity added events
+identityContract.on('SubIdentityAdded', (sub, main, event) => {
+    console.log('Sub-identity added:', sub, 'to main:', main);
+    console.log('Transaction hash:', event.transactionHash);
+});
+
+// Get past events
+async function getPastEvents() {
+    const fromBlock = 1000000;
+    const toBlock = 'latest';
+    
+    const identitySetEvents = await identityContract.queryFilter(
+        identityContract.filters.IdentitySet(),
+        fromBlock,
+        toBlock
+    );
+    
+    console.log('Past identity set events:', identitySetEvents.length);
+    
+    for (const event of identitySetEvents) {
+        console.log('Identity set for:', event.args.who);
+        console.log('Block:', event.blockNumber);
+    }
+}
 ```
 
 ## Identity Fields
