@@ -2,6 +2,8 @@
 
 The Identity Precompile provides an interface for managing on-chain identities on the 3Dpass network. It allows users to set, query, and manage identity information including display names, legal names, web presence, social media, and more.
 
+> **Recent Update**: The `setFee` function now emits a `RegistrarFeeSet` event for better transparency and event monitoring when registrar fees are modified.
+
 ## Address
 ```
 0x0000000000000000000000000000000000000904
@@ -263,6 +265,9 @@ Sets the fee for a registrar (registrar only).
 
 **Returns:**
 - `bool` - Success status
+
+**Events:**
+- Emits `RegistrarFeeSet(uint32 indexed regIndex, uint256 fee)` event
 
 **Example:**
 ```solidity
@@ -538,6 +543,23 @@ function onSubIdentityRevoked(address sub) external {
 }
 ```
 
+### `RegistrarFeeSet(uint32 indexed regIndex, uint256 fee)`
+Emitted when a registrar's fee is set.
+
+**Parameters:**
+- `uint32 indexed regIndex` - The registrar's index
+- `uint256 fee` - The new fee amount
+
+**Example:**
+```solidity
+// Listen for registrar fee set events
+event RegistrarFeeSet(uint32 indexed regIndex, uint256 fee);
+
+function onRegistrarFeeSet(uint32 regIndex, uint256 fee) external {
+    console.log("Registrar fee set for index:", regIndex, "new fee:", fee);
+}
+```
+
 ### Event Monitoring Examples
 
 #### Solidity Event Monitoring
@@ -564,6 +586,9 @@ contract IdentityMonitor {
         identity.SubIdentityAdded(msg.sender, msg.sender);
         identity.SubIdentityRemoved(msg.sender, msg.sender);
         identity.SubIdentityRevoked(msg.sender);
+        
+        // Listen for registrar events
+        identity.RegistrarFeeSet(0, 0);
     }
 }
 ```
@@ -592,6 +617,12 @@ identityContract.on('SubIdentityAdded', (sub, main, event) => {
     console.log('Transaction hash:', event.transactionHash);
 });
 
+// Listen for registrar fee set events
+identityContract.on('RegistrarFeeSet', (regIndex, fee, event) => {
+    console.log('Registrar fee set for index:', regIndex.toString(), 'new fee:', ethers.utils.formatEther(fee));
+    console.log('Transaction hash:', event.transactionHash);
+});
+
 // Get past events
 async function getPastEvents() {
     const fromBlock = 1000000;
@@ -607,6 +638,21 @@ async function getPastEvents() {
     
     for (const event of identitySetEvents) {
         console.log('Identity set for:', event.args.who);
+        console.log('Block:', event.blockNumber);
+    }
+    
+    // Get past registrar fee set events
+    const registrarFeeSetEvents = await identityContract.queryFilter(
+        identityContract.filters.RegistrarFeeSet(),
+        fromBlock,
+        toBlock
+    );
+    
+    console.log('Past registrar fee set events:', registrarFeeSetEvents.length);
+    
+    for (const event of registrarFeeSetEvents) {
+        console.log('Registrar fee set for index:', event.args.regIndex.toString());
+        console.log('New fee:', ethers.utils.formatEther(event.args.fee));
         console.log('Block:', event.blockNumber);
     }
 }

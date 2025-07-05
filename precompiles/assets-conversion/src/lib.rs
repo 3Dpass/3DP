@@ -9,6 +9,7 @@ use sp_std::{marker::PhantomData, vec::Vec};
 use pallet_evm::AddressMapping;
 use frame_support::BoundedVec;
 use scale_info::prelude::format;
+use frame_support::sp_runtime::SaturatedConversion;
 
 use pallet_asset_conversion::{Pools, NativeOrAssetId};
 
@@ -17,6 +18,7 @@ pub const SELECTOR_LOG_SWAP: [u8; 32] = keccak256!("Swap(address,uint256,uint256
 pub const SELECTOR_LOG_MINT: [u8; 32] = keccak256!("Mint(address,uint256,uint256)");
 pub const SELECTOR_LOG_BURN: [u8; 32] = keccak256!("Burn(address,uint256,uint256,address)");
 pub const SELECTOR_LOG_SYNC: [u8; 32] = keccak256!("Sync(uint112,uint112)");
+pub const SELECTOR_LOG_PAIR_CREATED: [u8; 32] = keccak256!("PairCreated(address,address,address,uint256)");
 
 // Note: SELECTOR_QUERY_PAIRS was removed as it's not used in the Rust code
 
@@ -510,6 +512,9 @@ where
         // Map submitter
         let who: Runtime::AccountId = Runtime::AddressMapping::into_account_id(handle.context().caller);
         
+        // Record gas cost for event emission
+        handle.record_log_costs_manual(3, 32)?;
+        
         // Dispatch call to create pool
         RuntimeHelper::<Runtime>::try_dispatch(
             handle,
@@ -522,19 +527,40 @@ where
         
         // Get the created pair address
         let pool_id = (asset_a, asset_b);
-        if let Some(pool_info) = Pools::<Runtime>::get(pool_id) {
-            let pair_address = format_lp_token_address(&pool_info.lp_token);
-            return Ok(pair_address);
+        let pair_address = if let Some(pool_info) = Pools::<Runtime>::get(pool_id) {
+            format_lp_token_address(&pool_info.lp_token)
+        } else {
+            // Fallback: try reverse order
+            let pool_id_reverse = (asset_b, asset_a);
+            if let Some(pool_info) = Pools::<Runtime>::get(pool_id_reverse) {
+                format_lp_token_address(&pool_info.lp_token)
+            } else {
+                return Err(revert("Failed to create pair"));
+            }
+        };
+        
+        // Get total pair count for the event
+        let mut pair_count = 0u32;
+        for _ in Pools::<Runtime>::iter() {
+            pair_count += 1;
         }
         
-        // Fallback: try reverse order
-        let pool_id_reverse = (asset_b, asset_a);
-        if let Some(pool_info) = Pools::<Runtime>::get(pool_id_reverse) {
-            let pair_address = format_lp_token_address(&pool_info.lp_token);
-            return Ok(pair_address);
-        }
+        // Emit PairCreated event (Uniswap V2 compatibility)
+        log3(
+            handle.context().address,
+            SELECTOR_LOG_PAIR_CREATED,
+            handle.context().caller,
+            handle.context().caller,
+            EvmDataWriter::new()
+                .write(token_a)
+                .write(token_b)
+                .write(pair_address)
+                .write(U256::from(<Runtime as pallet_asset_conversion::Config>::AssetBalance::from(pair_count)))
+                .build(),
+        )
+        .record(handle)?;
         
-        Err(revert("Failed to create pair"))
+        Ok(pair_address)
     }
 }
 

@@ -4,19 +4,24 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 extern crate alloc;
 
-use precompile_utils::prelude::*;
-use sp_std::{marker::PhantomData, vec, vec::Vec, boxed::Box};
-use pallet_evm::AddressMapping;
-use sp_core::U256;
-use frame_support::sp_runtime::SaturatedConversion;
-use codec::Encode;
-use frame_support::BoundedVec;
-use precompile_utils::EvmResult;
-use precompile_utils::{revert};
-use fp_evm::PrecompileFailure;
-use sp_runtime::traits::{StaticLookup, UniqueSaturatedInto};
+use alloc::vec;
+use alloc::boxed::Box;
 use alloc::string::String;
 use alloc::string::ToString;
+
+use precompile_utils::prelude::*;
+use sp_core::{H160, U256};
+use sp_runtime::traits::StaticLookup;
+use sp_std::vec::Vec;
+use pallet_identity;
+use frame_support::BoundedVec;
+use sp_runtime::traits::UniqueSaturatedInto;
+use pallet_evm::AddressMapping;
+
+use core::marker::PhantomData;
+use sp_runtime::SaturatedConversion;
+
+use fp_evm::PrecompileFailure;
 
 // Event selectors for Identity pallet compatibility
 pub const SELECTOR_LOG_IDENTITY_SET: [u8; 32] = keccak256!("IdentitySet(address)");
@@ -27,6 +32,7 @@ pub const SELECTOR_LOG_JUDGEMENT_GIVEN: [u8; 32] = keccak256!("JudgementGiven(ad
 pub const SELECTOR_LOG_SUB_IDENTITY_ADDED: [u8; 32] = keccak256!("SubIdentityAdded(address,address)");
 pub const SELECTOR_LOG_SUB_IDENTITY_REMOVED: [u8; 32] = keccak256!("SubIdentityRemoved(address,address)");
 pub const SELECTOR_LOG_SUB_IDENTITY_REVOKED: [u8; 32] = keccak256!("SubIdentityRevoked(address)");
+pub const SELECTOR_LOG_REGISTRAR_FEE_SET: [u8; 32] = keccak256!("RegistrarFeeSet(uint32,uint256)");
 
 /// Identity precompile main struct
 #[derive(Debug, Clone)]
@@ -40,6 +46,8 @@ where
     <Runtime::Call as frame_support::dispatch::Dispatchable>::Origin: From<Option<Runtime::AccountId>>,
     Runtime::Call: From<pallet_identity::Call<Runtime>>,
     sp_core::U256: From<BalanceOf<Runtime>>,
+    Runtime::AccountId: AsRef<[u8; 32]>,
+    BalanceOf<Runtime>: Into<sp_core::U256>,
 {
     #[precompile::public("identity(address)")]
     fn identity(
@@ -100,16 +108,16 @@ where
         who: Address,
     ) -> EvmResult<(
         bool, // isValid
-        Vec<u8>, // account (AccountId32 as bytes)
+        Address, // account (AccountId32 as H160 address)
         (bool, UnboundedBytes) // Data
     )> {
-        let account_id = Runtime::AddressMapping::into_account_id(who.into());
+        let account_id = <Runtime as pallet_evm::Config>::AddressMapping::into_account_id(who.into());
         if let Some((super_acc, data)) = pallet_identity::Pallet::<Runtime>::super_of(&account_id) {
-            let super_bytes = super_acc.encode();
+            let super_address = account_id_to_address::<Runtime>(&super_acc);
             let data_tuple = encode_data_unbounded(data);
-            Ok((true, super_bytes, data_tuple))
+            Ok((true, super_address, data_tuple))
         } else {
-            Ok((false, vec![], (false, UnboundedBytes::from(vec![]))))
+            Ok((false, Address(H160::zero()), (false, UnboundedBytes::from(vec![]))))
         }
     }
 
@@ -119,36 +127,48 @@ where
         who: Address,
     ) -> EvmResult<(
         U256, // deposit
-        Vec<Vec<u8>> // accounts (AccountId32 as bytes)
+        Vec<Address> // accounts (AccountId32 as H160 addresses)
     )> {
-        let account_id = Runtime::AddressMapping::into_account_id(who.into());
+        let account_id = <Runtime as pallet_evm::Config>::AddressMapping::into_account_id(who.into());
         let (deposit, subs) = pallet_identity::Pallet::<Runtime>::subs_of(&account_id);
         let deposit_u256 = U256::from(deposit);
-        let sub_bytes: Vec<Vec<u8>> = subs.into_iter().map(|acc| acc.encode()).collect();
-        Ok((deposit_u256, sub_bytes))
+        let sub_addresses: Vec<Address> = subs.into_iter().map(|acc| {
+            account_id_to_address::<Runtime>(&acc)
+        }).collect();
+        Ok((deposit_u256, sub_addresses))
     }
 
     #[precompile::public("registrars()")]
     fn registrars(
         _handle: &mut impl PrecompileHandle,
-    ) -> EvmResult<Vec<(
-        bool, // isValid
-        u32, // index
-        Vec<u8>, // account (AccountId32 as bytes)
-        U256, // fee
-        (bool, bool, bool, bool, bool, bool, bool, bool) // IdentityFields
-    )>> {
+    ) -> EvmResult<Vec<RegistrarInfo>> {
         let regs = pallet_identity::Pallet::<Runtime>::registrars();
-        let mut out = Vec::with_capacity(regs.len());
-        for (i, reg) in regs.into_iter().enumerate() {
+        let mut out = Vec::new();
+        
+        // Use sequential indexing (like assets-conversion precompile)
+        let mut sequential_index = 0u32;
+        for (_storage_index, reg) in regs.into_iter().enumerate() {
             if let Some(info) = reg {
-                let acc_bytes = info.account.encode();
+                // Convert AccountId32 to H160 address using standard truncation
+                let account_address = account_id_to_address::<Runtime>(&info.account);
+                
+                // Convert fee to U256 properly - ensure no truncation
                 let fee = U256::from(info.fee);
+                
+                // Encode identity fields
                 let fields = encode_identity_fields(info.fields.0.bits());
-                out.push((true, i as u32, acc_bytes, fee, fields));
-            } else {
-                out.push((false, i as u32, vec![], U256::zero(), (false, false, false, false, false, false, false, false)));
+                
+                // Add the registrar to the output with sequential index
+                out.push(RegistrarInfo {
+                    is_valid: true,
+                    index: sequential_index,
+                    account: account_address,
+                    fee,
+                    fields,
+                });
+                sequential_index += 1;
             }
+            // Skip None values - don't include them in the output
         }
         Ok(out)
     }
@@ -328,11 +348,29 @@ where
     ) -> EvmResult<bool> {
         let who: Runtime::AccountId = Runtime::AddressMapping::into_account_id(handle.context().caller);
         let fee = decode_balance::<Runtime>(fee)?;
+        
+        // Record gas cost for event emission
+        handle.record_log_costs_manual(3, 32)?;
+        
         RuntimeHelper::<Runtime>::try_dispatch(
             handle,
             Some(who.clone()).into(),
             pallet_identity::Call::<Runtime>::set_fee { index: reg_index, fee },
         )?;
+        
+        // Emit RegistrarFeeSet event
+        log3(
+            handle.context().address,
+            SELECTOR_LOG_REGISTRAR_FEE_SET,
+            handle.context().caller,
+            handle.context().caller,
+            EvmDataWriter::new()
+                .write(sp_core::U256([reg_index as u64, 0, 0, 0]))
+                .write(U256::from(fee))
+                .build(),
+        )
+        .record(handle)?;
+        
         Ok(true)
     }
 
@@ -637,14 +675,13 @@ fn decode_judgement<Runtime: pallet_identity::Config>(j: (bool, bool, U256, bool
     if count > 1 {
         return Err(revert("Only one Judgement discriminant can be set"));
     }
-    use pallet_identity::Judgement;
-    if j.0 { Ok(Judgement::Unknown) }
-    else if j.1 { Ok(Judgement::FeePaid(decode_balance::<Runtime>(j.2)?)) }
-    else if j.3 { Ok(Judgement::Reasonable) }
-    else if j.4 { Ok(Judgement::KnownGood) }
-    else if j.5 { Ok(Judgement::OutOfDate) }
-    else if j.6 { Ok(Judgement::LowQuality) }
-    else if j.7 { Ok(Judgement::Erroneous) }
+    if j.0 { Ok(pallet_identity::Judgement::Unknown) }
+    else if j.1 { Ok(pallet_identity::Judgement::FeePaid(decode_balance::<Runtime>(j.2)?)) }
+    else if j.3 { Ok(pallet_identity::Judgement::Reasonable) }
+    else if j.4 { Ok(pallet_identity::Judgement::KnownGood) }
+    else if j.5 { Ok(pallet_identity::Judgement::OutOfDate) }
+    else if j.6 { Ok(pallet_identity::Judgement::LowQuality) }
+    else if j.7 { Ok(pallet_identity::Judgement::Erroneous) }
     else { Err(revert("Invalid Judgement discriminant")) }
 }
 
@@ -675,47 +712,57 @@ impl precompile_utils::EvmData for Bytes32 {
         Ok(Bytes32(arr))
     }
     fn write(writer: &mut precompile_utils::EvmDataWriter, value: Self) {
-        *writer = core::mem::replace(writer, precompile_utils::EvmDataWriter::default()).write(value.0.to_vec());
+        *writer = writer.clone().write(value.0.to_vec());
     }
     fn has_static_size() -> bool { true }
     fn solidity_type() -> String { "bytes32".to_string() }
 } 
 
-#[cfg(test)]
-mod tests {
-    use super::*;
+/// Custom struct for Registrar return type to ensure proper encoding
+#[derive(Debug, Clone)]
+pub struct RegistrarInfo {
+    pub is_valid: bool,
+    pub index: u32,
+    pub account: Address, // Changed from Bytes32 to Address (H160)
+    pub fee: U256,
+    pub fields: (bool, bool, bool, bool, bool, bool, bool, bool),
+}
 
-    /// This test ensures that the Rust macro attribute signature matches the Solidity interface signature.
-    /// Selector checks should be done in Solidity or with solc/ethers.js, not in Rust.
-    #[test]
-    fn test_macro_attribute_matches_solidity_signature() {
-        // List of (function_name, rust_macro_attribute, solidity_signature)
-        let test_cases = vec![
-            ("identity", "identity(address)", "identity(address)"),
-            ("superOf", "superOf(address)", "superOf(address)"),
-            ("subsOf", "subsOf(address)", "subsOf(address)"),
-            ("registrars", "registrars()", "registrars()"),
-            ("suspendedRegistrars", "suspendedRegistrars()", "suspendedRegistrars()"),
-            ("setIdentity", "setIdentity(((bool,bytes),(bool,bytes))[],(bool,bytes),(bool,bytes),(bool,bytes),(bool,bytes),(bool,bytes),bool,bytes,(bool,bytes),(bool,bytes))", "setIdentity(((bool,bytes),(bool,bytes))[],(bool,bytes),(bool,bytes),(bool,bytes),(bool,bytes),(bool,bytes),bool,bytes,(bool,bytes),(bool,bytes))"),
-            ("setSubs", "setSubs((bytes32,(bool,bytes))[])", "setSubs((bytes32,(bool,bytes))[])"),
-            ("clearIdentity", "clearIdentity()", "clearIdentity()"),
-            ("requestJudgement", "requestJudgement(uint32,uint256)", "requestJudgement(uint32,uint256)"),
-            ("cancelRequest", "cancelRequest(uint32)", "cancelRequest(uint32)"),
-            ("setFee", "setFee(uint32,uint256)", "setFee(uint32,uint256)"),
-            ("setAccountId", "setAccountId(uint32,bytes32)", "setAccountId(uint32,bytes32)"),
-            ("setFields", "setFields(uint32,(bool,bool,bool,bool,bool,bool,bool,bool))", "setFields(uint32,(bool,bool,bool,bool,bool,bool,bool,bool))"),
-            ("provideJudgement", "provideJudgement(uint32,bytes32,(bool,bool,uint256,bool,bool,bool,bool,bool),bytes32)", "provideJudgement(uint32,bytes32,(bool,bool,uint256,bool,bool,bool,bool,bool),bytes32)"),
-            ("addSub", "addSub(bytes32,(bool,bytes))", "addSub(bytes32,(bool,bytes))"),
-            ("renameSub", "renameSub(bytes32,(bool,bytes))", "renameSub(bytes32,(bool,bytes))"),
-            ("removeSub", "removeSub(bytes32)", "removeSub(bytes32)"),
-            ("quitSub", "quitSub()", "quitSub()"),
-        ];
-        for (function_name, rust_macro, solidity_sig) in test_cases {
-            assert_eq!(
-                rust_macro, solidity_sig,
-                "Signature mismatch for {}: Rust macro '{}', Solidity '{}'",
-                function_name, rust_macro, solidity_sig
-            );
-        }
+impl precompile_utils::EvmData for RegistrarInfo {
+    fn read(reader: &mut precompile_utils::EvmDataReader) -> MayRevert<Self> {
+        let is_valid: bool = reader.read()?;
+        let index: u32 = reader.read()?;
+        let account: Address = reader.read()?;
+        let fee: U256 = reader.read()?;
+        let fields: (bool, bool, bool, bool, bool, bool, bool, bool) = reader.read()?;
+        Ok(RegistrarInfo {
+            is_valid,
+            index,
+            account,
+            fee,
+            fields,
+        })
     }
+    
+    fn write(writer: &mut precompile_utils::EvmDataWriter, value: Self) {
+        *writer = writer.clone()
+            .write(value.is_valid)
+            .write(value.index)
+            .write(value.account)
+            .write(value.fee)
+            .write(value.fields);
+    }
+    
+    fn has_static_size() -> bool { false }
+    fn solidity_type() -> String { "(bool,uint32,address,uint256,(bool,bool,bool,bool,bool,bool,bool,bool))".to_string() }
+} 
+
+/// Convert AccountId32 to H160 address by truncating to first 20 bytes
+/// This follows the conventional pattern used in EnsureAddressTruncated
+fn account_id_to_address<Runtime: pallet_identity::Config>(account_id: &<Runtime as frame_system::Config>::AccountId) -> Address
+where
+    <Runtime as frame_system::Config>::AccountId: AsRef<[u8; 32]>,
+{
+    let bytes = account_id.as_ref();
+    Address(H160::from_slice(&bytes[0..20]))
 } 

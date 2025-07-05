@@ -6,10 +6,9 @@
 extern crate alloc;
 use alloc::vec;
 use precompile_utils::prelude::*;
-use sp_core::{H256, U256};
+use sp_core::{H160, H256, U256};
 use sp_std::{marker::PhantomData, vec::Vec};
 use sp_arithmetic::traits::SaturatedConversion;
-use codec::Encode;
 
 // No alias, use precompile_utils::data::String directly
 use pallet_evm::AddressMapping;
@@ -26,6 +25,16 @@ pub const SELECTOR_LOG_PERMISSIONS_SET: [u8; 32] = keccak256!("PermissionsSet(ui
 // Function selectors for reference
 pub const SELECTOR_GET_OBJECT: [u8; 4] = [0xA1, 0xB2, 0xC0, 0x01];
 
+/// Convert AccountId32 to H160 address by truncating to first 20 bytes
+/// This follows the conventional pattern used in EnsureAddressTruncated
+fn account_id_to_address<Runtime: pallet_poscan::Config>(account_id: &<Runtime as frame_system::Config>::AccountId) -> Address
+where
+    <Runtime as frame_system::Config>::AccountId: AsRef<[u8; 32]>,
+{
+    let bytes = account_id.as_ref();
+    Address(H160::from_slice(&bytes[0..20]))
+}
+
 #[derive(Debug, Clone)]
 pub struct PoScanPrecompile<Runtime>(PhantomData<Runtime>);
 
@@ -37,6 +46,7 @@ where
         + frame_support::dispatch::GetDispatchInfo,
     <<Runtime as frame_system::Config>::Call as frame_support::dispatch::Dispatchable>::Origin: From<Option<Runtime::AccountId>>,
     <Runtime as frame_system::Config>::Call: From<pallet_poscan::Call<Runtime>>,
+    <Runtime as frame_system::Config>::AccountId: AsRef<[u8; 32]>,
 {
     /// Solidity-friendly getter for PoScan object data
     /// @custom:selector 0xA1B2C001
@@ -51,7 +61,7 @@ where
         u8, // category discriminant
         u64, // whenCreated
         u64, // whenApproved (0 if None)
-        H256, // owner
+        Address, // owner (AccountId32 as H160 address)
         bool, // isPrivate
         Vec<H256>, // hashes
         u8, // numApprovals
@@ -82,8 +92,8 @@ where
             let when_created = obj.when_created.saturated_into();
             // --- whenApproved ---
             let when_approved = obj.when_approved.map(|b| b.saturated_into()).unwrap_or(0u64);
-            // --- owner as EVM address ---
-            let owner = H256::from_slice(&obj.owner.encode());
+            // --- owner as EVM address (H160) using canonical mapping ---
+            let owner = account_id_to_address::<Runtime>(&obj.owner);
             // --- isPrivate ---
             let is_private = obj.is_private;
             // --- hashes ---
@@ -94,7 +104,7 @@ where
             let prop = obj.prop.iter().map(|p| (p.prop_idx, p.max_value)).collect();
             Ok((true, state_discriminant, state_block, category_discriminant, when_created, when_approved, owner, is_private, hashes, num_approvals, prop))
         } else {
-            Ok((false, 0, 0, 0, 0, 0, H256::zero(), false, vec![], 0, vec![]))
+            Ok((false, 0, 0, 0, 0, 0, Address(H160::zero()), false, vec![], 0, vec![]))
         }
     }
 
@@ -128,7 +138,7 @@ where
     #[precompile::public("getProperties()")]
     fn get_properties(
         _handle: &mut impl PrecompileHandle,
-    ) -> EvmResult<Vec<(u32, UnboundedString, u8, u128)>> {
+    ) -> EvmResult<Vec<(bool, u32, UnboundedString, u8, u128)>> {
         use pallet_poscan::Pallet as PoScanPallet;
         use sp_consensus_poscan::PropClass;
         let prop_count = PoScanPallet::<Runtime>::prop_count();
@@ -140,7 +150,9 @@ where
                     PropClass::Relative => 0u8,
                     PropClass::Absolute => 1u8,
                 };
-                out.push((prop_idx, name, class, prop.max_value));
+                out.push((true, prop_idx, name, class, prop.max_value));
+            } else {
+                out.push((false, prop_idx, UnboundedString::from(""), 0u8, 0u128));
             }
         }
         Ok(out)

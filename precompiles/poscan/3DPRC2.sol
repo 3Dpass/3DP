@@ -41,7 +41,7 @@ interface I3DPRC2 {
         uint8 category;
         uint64 whenCreated;
         uint64 whenApproved;
-        bytes32 owner;
+        address owner; // Changed from bytes32 to address (H160)
         bool isPrivate;
         bytes32[] hashes;
         uint8 numApprovals;
