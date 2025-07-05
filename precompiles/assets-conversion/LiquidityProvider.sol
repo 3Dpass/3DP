@@ -1,6 +1,27 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
+/// @dev Interface for the assets conversion precompile
+interface IAssetsConversion {
+    function addLiquidity(
+        address asset1,
+        address asset2,
+        uint256 amount1Desired,
+        uint256 amount2Desired,
+        uint256 amount1Min,
+        uint256 amount2Min,
+        address mintTo
+    ) external returns (bool success);
+    function removeLiquidity(
+        address asset1,
+        address asset2,
+        uint256 lpTokenBurn,
+        uint256 amount1MinReceive,
+        uint256 amount2MinReceive,
+        address withdrawTo
+    ) external returns (bool success);
+}
+
 /// @title LiquidityProvider
 /// @notice Front-end contract for adding and removing liquidity via the asset conversion precompile
 contract LiquidityProvider {
@@ -8,27 +29,6 @@ contract LiquidityProvider {
     event LiquidityAdded(address indexed asset1, address indexed asset2, address indexed mintTo, uint256 amount1Desired, uint256 amount2Desired);
     /// @dev Emitted when liquidity is removed from a pool
     event LiquidityRemoved(address indexed asset1, address indexed asset2, address indexed withdrawTo, uint256 lpTokenBurn);
-
-    /// @dev Interface for the assets conversion precompile
-    interface IAssetsConversion {
-        function addLiquidity(
-            address asset1,
-            address asset2,
-            uint256 amount1Desired,
-            uint256 amount2Desired,
-            uint256 amount1Min,
-            uint256 amount2Min,
-            address mintTo
-        ) external returns (bool success);
-        function removeLiquidity(
-            address asset1,
-            address asset2,
-            uint256 lpTokenBurn,
-            uint256 amount1MinReceive,
-            uint256 amount2MinReceive,
-            address withdrawTo
-        ) external returns (bool success);
-    }
 
     IAssetsConversion public immutable assetsConversion;
 

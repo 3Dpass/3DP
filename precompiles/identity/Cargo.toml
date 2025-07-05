@@ -46,3 +46,7 @@ std = [
 [lib]
 name = "pallet_evm_precompileset_identity"
 crate-type = ["rlib"] 
+
+[dev-dependencies]
+hex = "0.4"
+tiny-keccak = "2" 

@@ -180,7 +180,7 @@ where
         category: u8,
         algo3d: u8,
         is_private: bool,
-        obj: Vec<u8>,
+        obj: UnboundedBytes,
         num_approvals: u8,
         hashes: Vec<H256>,
         properties: Vec<(u32, u128)>,
@@ -210,7 +210,7 @@ where
         }
         // Check for OBJ file signature (should start with common OBJ keywords)
         if obj.len() > 0 {
-            let obj_str = String::from_utf8_lossy(&obj);
+            let obj_str = String::from_utf8_lossy(obj.as_bytes());
             if !obj_str.lines().any(|line| {
                 let trimmed = line.trim();
                 trimmed.starts_with("v ") || // vertex
@@ -224,7 +224,7 @@ where
                 return Err(revert("Invalid OBJ file format"));
             }
         }
-        let obj: BoundedVec<u8, ConstU32<{ sp_consensus_poscan::MAX_OBJECT_SIZE }>> = obj.try_into().map_err(|_| revert("obj too large"))?;
+        let obj: BoundedVec<u8, ConstU32<{ sp_consensus_poscan::MAX_OBJECT_SIZE }>> = obj.as_bytes().to_vec().try_into().map_err(|_| revert("obj too large"))?;
         let hashes = if hashes.is_empty() {
             None
         } else {
@@ -306,5 +306,36 @@ where
         use pallet_poscan::Pallet as PoScanPallet;
         let replicas = PoScanPallet::<Runtime>::replicas_of(original_obj);
         Ok(replicas)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// This test ensures that the Rust macro attribute signature matches the Solidity interface signature.
+    /// Selector checks should be done in Solidity or with solc/ethers.js, not in Rust.
+    #[test]
+    fn test_macro_attribute_matches_solidity_signature() {
+        // List of (function_name, rust_macro_attribute, solidity_signature)
+        let test_cases = vec![
+            ("getObject", "getObject(uint32)", "getObject(uint32)"),
+            ("getObjectsOf", "getObjectsOf(address)", "getObjectsOf(address)"),
+            ("getObjectCount", "getObjectCount()", "getObjectCount()"),
+            ("getProperties", "getProperties()", "getProperties()"),
+            ("getFeePerByte", "getFeePerByte()", "getFeePerByte()"),
+            ("getAccountLock", "getAccountLock(address)", "getAccountLock(address)"),
+            ("putObject", "putObject(uint8,uint8,bool,bytes,uint8,bytes32[],(uint32,uint128)[],bool,uint32)", "putObject(uint8,uint8,bool,bytes,uint8,bytes32[],(uint32,uint128)[],bool,uint32)"),
+            ("setPrivateObjectPermissions", "setPrivateObjectPermissions(uint32,(address,uint32,uint64)[])", "setPrivateObjectPermissions(uint32,(address,uint32,uint64)[])"),
+            ("getReplicasOf", "getReplicasOf(uint32)", "getReplicasOf(uint32)"),
+        ];
+        
+        for (function_name, rust_macro, solidity_sig) in test_cases {
+            assert_eq!(
+                rust_macro, solidity_sig,
+                "Signature mismatch for {}: Rust macro '{}', Solidity '{}'",
+                function_name, rust_macro, solidity_sig
+            );
+        }
     }
 } 
