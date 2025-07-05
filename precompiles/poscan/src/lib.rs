@@ -5,10 +5,8 @@
 
 extern crate alloc;
 use alloc::vec;
-use precompile_utils::logs;
 use precompile_utils::prelude::*;
-use precompile_utils::data::BoundedBytes;
-use sp_core::H256;
+use sp_core::{H256, U256};
 use sp_std::{marker::PhantomData, vec::Vec};
 use sp_arithmetic::traits::SaturatedConversion;
 use codec::Encode;
@@ -18,16 +16,18 @@ use pallet_evm::AddressMapping;
 use precompile_utils::data::UnboundedString;
 
 use sp_consensus_poscan::{ObjectState, ObjectCategory};
-use frame_support::{pallet_prelude::ConstU32, BoundedVec};
+use frame_support::pallet_prelude::ConstU32;
 use alloc::string::String;
 
+// Event selectors for modern event emission
+pub const SELECTOR_LOG_OBJECT_SUBMITTED: [u8; 32] = keccak256!("ObjectSubmitted(address,uint32)");
+pub const SELECTOR_LOG_PERMISSIONS_SET: [u8; 32] = keccak256!("PermissionsSet(uint32,address)");
+
+// Function selectors for reference
 pub const SELECTOR_GET_OBJECT: [u8; 4] = [0xA1, 0xB2, 0xC0, 0x01];
 
 #[derive(Debug, Clone)]
 pub struct PoScanPrecompile<Runtime>(PhantomData<Runtime>);
-
-/// Event topic for ObjectSubmitted(address,uint32)
-const TOPIC_OBJECT_SUBMITTED: [u8; 32] = keccak256!("ObjectSubmitted(address,uint32)");
 
 #[precompile_utils::precompile]
 impl<Runtime> PoScanPrecompile<Runtime>
@@ -252,12 +252,22 @@ where
         );
         match result {
             Ok(_) => {
-                // Emit ObjectSubmitted event
-                let _ = logs::log1(
+                // Record gas cost for event emission
+                handle.record_log_costs_manual(3, 32)?;
+                
+                // Emit ObjectSubmitted event (modern pattern)
+                log3(
                     handle.context().address,
-                    TOPIC_OBJECT_SUBMITTED,
-                    handle.context().caller.as_fixed_bytes().to_vec(),
-                );
+                    SELECTOR_LOG_OBJECT_SUBMITTED,
+                    handle.context().caller,
+                    handle.context().caller,
+                    EvmDataWriter::new()
+                        .write(Address(handle.context().caller))
+                        .write(U256::from(0u32)) // Placeholder for object index
+                        .build(),
+                )
+                .record(handle)?;
+                
                 Ok(true)
             },
             Err(e) => Err(e.into()),
@@ -292,7 +302,25 @@ where
             },
         );
         match result {
-            Ok(_) => Ok(true),
+            Ok(_) => {
+                // Record gas cost for event emission
+                handle.record_log_costs_manual(3, 32)?;
+                
+                // Emit PermissionsSet event
+                log3(
+                    handle.context().address,
+                    SELECTOR_LOG_PERMISSIONS_SET,
+                    handle.context().caller,
+                    handle.context().caller,
+                    EvmDataWriter::new()
+                        .write(U256::from(obj_idx))
+                        .write(Address(handle.context().caller))
+                        .build(),
+                )
+                .record(handle)?;
+                
+                Ok(true)
+            },
             Err(e) => Err(e.into()),
         }
     }

@@ -18,6 +18,16 @@ use sp_runtime::traits::{StaticLookup, UniqueSaturatedInto};
 use alloc::string::String;
 use alloc::string::ToString;
 
+// Event selectors for Identity pallet compatibility
+pub const SELECTOR_LOG_IDENTITY_SET: [u8; 32] = keccak256!("IdentitySet(address)");
+pub const SELECTOR_LOG_IDENTITY_CLEARED: [u8; 32] = keccak256!("IdentityCleared(address)");
+pub const SELECTOR_LOG_JUDGEMENT_REQUESTED: [u8; 32] = keccak256!("JudgementRequested(address,uint32)");
+pub const SELECTOR_LOG_JUDGEMENT_UNREQUESTED: [u8; 32] = keccak256!("JudgementUnrequested(address,uint32)");
+pub const SELECTOR_LOG_JUDGEMENT_GIVEN: [u8; 32] = keccak256!("JudgementGiven(address,uint32)");
+pub const SELECTOR_LOG_SUB_IDENTITY_ADDED: [u8; 32] = keccak256!("SubIdentityAdded(address,address)");
+pub const SELECTOR_LOG_SUB_IDENTITY_REMOVED: [u8; 32] = keccak256!("SubIdentityRemoved(address,address)");
+pub const SELECTOR_LOG_SUB_IDENTITY_REVOKED: [u8; 32] = keccak256!("SubIdentityRevoked(address)");
+
 /// Identity precompile main struct
 #[derive(Debug, Clone)]
 pub struct IdentityPrecompile<Runtime>(PhantomData<Runtime>);
@@ -171,11 +181,28 @@ where
     ) -> EvmResult<bool> {
         let who: Runtime::AccountId = Runtime::AddressMapping::into_account_id(handle.context().caller);
         let info = decode_identity_info::<Runtime>(info)?;
+        
+        // Record gas cost for event emission
+        handle.record_log_costs_manual(3, 32)?;
+        
         RuntimeHelper::<Runtime>::try_dispatch(
             handle,
             Some(who.clone()).into(),
             pallet_identity::Call::<Runtime>::set_identity { info: Box::new(info) },
         )?;
+        
+        // Emit IdentitySet event
+        log3(
+            handle.context().address,
+            SELECTOR_LOG_IDENTITY_SET,
+            handle.context().caller,
+            handle.context().caller,
+            EvmDataWriter::new()
+                .write(Address(handle.context().caller))
+                .build(),
+        )
+        .record(handle)?;
+        
         Ok(true)
     }
 
@@ -202,11 +229,28 @@ where
         handle: &mut impl PrecompileHandle,
     ) -> EvmResult<bool> {
         let who: Runtime::AccountId = Runtime::AddressMapping::into_account_id(handle.context().caller);
+        
+        // Record gas cost for event emission
+        handle.record_log_costs_manual(3, 32)?;
+        
         RuntimeHelper::<Runtime>::try_dispatch(
             handle,
             Some(who.clone()).into(),
             pallet_identity::Call::<Runtime>::clear_identity {},
         )?;
+        
+        // Emit IdentityCleared event
+        log3(
+            handle.context().address,
+            SELECTOR_LOG_IDENTITY_CLEARED,
+            handle.context().caller,
+            handle.context().caller,
+            EvmDataWriter::new()
+                .write(Address(handle.context().caller))
+                .build(),
+        )
+        .record(handle)?;
+        
         Ok(true)
     }
 
@@ -218,11 +262,29 @@ where
     ) -> EvmResult<bool> {
         let who: Runtime::AccountId = Runtime::AddressMapping::into_account_id(handle.context().caller);
         let max_fee = decode_balance::<Runtime>(max_fee)?;
+        
+        // Record gas cost for event emission
+        handle.record_log_costs_manual(3, 32)?;
+        
         RuntimeHelper::<Runtime>::try_dispatch(
             handle,
             Some(who.clone()).into(),
             pallet_identity::Call::<Runtime>::request_judgement { reg_index, max_fee },
         )?;
+        
+        // Emit JudgementRequested event
+        log3(
+            handle.context().address,
+            SELECTOR_LOG_JUDGEMENT_REQUESTED,
+            handle.context().caller,
+            handle.context().caller,
+            EvmDataWriter::new()
+                .write(Address(handle.context().caller))
+                .write(sp_core::U256([reg_index as u64, 0, 0, 0]))
+                .build(),
+        )
+        .record(handle)?;
+        
         Ok(true)
     }
 
@@ -232,11 +294,29 @@ where
         reg_index: u32,
     ) -> EvmResult<bool> {
         let who: Runtime::AccountId = Runtime::AddressMapping::into_account_id(handle.context().caller);
+        
+        // Record gas cost for event emission
+        handle.record_log_costs_manual(3, 32)?;
+        
         RuntimeHelper::<Runtime>::try_dispatch(
             handle,
             Some(who.clone()).into(),
             pallet_identity::Call::<Runtime>::cancel_request { reg_index },
         )?;
+        
+        // Emit JudgementUnrequested event
+        log3(
+            handle.context().address,
+            SELECTOR_LOG_JUDGEMENT_UNREQUESTED,
+            handle.context().caller,
+            handle.context().caller,
+            EvmDataWriter::new()
+                .write(Address(handle.context().caller))
+                .write(sp_core::U256([reg_index as u64, 0, 0, 0]))
+                .build(),
+        )
+        .record(handle)?;
+        
         Ok(true)
     }
 
@@ -300,11 +380,29 @@ where
         let target = decode_account_id::<Runtime>(target.0.to_vec())?;
         let target = <Runtime as frame_system::Config>::Lookup::unlookup(target); // Fix: use lookup source
         let judgement = decode_judgement::<Runtime>(judgement)?;
+        
+        // Record gas cost for event emission
+        handle.record_log_costs_manual(3, 32)?;
+        
         RuntimeHelper::<Runtime>::try_dispatch(
             handle,
             Some(who.clone()).into(),
             pallet_identity::Call::<Runtime>::provide_judgement { reg_index, target, judgement },
         )?;
+        
+        // Emit JudgementGiven event
+        log3(
+            handle.context().address,
+            SELECTOR_LOG_JUDGEMENT_GIVEN,
+            handle.context().caller,
+            handle.context().caller,
+            EvmDataWriter::new()
+                .write(Address(handle.context().caller))
+                .write(sp_core::U256([reg_index as u64, 0, 0, 0]))
+                .build(),
+        )
+        .record(handle)?;
+        
         Ok(true)
     }
 
@@ -318,11 +416,29 @@ where
         let sub = decode_account_id::<Runtime>(sub.0.to_vec())?;
         let sub_lookup = <Runtime as frame_system::Config>::Lookup::unlookup(sub);
         let data = decode_data(data);
+        
+        // Record gas cost for event emission
+        handle.record_log_costs_manual(3, 32)?;
+        
         RuntimeHelper::<Runtime>::try_dispatch(
             handle,
             Some(who.clone()).into(),
             pallet_identity::Call::<Runtime>::add_sub { sub: sub_lookup, data },
         )?;
+        
+        // Emit SubIdentityAdded event
+        log3(
+            handle.context().address,
+            SELECTOR_LOG_SUB_IDENTITY_ADDED,
+            handle.context().caller,
+            handle.context().caller,
+            EvmDataWriter::new()
+                .write(Address(handle.context().caller))
+                .write(Address(handle.context().caller))
+                .build(),
+        )
+        .record(handle)?;
+        
         Ok(true)
     }
 
@@ -352,11 +468,29 @@ where
         let who: Runtime::AccountId = Runtime::AddressMapping::into_account_id(handle.context().caller);
         let sub = decode_account_id::<Runtime>(sub.0.to_vec())?;
         let sub_lookup = <Runtime as frame_system::Config>::Lookup::unlookup(sub);
+        
+        // Record gas cost for event emission
+        handle.record_log_costs_manual(3, 32)?;
+        
         RuntimeHelper::<Runtime>::try_dispatch(
             handle,
             Some(who.clone()).into(),
             pallet_identity::Call::<Runtime>::remove_sub { sub: sub_lookup },
         )?;
+        
+        // Emit SubIdentityRemoved event
+        log3(
+            handle.context().address,
+            SELECTOR_LOG_SUB_IDENTITY_REMOVED,
+            handle.context().caller,
+            handle.context().caller,
+            EvmDataWriter::new()
+                .write(Address(handle.context().caller))
+                .write(Address(handle.context().caller))
+                .build(),
+        )
+        .record(handle)?;
+        
         Ok(true)
     }
 
@@ -365,11 +499,28 @@ where
         handle: &mut impl PrecompileHandle,
     ) -> EvmResult<bool> {
         let who: Runtime::AccountId = Runtime::AddressMapping::into_account_id(handle.context().caller);
+        
+        // Record gas cost for event emission
+        handle.record_log_costs_manual(3, 32)?;
+        
         RuntimeHelper::<Runtime>::try_dispatch(
             handle,
             Some(who.clone()).into(),
             pallet_identity::Call::<Runtime>::quit_sub {},
         )?;
+        
+        // Emit SubIdentityRevoked event
+        log3(
+            handle.context().address,
+            SELECTOR_LOG_SUB_IDENTITY_REVOKED,
+            handle.context().caller,
+            handle.context().caller,
+            EvmDataWriter::new()
+                .write(Address(handle.context().caller))
+                .build(),
+        )
+        .record(handle)?;
+        
         Ok(true)
     }
 }
