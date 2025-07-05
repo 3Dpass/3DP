@@ -14,7 +14,7 @@ Identity constant IDENTITY_CONTRACT = Identity(IDENTITY_ADDRESS);
 interface Identity {
     /// @dev Associated raw data.
     struct Data {
-        /// Is `true` if it represents data, else the abcense of data is represented by `false`.
+        /// Is `true` if it represents data, else the abscense of data is represented by `false`.
         bool hasData;
         /// The contained value.
         bytes value;
@@ -25,7 +25,7 @@ interface Identity {
         /// Is `true` if the struct is valid, `false` otherwise.
         bool isValid;
         /// The super account.
-        bytes32 account; // Changed from address to bytes32 to match AccountId32/H256
+        address account; // Changed from bytes32 to address (H160)
         /// The associated data.
         Data data;
     }
@@ -35,7 +35,7 @@ interface Identity {
         /// The deposit against this identity.
         uint256 deposit;
         /// The sub accounts
-        bytes32[] accounts; // Changed from address[] to bytes32[]
+        address[] accounts; // Changed from bytes32[] to address[]
     }
 
     /// @dev Registrar judgements are limited to attestations on these fields.
@@ -65,7 +65,7 @@ interface Identity {
         /// The registrar's index.
         uint32 index;
         /// The account address.
-        bytes32 account; // Changed from address to bytes32
+        address account; // Changed from bytes32 to address (H160)
         /// Amount required to be given to the registrar for them to provide judgement.
         uint256 fee;
         /// Relevant fields for this registrar.
@@ -147,7 +147,7 @@ interface Identity {
     /// @dev Alternative "sub" identity of an account.
     struct SubAccount {
         /// The account address.
-        bytes32 account; // Changed from address to bytes32
+        address account; // Changed from bytes32 to address (H160)
         /// The associated data.
         Data data;
     }
@@ -209,13 +209,14 @@ interface Identity {
     /// @custom:selector 0xa541b37d
     /// @param regIndex The registrar's index
     /// @param fee The fee the registrar will charge
+    /// @notice Emits RegistrarFeeSet(uint32 indexed regIndex, uint256 fee) event
     function setFee(uint32 regIndex, uint256 fee) external;
 
     /// @dev Sets the registrar's account. Caller must be the account at the index.
     /// @custom:selector 0x889bc198
     /// @param regIndex The registrar's index
-    /// @param newAccount The new account to set (bytes32 for AccountId32)
-    function setAccountId(uint32 regIndex, bytes32 newAccount) external;
+    /// @param newAccount The new account to set (address for H160)
+    function setAccountId(uint32 regIndex, address newAccount) external;
 
     /// @dev Sets the registrar's identity fields. Caller must be the account at the index.
     /// @custom:selector 0x05297450
@@ -226,35 +227,35 @@ interface Identity {
     /// @dev Provides judgement on an accounts identity.
     /// @custom:selector 0xcd7663a4
     /// @param regIndex The registrar's index
-    /// @param target The target account to provide judgment for (bytes32 for AccountId32)
+    /// @param target The target account to provide judgment for (address for H160)
     /// @param judgement The judgement to provide
     /// @param identity The hash of the identity info
     /// @notice Emits JudgementGiven(address indexed target, uint32 regIndex) event
     function provideJudgement(
         uint32 regIndex,
-        bytes32 target,
+        address target,
         Judgement memory judgement,
         bytes32 identity
     ) external;
 
     /// @dev Add a "sub" identity account for the caller.
     /// @custom:selector 0x98717196
-    /// @param sub The sub account (bytes32 for AccountId32)
+    /// @param sub The sub account (address for H160)
     /// @param data The associated data
     /// @notice Emits SubIdentityAdded(address indexed sub, address indexed main) event
-    function addSub(bytes32 sub, Data memory data) external;
+    function addSub(address sub, Data memory data) external;
 
     /// @dev Rename a "sub" identity account of the caller.
     /// @custom:selector 0x452df561
-    /// @param sub The sub account (bytes32 for AccountId32)
+    /// @param sub The sub account (address for H160)
     /// @param data The new associated data
-    function renameSub(bytes32 sub, Data memory data) external;
+    function renameSub(address sub, Data memory data) external;
 
     /// @dev Removes a "sub" identity account of the caller.
     /// @custom:selector 0xb0a323e0
-    /// @param sub The sub account (bytes32 for AccountId32)
+    /// @param sub The sub account (address for H160)
     /// @notice Emits SubIdentityRemoved(address indexed sub, address indexed main) event
-    function removeSub(bytes32 sub) external;
+    function removeSub(address sub) external;
 
     /// @dev Removes the sender as a sub-account.
     /// @custom:selector 0xd5a3c2c4
@@ -297,7 +298,11 @@ interface Identity {
     /// @dev A sub-identity was cleared and the given deposit repatriated from the main identity account to the sub-identity account
     /// @param sub Address of the sub account
     event SubIdentityRevoked(address indexed sub);
+
+    /// @dev A registrar's fee was set.
+    /// @param regIndex The registrar's index
+    /// @param fee The new fee amount
+    event RegistrarFeeSet(uint32 indexed regIndex, uint256 fee);
 }
 
-// NOTE: All account fields in responses are bytes32 (AccountId32/H256), not address, to match Rust precompile and avoid H256->H160 conversion.
-// NOTE: The precompile automatically emits events for state-changing functions. No need to emit events manually in Solidity contracts.
+// All account fields and parameters are now EVM address (H160), not bytes32/H256.

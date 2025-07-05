@@ -30,21 +30,15 @@ interface ISwap {
     ) external returns (uint[] memory amounts);
 }
 
-/// @title Swap
-/// @notice Front-end contract for interacting with the asset conversion precompile's swap functionality
-contract Swap {
-    ISwap public immutable swapper;
-
-    /// @dev Precompile address for asset conversion
+contract SwapRouter {
     address constant PRECOMPILE_ADDR = 0x0000000000000000000000000000000000000902;
-
-    constructor() {
-        swapper = ISwap(PRECOMPILE_ADDR);
-    }
+    
+    // Uniswap V2 standard selectors
+    bytes4 constant SELECTOR_SWAP_EXACT_TOKENS_FOR_TOKENS = 0x38ed1739;
+    bytes4 constant SELECTOR_SWAP_TOKENS_FOR_EXACT_TOKENS = 0x8803dbee;
 
     /// @custom:selector 0x38ed1739
-    /// @notice Swap an exact amount of input tokens for as many output tokens as possible along the path
-    /// @dev The precompile will automatically emit a Swap event
+    /// @notice Swap exact tokens for tokens (Uniswap V2 compatible)
     function swapExactTokensForTokens(
         uint256 amountIn,
         uint256 amountOutMin,
@@ -52,18 +46,21 @@ contract Swap {
         address to,
         uint256 deadline
     ) external returns (uint[] memory amounts) {
-        amounts = swapper.swapExactTokensForTokens(
+        bytes memory input = abi.encodeWithSelector(
+            SELECTOR_SWAP_EXACT_TOKENS_FOR_TOKENS,
             amountIn,
             amountOutMin,
             path,
             to,
             deadline
         );
+        (bool success, bytes memory data) = PRECOMPILE_ADDR.call(input);
+        require(success, "Precompile call failed");
+        return abi.decode(data, (uint[]));
     }
 
     /// @custom:selector 0x8803dbee
-    /// @notice Swap tokens for an exact amount of output tokens along the path
-    /// @dev The precompile will automatically emit a Swap event
+    /// @notice Swap tokens for exact tokens (Uniswap V2 compatible)
     function swapTokensForExactTokens(
         uint256 amountOut,
         uint256 amountInMax,
@@ -71,12 +68,16 @@ contract Swap {
         address to,
         uint256 deadline
     ) external returns (uint[] memory amounts) {
-        amounts = swapper.swapTokensForExactTokens(
+        bytes memory input = abi.encodeWithSelector(
+            SELECTOR_SWAP_TOKENS_FOR_EXACT_TOKENS,
             amountOut,
             amountInMax,
             path,
             to,
             deadline
         );
+        (bool success, bytes memory data) = PRECOMPILE_ADDR.call(input);
+        require(success, "Precompile call failed");
+        return abi.decode(data, (uint[]));
     }
-} 
+}

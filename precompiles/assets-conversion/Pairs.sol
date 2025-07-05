@@ -3,6 +3,7 @@ pragma solidity ^0.8.0;
 
 /// @dev Uniswap V2 standard events
 event Sync(uint112 reserve0, uint112 reserve1);
+event PairCreated(address indexed token0, address indexed token1, address pair, uint256 allPairsLength);
 
 interface IAssetsConversion {
     // Custom function unique to this system
