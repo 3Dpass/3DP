@@ -5306,6 +5306,7 @@ dependencies = [
  "fp-evm",
  "frame-support",
  "frame-system",
+ "hex",
  "log",
  "num_enum",
  "pallet-balances",
@@ -5321,6 +5322,7 @@ dependencies = [
  "sp-io",
  "sp-runtime",
  "sp-std",
+ "tiny-keccak",
 ]
 
 [[package]]

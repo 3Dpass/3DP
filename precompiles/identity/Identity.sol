@@ -263,17 +263,17 @@ interface Identity {
 
     /// @dev A judgement was asked from a registrar.
     /// @param who Address of the requesting account
-    /// @param registrarIndex The registrar's index
+    /// @param regIndex The registrar's index
     event JudgementRequested(address indexed who, uint32 regIndex);
 
     /// @dev A judgement request was retracted.
     /// @param who Address of the target account.
-    /// @param registrarIndex The registrar's index
+    /// @param regIndex The registrar's index
     event JudgementUnrequested(address indexed who, uint32 regIndex);
 
     /// @dev A judgement was given by a registrar.
     /// @param target Address of the target account
-    /// @param registrarIndex The registrar's index
+    /// @param regIndex The registrar's index
     event JudgementGiven(address indexed target, uint32 regIndex);
 
     /// @dev A sub-identity was added to an identity and the deposit paid.

@@ -1,15 +1,15 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
+// Place the constant outside the interface
+address constant PRECOMPILE_ADDR = 0x0000000000000000000000000000000000000903;
+
 /**
  * @title I3DPRC2
  * @notice Interface for the PoScan precompile
  * @dev
  */
 interface I3DPRC2 {
-    /// @dev Precompile address for PoScan
-    address constant PRECOMPILE_ADDR = 0x0000000000000000000000000000000000000903;
-
     struct Property {
         uint32 propIdx;
         uint128 maxValue;

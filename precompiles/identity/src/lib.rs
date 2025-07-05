@@ -40,16 +40,16 @@ where
         Vec<(u32, (bool, bool, U256, bool, bool, bool, bool, bool))>, // JudgementInfo[]
         U256, // deposit
         (
-            Vec<((bool, Vec<u8>), (bool, Vec<u8>))>, // Additional[]
-            (bool, Vec<u8>), // display
-            (bool, Vec<u8>), // legal
-            (bool, Vec<u8>), // web
-            (bool, Vec<u8>), // riot
-            (bool, Vec<u8>), // email
+            Vec<((bool, UnboundedBytes), (bool, UnboundedBytes))>, // Additional[]
+            (bool, UnboundedBytes), // display
+            (bool, UnboundedBytes), // legal
+            (bool, UnboundedBytes), // web
+            (bool, UnboundedBytes), // riot
+            (bool, UnboundedBytes), // email
             bool, // hasPgpFingerprint
-            Vec<u8>, // pgpFingerprint
-            (bool, Vec<u8>), // image
-            (bool, Vec<u8>), // twitter
+            UnboundedBytes, // pgpFingerprint
+            (bool, UnboundedBytes), // image
+            (bool, UnboundedBytes), // twitter
         ) // IdentityInfo
     )> {
         let account_id = <Runtime as pallet_evm::Config>::AddressMapping::into_account_id(account.into());
@@ -62,17 +62,17 @@ where
             let deposit = U256::from(reg.deposit);
             let info = reg.info;
             let additional = info.additional.into_iter().map(|(k, v)| {
-                (encode_data(k), encode_data(v))
+                (encode_data_unbounded(k), encode_data_unbounded(v))
             }).collect();
-            let display = encode_data(info.display);
-            let legal = encode_data(info.legal);
-            let web = encode_data(info.web);
-            let riot = encode_data(info.riot);
-            let email = encode_data(info.email);
+            let display = encode_data_unbounded(info.display);
+            let legal = encode_data_unbounded(info.legal);
+            let web = encode_data_unbounded(info.web);
+            let riot = encode_data_unbounded(info.riot);
+            let email = encode_data_unbounded(info.email);
             let has_pgp = info.pgp_fingerprint.is_some();
-            let pgp_fingerprint = info.pgp_fingerprint.map(|f| f.to_vec()).unwrap_or_default();
-            let image = encode_data(info.image);
-            let twitter = encode_data(info.twitter);
+            let pgp_fingerprint = info.pgp_fingerprint.map(|f| UnboundedBytes::from(f.to_vec())).unwrap_or_else(|| UnboundedBytes::from(vec![]));
+            let image = encode_data_unbounded(info.image);
+            let twitter = encode_data_unbounded(info.twitter);
             Ok((
                 true,
                 judgements,
@@ -80,7 +80,7 @@ where
                 (additional, display, legal, web, riot, email, has_pgp, pgp_fingerprint, image, twitter)
             ))
         } else {
-            Ok((false, vec![], U256::zero(), (vec![], (false, vec![]), (false, vec![]), (false, vec![]), (false, vec![]), (false, vec![]), false, vec![], (false, vec![]), (false, vec![]))))
+            Ok((false, vec![], U256::zero(), (vec![], (false, UnboundedBytes::from(vec![])), (false, UnboundedBytes::from(vec![])), (false, UnboundedBytes::from(vec![])), (false, UnboundedBytes::from(vec![])), (false, UnboundedBytes::from(vec![])), false, UnboundedBytes::from(vec![]), (false, UnboundedBytes::from(vec![])), (false, UnboundedBytes::from(vec![])))))
         }
     }
 
@@ -91,15 +91,15 @@ where
     ) -> EvmResult<(
         bool, // isValid
         Vec<u8>, // account (AccountId32 as bytes)
-        (bool, Vec<u8>) // Data
+        (bool, UnboundedBytes) // Data
     )> {
         let account_id = Runtime::AddressMapping::into_account_id(who.into());
         if let Some((super_acc, data)) = pallet_identity::Pallet::<Runtime>::super_of(&account_id) {
             let super_bytes = super_acc.encode();
-            let data_tuple = encode_data(data);
+            let data_tuple = encode_data_unbounded(data);
             Ok((true, super_bytes, data_tuple))
         } else {
-            Ok((false, vec![], (false, vec![])))
+            Ok((false, vec![], (false, UnboundedBytes::from(vec![]))))
         }
     }
 
@@ -153,20 +153,20 @@ where
         Ok(suspended.to_vec())
     }
 
-    #[precompile::public("setIdentity((((bool,uint8[]),(bool,uint8[]))[],(bool,uint8[]),(bool,uint8[]),(bool,uint8[]),(bool,uint8[]),(bool,uint8[]),bool,uint8[],(bool,uint8[]),(bool,uint8[])))")]
+    #[precompile::public("setIdentity((((bool,bytes),(bool,bytes))[],(bool,bytes),(bool,bytes),(bool,bytes),(bool,bytes),(bool,bytes),bool,bytes,(bool,bytes),(bool,bytes)))")]
     fn set_identity(
         handle: &mut impl PrecompileHandle,
         info: (
-            Vec<((bool, Vec<u8>), (bool, Vec<u8>))>, // additional
-            (bool, Vec<u8>), // display
-            (bool, Vec<u8>), // legal
-            (bool, Vec<u8>), // web
-            (bool, Vec<u8>), // riot
-            (bool, Vec<u8>), // email
+            Vec<((bool, UnboundedBytes), (bool, UnboundedBytes))>, // additional
+            (bool, UnboundedBytes), // display
+            (bool, UnboundedBytes), // legal
+            (bool, UnboundedBytes), // web
+            (bool, UnboundedBytes), // riot
+            (bool, UnboundedBytes), // email
             bool, // hasPgpFingerprint
-            Vec<u8>, // pgpFingerprint
-            (bool, Vec<u8>), // image
-            (bool, Vec<u8>), // twitter
+            UnboundedBytes, // pgpFingerprint
+            (bool, UnboundedBytes), // image
+            (bool, UnboundedBytes), // twitter
         ),
     ) -> EvmResult<bool> {
         let who: Runtime::AccountId = Runtime::AddressMapping::into_account_id(handle.context().caller);
@@ -179,15 +179,14 @@ where
         Ok(true)
     }
 
-    #[precompile::public("setSubs((uint8[],(bool,uint8[]))[])")]
+    #[precompile::public("setSubs((bytes32,(bool,bytes))[])")]
     fn set_subs(
         handle: &mut impl PrecompileHandle,
-        subs: Vec<(Vec<u8>, (bool, Vec<u8>))>,
+        subs: Vec<(Bytes32, (bool, UnboundedBytes))>,
     ) -> EvmResult<bool> {
         let who: Runtime::AccountId = Runtime::AddressMapping::into_account_id(handle.context().caller);
-        // Fix: closure returns Result, collect, then unwrap, with explicit error type
         let subs: Result<Vec<_>, PrecompileFailure> = subs.into_iter().map(|(acc, data)| {
-            Ok((decode_account_id::<Runtime>(acc)?, decode_data(data)))
+            Ok((decode_account_id::<Runtime>(acc.0.to_vec())?, decode_data(data)))
         }).collect();
         let subs = subs?;
         RuntimeHelper::<Runtime>::try_dispatch(
@@ -309,11 +308,11 @@ where
         Ok(true)
     }
 
-    #[precompile::public("addSub(bytes32,(bool,uint8[]))")]
+    #[precompile::public("addSub(bytes32,(bool,bytes))")]
     fn add_sub(
         handle: &mut impl PrecompileHandle,
         sub: Bytes32,
-        data: (bool, Vec<u8>),
+        data: (bool, UnboundedBytes),
     ) -> EvmResult<bool> {
         let who: Runtime::AccountId = Runtime::AddressMapping::into_account_id(handle.context().caller);
         let sub = decode_account_id::<Runtime>(sub.0.to_vec())?;
@@ -327,11 +326,11 @@ where
         Ok(true)
     }
 
-    #[precompile::public("renameSub(bytes32,(bool,uint8[]))")]
+    #[precompile::public("renameSub(bytes32,(bool,bytes))")]
     fn rename_sub(
         handle: &mut impl PrecompileHandle,
         sub: Bytes32,
-        data: (bool, Vec<u8>),
+        data: (bool, UnboundedBytes),
     ) -> EvmResult<bool> {
         let who: Runtime::AccountId = Runtime::AddressMapping::into_account_id(handle.context().caller);
         let sub = decode_account_id::<Runtime>(sub.0.to_vec())?;
@@ -375,15 +374,17 @@ where
     }
 }
 
-// Helper: Convert pallet_identity::Data to (bool, Vec<u8>)
-fn encode_data(data: pallet_identity::Data) -> (bool, Vec<u8>) {
+
+
+// Helper: Convert pallet_identity::Data to (bool, UnboundedBytes)
+fn encode_data_unbounded(data: pallet_identity::Data) -> (bool, UnboundedBytes) {
     match data {
-        pallet_identity::Data::None => (false, vec![]),
-        pallet_identity::Data::Raw(bv) => (true, bv.into_inner()),
+        pallet_identity::Data::None => (false, UnboundedBytes::from(vec![])),
+        pallet_identity::Data::Raw(bv) => (true, UnboundedBytes::from(bv.into_inner())),
         pallet_identity::Data::BlakeTwo256(arr)
         | pallet_identity::Data::Sha256(arr)
         | pallet_identity::Data::Keccak256(arr)
-        | pallet_identity::Data::ShaThree256(arr) => (true, arr.to_vec()),
+        | pallet_identity::Data::ShaThree256(arr) => (true, UnboundedBytes::from(arr.to_vec())),
     }
 }
 
@@ -428,34 +429,36 @@ fn decode_account_id<Runtime: pallet_identity::Config>(bytes: Vec<u8>) -> EvmRes
         .map_err(|_| revert("Failed to decode AccountId"))
 }
 
-fn decode_data(data: (bool, Vec<u8>)) -> pallet_identity::Data {
+fn decode_data(data: (bool, UnboundedBytes)) -> pallet_identity::Data {
     if !data.0 {
         pallet_identity::Data::None
-    } else if data.1.len() == 32 {
+    } else if data.1.as_bytes().len() == 32 {
         // Try to match hash types
-        pallet_identity::Data::BlakeTwo256(data.1.clone().try_into().unwrap_or([0u8; 32]))
+        pallet_identity::Data::BlakeTwo256(data.1.as_bytes().try_into().unwrap_or([0u8; 32]))
     } else {
-        pallet_identity::Data::Raw(BoundedVec::truncate_from(data.1))
+        pallet_identity::Data::Raw(BoundedVec::truncate_from(data.1.as_bytes().to_vec()))
     }
 }
 
+
+
 // --- Fix 3: Use BoundedVec::try_from for additional fields in decode_identity_info ---
 fn decode_identity_info<Runtime: pallet_identity::Config>(info: (
-    Vec<((bool, Vec<u8>), (bool, Vec<u8>))>,
-    (bool, Vec<u8>),
-    (bool, Vec<u8>),
-    (bool, Vec<u8>),
-    (bool, Vec<u8>),
-    (bool, Vec<u8>),
+    Vec<((bool, UnboundedBytes), (bool, UnboundedBytes))>,
+    (bool, UnboundedBytes),
+    (bool, UnboundedBytes),
+    (bool, UnboundedBytes),
+    (bool, UnboundedBytes),
+    (bool, UnboundedBytes),
     bool,
-    Vec<u8>,
-    (bool, Vec<u8>),
-    (bool, Vec<u8>),
+    UnboundedBytes,
+    (bool, UnboundedBytes),
+    (bool, UnboundedBytes),
 )) -> EvmResult<pallet_identity::IdentityInfo<Runtime::MaxAdditionalFields>> {
     let additional_vec: Vec<_> = info.0.into_iter().map(|(k, v)| (decode_data(k), decode_data(v))).collect();
     let additional = BoundedVec::try_from(additional_vec)
         .map_err(|_| revert("BoundedVec overflow in additional fields"))?;
-    if info.6 && info.7.len() != 20 {
+    if info.6 && info.7.as_bytes().len() != 20 {
         return Err(revert("pgp_fingerprint must be 20 bytes if present"));
     }
     Ok(pallet_identity::IdentityInfo {
@@ -465,7 +468,7 @@ fn decode_identity_info<Runtime: pallet_identity::Config>(info: (
         web: decode_data(info.3),
         riot: decode_data(info.4),
         email: decode_data(info.5),
-        pgp_fingerprint: if info.6 { Some(<[u8; 20]>::try_from(info.7.as_slice()).map_err(|_| revert("pgp_fingerprint must be 20 bytes"))?) } else { None },
+        pgp_fingerprint: if info.6 { Some(<[u8; 20]>::try_from(info.7.as_bytes()).map_err(|_| revert("pgp_fingerprint must be 20 bytes"))?) } else { None },
         image: decode_data(info.8),
         twitter: decode_data(info.9),
     })
@@ -525,4 +528,43 @@ impl precompile_utils::EvmData for Bytes32 {
     }
     fn has_static_size() -> bool { true }
     fn solidity_type() -> String { "bytes32".to_string() }
+} 
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// This test ensures that the Rust macro attribute signature matches the Solidity interface signature.
+    /// Selector checks should be done in Solidity or with solc/ethers.js, not in Rust.
+    #[test]
+    fn test_macro_attribute_matches_solidity_signature() {
+        // List of (function_name, rust_macro_attribute, solidity_signature)
+        let test_cases = vec![
+            ("identity", "identity(address)", "identity(address)"),
+            ("superOf", "superOf(address)", "superOf(address)"),
+            ("subsOf", "subsOf(address)", "subsOf(address)"),
+            ("registrars", "registrars()", "registrars()"),
+            ("suspendedRegistrars", "suspendedRegistrars()", "suspendedRegistrars()"),
+            ("setIdentity", "setIdentity(((bool,bytes),(bool,bytes))[],(bool,bytes),(bool,bytes),(bool,bytes),(bool,bytes),(bool,bytes),bool,bytes,(bool,bytes),(bool,bytes))", "setIdentity(((bool,bytes),(bool,bytes))[],(bool,bytes),(bool,bytes),(bool,bytes),(bool,bytes),(bool,bytes),bool,bytes,(bool,bytes),(bool,bytes))"),
+            ("setSubs", "setSubs((bytes32,(bool,bytes))[])", "setSubs((bytes32,(bool,bytes))[])"),
+            ("clearIdentity", "clearIdentity()", "clearIdentity()"),
+            ("requestJudgement", "requestJudgement(uint32,uint256)", "requestJudgement(uint32,uint256)"),
+            ("cancelRequest", "cancelRequest(uint32)", "cancelRequest(uint32)"),
+            ("setFee", "setFee(uint32,uint256)", "setFee(uint32,uint256)"),
+            ("setAccountId", "setAccountId(uint32,bytes32)", "setAccountId(uint32,bytes32)"),
+            ("setFields", "setFields(uint32,(bool,bool,bool,bool,bool,bool,bool,bool))", "setFields(uint32,(bool,bool,bool,bool,bool,bool,bool,bool))"),
+            ("provideJudgement", "provideJudgement(uint32,bytes32,(bool,bool,uint256,bool,bool,bool,bool,bool),bytes32)", "provideJudgement(uint32,bytes32,(bool,bool,uint256,bool,bool,bool,bool,bool),bytes32)"),
+            ("addSub", "addSub(bytes32,(bool,bytes))", "addSub(bytes32,(bool,bytes))"),
+            ("renameSub", "renameSub(bytes32,(bool,bytes))", "renameSub(bytes32,(bool,bytes))"),
+            ("removeSub", "removeSub(bytes32)", "removeSub(bytes32)"),
+            ("quitSub", "quitSub()", "quitSub()"),
+        ];
+        for (function_name, rust_macro, solidity_sig) in test_cases {
+            assert_eq!(
+                rust_macro, solidity_sig,
+                "Signature mismatch for {}: Rust macro '{}', Solidity '{}'",
+                function_name, rust_macro, solidity_sig
+            );
+        }
+    }
 } 
