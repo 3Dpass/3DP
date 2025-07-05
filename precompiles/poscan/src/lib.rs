@@ -7,6 +7,7 @@ extern crate alloc;
 use alloc::vec;
 use precompile_utils::logs;
 use precompile_utils::prelude::*;
+use precompile_utils::data::BoundedBytes;
 use sp_core::H256;
 use sp_std::{marker::PhantomData, vec::Vec};
 use sp_arithmetic::traits::SaturatedConversion;
@@ -17,7 +18,7 @@ use pallet_evm::AddressMapping;
 use precompile_utils::data::UnboundedString;
 
 use sp_consensus_poscan::{ObjectState, ObjectCategory};
-use frame_support::pallet_prelude::ConstU32;
+use frame_support::{pallet_prelude::ConstU32, BoundedVec};
 use alloc::string::String;
 
 pub const SELECTOR_GET_OBJECT: [u8; 4] = [0xA1, 0xB2, 0xC0, 0x01];
@@ -180,7 +181,7 @@ where
         category: u8,
         algo3d: u8,
         is_private: bool,
-        obj: UnboundedBytes,
+        obj: Vec<u8>,
         num_approvals: u8,
         hashes: Vec<H256>,
         properties: Vec<(u32, u128)>,
@@ -210,7 +211,7 @@ where
         }
         // Check for OBJ file signature (should start with common OBJ keywords)
         if obj.len() > 0 {
-            let obj_str = String::from_utf8_lossy(obj.as_bytes());
+            let obj_str = String::from_utf8_lossy(&obj);
             if !obj_str.lines().any(|line| {
                 let trimmed = line.trim();
                 trimmed.starts_with("v ") || // vertex
@@ -224,7 +225,7 @@ where
                 return Err(revert("Invalid OBJ file format"));
             }
         }
-        let obj: BoundedVec<u8, ConstU32<{ sp_consensus_poscan::MAX_OBJECT_SIZE }>> = obj.as_bytes().to_vec().try_into().map_err(|_| revert("obj too large"))?;
+        let obj: BoundedVec<u8, ConstU32<{ sp_consensus_poscan::MAX_OBJECT_SIZE }>> = obj.try_into().map_err(|_| revert("obj too large"))?;
         let hashes = if hashes.is_empty() {
             None
         } else {

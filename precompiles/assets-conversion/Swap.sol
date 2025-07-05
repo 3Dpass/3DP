@@ -1,23 +1,33 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
+/// @dev Uniswap V2 standard events
+event Swap(
+    address indexed sender,
+    uint amount0In,
+    uint amount1In,
+    uint amount0Out,
+    uint amount1Out,
+    address indexed to
+);
+
 /// @dev Interface for swap functions exposed by the asset conversion precompile
 interface ISwap {
     function swapExactTokensForTokens(
-        address[] memory path,
         uint256 amountIn,
         uint256 amountOutMin,
-        address sendTo,
-        bool keepAlive
-    ) external returns (bool success);
+        address[] calldata path,
+        address to,
+        uint256 deadline
+    ) external returns (uint[] memory amounts);
 
     function swapTokensForExactTokens(
-        address[] memory path,
         uint256 amountOut,
         uint256 amountInMax,
-        address sendTo,
-        bool keepAlive
-    ) external returns (bool success);
+        address[] calldata path,
+        address to,
+        uint256 deadline
+    ) external returns (uint[] memory amounts);
 }
 
 /// @title Swap
@@ -32,39 +42,41 @@ contract Swap {
         swapper = ISwap(PRECOMPILE_ADDR);
     }
 
-    /// @custom:selector 0x1c0c433a
+    /// @custom:selector 0x38ed1739
     /// @notice Swap an exact amount of input tokens for as many output tokens as possible along the path
+    /// @dev The precompile will automatically emit a Swap event
     function swapExactTokensForTokens(
-        address[] memory path,
         uint256 amountIn,
         uint256 amountOutMin,
-        address sendTo,
-        bool keepAlive
-    ) external returns (bool success) {
-        success = swapper.swapExactTokensForTokens(
-            path,
+        address[] calldata path,
+        address to,
+        uint256 deadline
+    ) external returns (uint[] memory amounts) {
+        amounts = swapper.swapExactTokensForTokens(
             amountIn,
             amountOutMin,
-            sendTo,
-            keepAlive
+            path,
+            to,
+            deadline
         );
     }
 
-    /// @custom:selector 0x7c025200
+    /// @custom:selector 0x8803dbee
     /// @notice Swap tokens for an exact amount of output tokens along the path
+    /// @dev The precompile will automatically emit a Swap event
     function swapTokensForExactTokens(
-        address[] memory path,
         uint256 amountOut,
         uint256 amountInMax,
-        address sendTo,
-        bool keepAlive
-    ) external returns (bool success) {
-        success = swapper.swapTokensForExactTokens(
-            path,
+        address[] calldata path,
+        address to,
+        uint256 deadline
+    ) external returns (uint[] memory amounts) {
+        amounts = swapper.swapTokensForExactTokens(
             amountOut,
             amountInMax,
-            sendTo,
-            keepAlive
+            path,
+            to,
+            deadline
         );
     }
 } 
