@@ -5741,6 +5741,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "pallet-serial-numbers"
+version = "0.1.0"
+dependencies = [
+ "frame-support",
+ "frame-system",
+ "log",
+ "pallet-balances",
+ "parity-scale-codec",
+ "scale-info",
+ "sp-core",
+ "sp-io",
+ "sp-runtime",
+ "sp-std",
+]
+
+[[package]]
 name = "pallet-session"
 version = "4.0.0-dev"
 source = "git+https://github.com/paritytech/substrate?rev=b0777b4c7f7#b0777b4c7f7d8d3c635319d0153953d0a22aa58e"
@@ -6485,6 +6501,7 @@ dependencies = [
  "pallet-rewards",
  "pallet-scheduler",
  "pallet-scored-pool",
+ "pallet-serial-numbers",
  "pallet-session",
  "pallet-sudo",
  "pallet-timestamp",
@@ -6502,6 +6519,7 @@ dependencies = [
  "precompile-utils",
  "scale-info",
  "serde",
+ "serial-numbers-api",
  "smallvec",
  "sp-api",
  "sp-application-crypto",
@@ -8346,6 +8364,18 @@ dependencies = [
  "itoa 1.0.3",
  "ryu",
  "serde",
+]
+
+[[package]]
+name = "serial-numbers-api"
+version = "0.1.0"
+dependencies = [
+ "frame-system",
+ "parity-scale-codec",
+ "scale-info",
+ "sp-api",
+ "sp-runtime",
+ "sp-std",
 ]
 
 [[package]]

@@ -93,6 +93,7 @@ use sp_consensus_poscan::{
 
 use mining_pool_stat_api::{MiningPoolStatApi, CheckMemberError};
 use poscan_api::PoscanApi;
+use serial_numbers_api;
 
 mod precompiles;
 use precompiles::FrontierPrecompiles;
@@ -1722,6 +1723,12 @@ impl frame_support::traits::OnRuntimeUpgrade for SessionUpgrade {
 	}
 }
 
+// Add SerialNumbers config impl here, before construct_runtime!
+impl pallet_serial_numbers::Config for Runtime {
+    type Event = Event;
+    type MaxSerialNumbersPerBlock = ConstU32<10000>; // Allow up to 10,000 SNs per block per owner
+}
+
 // Create the runtime by composing the FRAME pallets that were previously configured.
 construct_runtime!(
 	pub enum Runtime where
@@ -1784,6 +1791,7 @@ construct_runtime!(
 		BaseFee: pallet_base_fee,
 		HotfixSufficients: pallet_hotfix_sufficients,
 		Proxy: pallet_proxy,
+		SerialNumbers: pallet_serial_numbers::{Pallet, Call, Storage, Event<T>},
 	}
 );
 
@@ -2304,6 +2312,56 @@ impl_runtime_apis! {
 		fn execute_block_no_check(block: Block) -> Weight {
 			Executive::execute_block_no_check(block)
 		}
+	}
+}
+
+impl serial_numbers_api::SerialNumbersApi<AccountId> for Runtime {
+	fn verify_serial_number(sn_hash: [u8; 16], block: u32) -> bool {
+		SerialNumbers::verify_serial_number(sn_hash, block)
+	}
+
+	fn verify_serial_number_stateless(
+		sn_hash: [u8; 16], 
+		owner: &AccountId, 
+		block: u32, 
+		block_index: u32
+	) -> bool {
+		SerialNumbers::verify_serial_number_stateless(sn_hash, owner, block, block_index)
+	}
+
+	fn generate_serial_numbers_for_block(
+		owner: &AccountId, 
+		block: u32, 
+		count: u32
+	) -> Vec<[u8; 16]> {
+		SerialNumbers::generate_serial_numbers_for_block(owner, block, count)
+	}
+
+	fn get_serial_numbers(sn_index: Option<u64>) -> Vec<serial_numbers_api::SerialNumberDetails<AccountId, u32>> {
+		SerialNumbers::get_serial_numbers(sn_index)
+			.into_iter()
+			.map(|details| serial_numbers_api::SerialNumberDetails {
+				sn_index: details.sn_index,
+				sn_hash: details.sn_hash,
+				owner: details.owner,
+				created: details.created,
+				block_index: details.block_index,
+				expired: details.expired.map(|b| b.saturated_into()),
+				is_expired: details.is_expired,
+			})
+			.collect()
+	}
+
+	fn get_sn_owners(owner: AccountId) -> Vec<u64> {
+		SerialNumbers::get_sn_owners(owner)
+	}
+
+	fn is_serial_number_used(sn_hash: [u8; 16]) -> bool {
+		SerialNumbers::is_serial_number_used(sn_hash)
+	}
+
+	fn sn_count() -> u64 {
+		SerialNumbers::sn_count()
 	}
 }
 

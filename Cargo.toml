@@ -5,6 +5,7 @@ members = [
     "precompiles/assets-conversion",
     "precompiles/poscan",
     "precompiles/identity",
+    "pallets/serial-numbers",
 ]
 resolver = "2"
 
