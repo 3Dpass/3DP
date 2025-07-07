@@ -50,6 +50,7 @@ use sp_std::{
 };
 use sp_std::convert::TryInto;
 use scale_info::TypeInfo;
+use sp_runtime::traits::One;
 
 use log;
 use rewards_api::RewardLocksApi;
@@ -141,6 +142,8 @@ decl_error! {
 		UnsufficientBalance,
 		/// decrease lock amount not allowed .
 		DecreaseLockAmountNotAllowed,
+    /// The schedule is not overdue; there are still future locks.
+    ScheduleNotOverdue,
 	}
 }
 
@@ -312,6 +315,31 @@ decl_module! {
 			let current_number = frame_system::Pallet::<T>::block_number();
 			Self::do_update_reward_locks(&account_id, locks, current_number, true);
 		}
+
+		#[weight = 0]
+		fn overdue(origin) {
+			let who = ensure_signed(origin)?;
+			let current_block = <frame_system::Pallet::<T>>::block_number();
+			let mut locks = Self::reward_locks(&who);
+			// Check if there are any locks ahead of the current block
+			let has_future_locks = locks.keys().any(|&block_number| block_number > current_block);
+			if has_future_locks {
+				return Err(Error::<T>::ScheduleNotOverdue.into());
+			}
+			// Only set a new minimal lock if there are no future locks
+			let min_balance = <T as Config>::Currency::minimum_balance();
+			let overdue_block = current_block + One::one() + One::one() + One::one();
+			locks.insert(overdue_block, min_balance);
+			<Self as Store>::RewardLocks::insert(&who, locks.clone());
+			<T as Config>::Currency::set_lock(
+				REWARDS_ID,
+				&who,
+				min_balance,
+				WithdrawReasons::except(WithdrawReasons::TRANSACTION_PAYMENT),
+			);
+			Self::deposit_event(RawEvent::Locked(who, min_balance));
+			return Ok(());
+		}
 	}
 }
 
@@ -475,8 +503,7 @@ impl<T: Config> Module<T> {
 				REWARDS_ID,
 				&author,
 			);
-		}
-		else {
+		} else {
 			let mut total_locked: BalanceOf<T> = Zero::zero();
 
 			for (block_number, locked_balance) in &locks {
@@ -491,15 +518,19 @@ impl<T: Config> Module<T> {
 				locks.remove(&block_number);
 			}
 
-			<T as Config>::Currency::set_lock(
-				REWARDS_ID,
-				&author,
-				total_locked,
-				WithdrawReasons::except(WithdrawReasons::TRANSACTION_PAYMENT),
-			);
+			if locks.is_empty() {
+				<Self as Store>::RewardLocks::remove(author);
+				<T as Config>::Currency::remove_lock(REWARDS_ID, author);
+			} else {
+				<T as Config>::Currency::set_lock(
+					REWARDS_ID,
+					&author,
+					total_locked,
+					WithdrawReasons::except(WithdrawReasons::TRANSACTION_PAYMENT),
+				);
+				<Self as Store>::RewardLocks::insert(author, locks);
+			}
 		}
-
-		<Self as Store>::RewardLocks::insert(author, locks);
 	}
 
 	fn do_mints(mints: &BTreeMap<T::AccountId, BalanceOf<T>>) {
