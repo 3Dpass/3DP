@@ -15,10 +15,10 @@ event SerialNumberUsed(bytes16 indexed snHash, address indexed user);
 event SerialNumberExpired(uint64 indexed snIndex, bytes16 snHash);
 
 /// @title Pallet SerialNumbers Interface
-/// @notice The interface through which S0x0000000000000000000000000000000000000905olidity contracts interact with the SerialNumbers pallet
-/// @custom:address 
+/// @notice The interface through which Solidity contracts interact with the SerialNumbers pallet
+/// @custom:address 0x0000000000000000000000000000000000000905
 interface SerialNumbers {
-    /// @dev Details of a serial number
+    /// @dev Details of a serial numbers
     struct SerialNumberDetails {
         bool isValid; // true if the serial number exists, false otherwise
         uint64 snIndex;
