@@ -33,6 +33,7 @@ use pallet_evm_precompileset_assets_conversion::AssetsConversionPrecompile;
 use precompile_utils::precompile_set::*;
 use pallet_evm_precompileset_poscan::PoScanPrecompile;
 use pallet_evm_precompileset_identity::IdentityPrecompile;
+use pallet_evm_precompileset_serial_numbers::SerialNumbersPrecompile;
 
 /// ERC20 metadata for the native token.
 pub struct NativeErc20Metadata;
@@ -108,6 +109,7 @@ pub type FrontierPrecompiles<R> = PrecompileSetBuilder<
 				PrecompileAt<AddressU64<2306>, AssetsConversionPrecompile<R>>,
 				PrecompileAt<AddressU64<2307>, PoScanPrecompile<R>>,
 				PrecompileAt<AddressU64<2308>, IdentityPrecompile<R>>,
+				PrecompileAt<AddressU64<2309>, SerialNumbersPrecompile<R>>,
 			),
 		>,
 		// Prefixed precompile sets (XC20)
