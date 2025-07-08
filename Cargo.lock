@@ -5352,6 +5352,30 @@ dependencies = [
 ]
 
 [[package]]
+name = "pallet-evm-precompileset-serial-numbers"
+version = "0.1.0"
+dependencies = [
+ "fp-evm",
+ "frame-support",
+ "frame-system",
+ "log",
+ "num_enum",
+ "pallet-balances",
+ "pallet-evm",
+ "pallet-serial-numbers",
+ "pallet-timestamp",
+ "parity-scale-codec",
+ "paste",
+ "precompile-utils",
+ "scale-info",
+ "slices",
+ "sp-core",
+ "sp-io",
+ "sp-runtime",
+ "sp-std",
+]
+
+[[package]]
 name = "pallet-evm-test-vector-support"
 version = "1.0.0-dev"
 dependencies = [
@@ -6480,6 +6504,7 @@ dependencies = [
  "pallet-evm-precompileset-assets-erc20",
  "pallet-evm-precompileset-identity",
  "pallet-evm-precompileset-poscan",
+ "pallet-evm-precompileset-serial-numbers",
  "pallet-grandpa",
  "pallet-hotfix-sufficients",
  "pallet-identity",

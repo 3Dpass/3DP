@@ -146,6 +146,10 @@ pub mod pallet {
             ensure!(!UsedSerialNumbers::<T>::get(sn_hash), Error::<T>::SerialNumberAlreadyUsed);
             // Check if serial number exists and is valid
             ensure!(Self::verify_serial_number(sn_hash, <frame_system::Pallet<T>>::block_number()), Error::<T>::SerialNumberNotFound);
+            // Ownership check: only the owner can use their serial number
+            let sn_index = SNByHash::<T>::get(sn_hash).ok_or(Error::<T>::SerialNumberNotFound)?;
+            let details = SerialNumbers::<T>::get(sn_index).ok_or(Error::<T>::SerialNumberNotFound)?;
+            ensure!(details.owner == who, Error::<T>::NotOwner);
             // Mark as used
             UsedSerialNumbers::<T>::insert(sn_hash, true);
             Self::deposit_event(Event::SerialNumberUsed(sn_hash, who));
