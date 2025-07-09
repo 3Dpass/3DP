@@ -83,8 +83,8 @@ fn use_serial_number_works() {
         assert_ok!(SerialNumbers::create_serial_number(Origin::signed(1), 0));
         let details = SerialNumbers::serial_numbers(0).unwrap();
         
-        // Use the serial number
-        assert_ok!(SerialNumbers::use_serial_number(Origin::signed(2), details.sn_hash));
+        // Use the serial number (by the owner)
+        assert_ok!(SerialNumbers::use_serial_number(Origin::signed(1), details.sn_hash));
         
         // Check it's marked as used
         assert!(SerialNumbers::is_serial_number_used(details.sn_hash));
@@ -101,12 +101,12 @@ fn cannot_use_serial_number_twice() {
         assert_ok!(SerialNumbers::create_serial_number(Origin::signed(1), 0));
         let details = SerialNumbers::serial_numbers(0).unwrap();
         
-        // Use the serial number first time
-        assert_ok!(SerialNumbers::use_serial_number(Origin::signed(2), details.sn_hash));
+        // Use the serial number first time (by the owner)
+        assert_ok!(SerialNumbers::use_serial_number(Origin::signed(1), details.sn_hash));
         
-        // Try to use it again
+        // Try to use it again (by the owner)
         assert_noop!(
-            SerialNumbers::use_serial_number(Origin::signed(3), details.sn_hash),
+            SerialNumbers::use_serial_number(Origin::signed(1), details.sn_hash),
             pallet::Error::<Test>::SerialNumberAlreadyUsed
         );
     });
