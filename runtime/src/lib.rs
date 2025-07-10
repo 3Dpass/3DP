@@ -2343,6 +2343,7 @@ impl serial_numbers_api::SerialNumbersApi<AccountId> for Runtime {
 			.map(|details| serial_numbers_api::SerialNumberDetails {
 				sn_index: details.sn_index,
 				sn_hash: details.sn_hash,
+				initial_owner: details.initial_owner,
 				owner: details.owner,
 				created: details.created,
 				block_index: details.block_index,
@@ -2362,6 +2363,10 @@ impl serial_numbers_api::SerialNumbersApi<AccountId> for Runtime {
 
 	fn sn_count() -> u64 {
 		SerialNumbers::sn_count()
+	}
+
+	fn transfer_ownership(_sn_index: u64, _new_owner: AccountId) -> bool {
+		false
 	}
 }
 

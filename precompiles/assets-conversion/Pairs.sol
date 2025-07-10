@@ -2,7 +2,9 @@
 pragma solidity ^0.8.0;
 
 /// @dev Uniswap V2 standard events
+/// @custom:selector 0x1c411e9a96e071241c2f21f7726b17ae89e3cab4c78be50e062b03a9fffbbad1
 event Sync(uint112 reserve0, uint112 reserve1);
+/// @custom:selector 0x0d3648bd0f6ba80134a33ba9275ac585d9d315f0ad8355cddefde31afa28d0e9
 event PairCreated(address indexed token0, address indexed token1, address pair, uint256 allPairsLength);
 
 interface IAssetsConversion {

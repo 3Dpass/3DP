@@ -42,3 +42,6 @@ std = [
 	"sp-runtime/std",
 	"sp-std/std",
 ] 
+
+[dev-dependencies]
+hex = "0.4" 

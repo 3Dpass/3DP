@@ -563,7 +563,8 @@ where
     }
 }
 
-
+#[cfg(test)]
+mod mock;
 
 // Helper: Convert pallet_identity::Data to (bool, UnboundedBytes)
 fn encode_data_unbounded(data: pallet_identity::Data) -> (bool, UnboundedBytes) {

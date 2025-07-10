@@ -3,57 +3,85 @@
 
 use super::*;
 use sp_core::U256;
-use sp_runtime::{testing::{Header, H256}, traits::{BlakeTwo256, IdentityLookup, Everything, ConstU32, ConstU64}};
+use sp_runtime::{testing::{Header, H256}, traits::{BlakeTwo256, IdentityLookup, ConstU32, ConstU64}};
 use sp_runtime::AccountId32;
 use frame_support::parameter_types;
 use frame_system as system;
-use frame_system::mocking::{MockOrigin, MockPalletInfo};
 use frame_system::EnsureRoot;
+use frame_support::construct_runtime;
+extern crate hex;
+use crate::{
+    SELECTOR_LOG_IDENTITY_SET,
+    SELECTOR_LOG_IDENTITY_CLEARED,
+    SELECTOR_LOG_JUDGEMENT_REQUESTED,
+    SELECTOR_LOG_JUDGEMENT_UNREQUESTED,
+    SELECTOR_LOG_JUDGEMENT_GIVEN,
+    SELECTOR_LOG_SUB_IDENTITY_ADDED,
+    SELECTOR_LOG_SUB_IDENTITY_REMOVED,
+    SELECTOR_LOG_SUB_IDENTITY_REVOKED,
+    SELECTOR_LOG_REGISTRAR_FEE_SET,
+};
+use fp_evm::PrecompileFailure;
+use std::str;
 
-// Test runtime
-#[derive(Clone, Eq, PartialEq, Debug)]
-pub struct TestRuntime;
-type AccountId = AccountId32;
-type BlockNumber = u64;
-type Balance = u64;
+// Remove manual struct TestRuntime and type aliases
+// Remove manual impl blocks for frame_system::Config and pallet_identity::Config
+// Use only the construct_runtime! macro and generated types
 
 parameter_types! {
     pub const BlockHashCount: u64 = 250;
     pub const MaxConsumers: u32 = 16;
-    pub const BasicDeposit: Balance = 1;
-    pub const FieldDeposit: Balance = 1;
-    pub const SubAccountDeposit: Balance = 1;
+    pub const BasicDeposit: u32 = 1;
+    pub const FieldDeposit: u32 = 1;
+    pub const SubAccountDeposit: u32 = 1;
 }
 
-impl system::Config for TestRuntime {
-    type BaseCallFilter = Everything;
+type AccountId = sp_runtime::AccountId32;
+type BlockNumber = u64;
+
+type UncheckedExtrinsic = frame_system::mocking::MockUncheckedExtrinsic<TestRuntime>;
+type Block = frame_system::mocking::MockBlock<TestRuntime>;
+
+frame_support::construct_runtime!(
+    pub enum TestRuntime where
+        Block = Block,
+        NodeBlock = Block,
+        UncheckedExtrinsic = UncheckedExtrinsic,
+    {
+        System: frame_system::{Pallet, Call, Config, Storage, Event<T>},
+        Identity: pallet_identity::{Pallet, Call, Storage, Event<T>},
+    }
+);
+
+impl frame_system::Config for TestRuntime {
+    type BaseCallFilter = frame_support::traits::Everything;
     type BlockWeights = ();
     type BlockLength = ();
     type DbWeight = ();
-    type Origin = MockOrigin<AccountId>;
+    type Origin = Origin;
     type Index = u64;
     type BlockNumber = BlockNumber;
-    type Call = ();
+    type Call = Call;
     type Hash = H256;
     type Hashing = BlakeTwo256;
     type AccountId = AccountId;
     type Lookup = IdentityLookup<AccountId>;
     type Header = Header;
-    type Event = ();
+    type Event = Event;
     type BlockHashCount = BlockHashCount;
     type Version = ();
-    type PalletInfo = MockPalletInfo;
+    type PalletInfo = PalletInfo;
     type AccountData = ();
     type OnNewAccount = ();
     type OnKilledAccount = ();
     type SystemWeightInfo = ();
     type SS58Prefix = ();
     type OnSetCode = ();
-    type MaxConsumers = ConstU32<16>;
+    type MaxConsumers = frame_support::traits::ConstU32<16>;
 }
 
 impl pallet_identity::Config for TestRuntime {
-    type Event = ();
+    type Event = Event;
     type Currency = (); // Not used in these tests
     type Slashed = ();
     type BasicDeposit = BasicDeposit;
@@ -70,20 +98,37 @@ impl pallet_identity::Config for TestRuntime {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use super::super::{decode_identity_info, decode_judgement};
+    use super::super::{decode_identity_info, decode_judgement, UnboundedBytes};
+    use frame_support::BoundedVec;
+    use sp_std::vec;
+    use frame_support::traits::ConstU32;
+
+    type TestBoundedBytes = BoundedVec<u8, ConstU32<64>>;
+
+    fn revert_message<T>(res: &EvmResult<T>) -> Option<String> {
+        if let Err(PrecompileFailure::Revert { output, .. }) = res {
+            // Try to decode the output as UTF-8, skipping the first 68 bytes (EVM revert prefix)
+            if output.len() > 68 {
+                if let Ok(msg) = str::from_utf8(&output[68..]) {
+                    return Some(msg.trim_end_matches(char::from(0)).to_string());
+                }
+            }
+        }
+        None
+    }
 
     #[test]
     fn test_boundedvec_overflow_in_additional_fields() {
         // MaxAdditionalFields = 1, so 2 entries should fail
         let info = (
-            vec![((false, vec![]), (false, vec![])), ((false, vec![]), (false, vec![]))],
-            (false, vec![]), (false, vec![]), (false, vec![]), (false, vec![]), (false, vec![]),
-            false, vec![], (false, vec![]), (false, vec![])
+            vec![((false, UnboundedBytes::try_from(vec![]).unwrap()), (false, UnboundedBytes::try_from(vec![]).unwrap())), ((false, UnboundedBytes::try_from(vec![]).unwrap()), (false, UnboundedBytes::try_from(vec![]).unwrap()))],
+            (false, UnboundedBytes::try_from(vec![]).unwrap()), (false, UnboundedBytes::try_from(vec![]).unwrap()), (false, UnboundedBytes::try_from(vec![]).unwrap()), (false, UnboundedBytes::try_from(vec![]).unwrap()), (false, UnboundedBytes::try_from(vec![]).unwrap()),
+            false, UnboundedBytes::try_from(vec![]).unwrap(), (false, UnboundedBytes::try_from(vec![]).unwrap()), (false, UnboundedBytes::try_from(vec![]).unwrap())
         );
         let res = decode_identity_info::<TestRuntime>(info);
-        assert!(res.is_err());
-        let msg = format!("{:?}", res);
-        assert!(msg.contains("BoundedVec overflow"));
+        let msg = revert_message(&res).unwrap_or_default();
+        println!("test_boundedvec_overflow_in_additional_fields error: {}", msg);
+        assert!(msg.contains("BoundedVec overflow in additional fields"));
     }
 
     #[test]
@@ -91,13 +136,13 @@ mod tests {
         // hasPgpFingerprint = true, but length != 20
         let info = (
             vec![],
-            (false, vec![]), (false, vec![]), (false, vec![]), (false, vec![]), (false, vec![]),
-            true, vec![1,2,3], (false, vec![]), (false, vec![])
+            (false, UnboundedBytes::try_from(vec![]).unwrap()), (false, UnboundedBytes::try_from(vec![]).unwrap()), (false, UnboundedBytes::try_from(vec![]).unwrap()), (false, UnboundedBytes::try_from(vec![]).unwrap()), (false, UnboundedBytes::try_from(vec![]).unwrap()),
+            true, UnboundedBytes::try_from(vec![1,2,3]).unwrap(), (false, UnboundedBytes::try_from(vec![]).unwrap()), (false, UnboundedBytes::try_from(vec![]).unwrap())
         );
         let res = decode_identity_info::<TestRuntime>(info);
-        assert!(res.is_err());
-        let msg = format!("{:?}", res);
-        assert!(msg.contains("pgp_fingerprint must be 20 bytes"));
+        let msg = revert_message(&res).unwrap_or_default();
+        println!("test_invalid_pgp_fingerprint_length error: {}", msg);
+        assert!(msg.contains("pgp_fingerprint must be 20 bytes if present") || msg.contains("pgp_fingerprint must be 20 bytes"));
     }
 
     #[test]
@@ -105,9 +150,9 @@ mod tests {
         // Both isUnknown and isFeePaid set
         let j = (true, true, U256::zero(), false, false, false, false, false);
         let res = decode_judgement::<TestRuntime>(j);
-        assert!(res.is_err());
-        let msg = format!("{:?}", res);
-        assert!(msg.contains("Only one Judgement discriminant"));
+        let msg = revert_message(&res).unwrap_or_default();
+        println!("test_multiple_discriminants_in_judgement error: {}", msg);
+        assert!(msg.contains("Only one Judgement discriminant can be set"));
     }
 
     #[test]
@@ -115,8 +160,21 @@ mod tests {
         // All false
         let j = (false, false, U256::zero(), false, false, false, false, false);
         let res = decode_judgement::<TestRuntime>(j);
-        assert!(res.is_err());
-        let msg = format!("{:?}", res);
+        let msg = revert_message(&res).unwrap_or_default();
+        println!("test_no_discriminant_in_judgement error: {}", msg);
         assert!(msg.contains("Invalid Judgement discriminant"));
+    }
+
+    #[test]
+    pub fn print_event_selectors() {
+        println!("IdentitySet: 0x{}", hex::encode(SELECTOR_LOG_IDENTITY_SET));
+        println!("IdentityCleared: 0x{}", hex::encode(SELECTOR_LOG_IDENTITY_CLEARED));
+        println!("JudgementRequested: 0x{}", hex::encode(SELECTOR_LOG_JUDGEMENT_REQUESTED));
+        println!("JudgementUnrequested: 0x{}", hex::encode(SELECTOR_LOG_JUDGEMENT_UNREQUESTED));
+        println!("JudgementGiven: 0x{}", hex::encode(SELECTOR_LOG_JUDGEMENT_GIVEN));
+        println!("SubIdentityAdded: 0x{}", hex::encode(SELECTOR_LOG_SUB_IDENTITY_ADDED));
+        println!("SubIdentityRemoved: 0x{}", hex::encode(SELECTOR_LOG_SUB_IDENTITY_REMOVED));
+        println!("SubIdentityRevoked: 0x{}", hex::encode(SELECTOR_LOG_SUB_IDENTITY_REVOKED));
+        println!("RegistrarFeeSet: 0x{}", hex::encode(SELECTOR_LOG_REGISTRAR_FEE_SET));
     }
 } 
