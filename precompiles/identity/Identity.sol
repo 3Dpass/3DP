@@ -263,43 +263,52 @@ interface Identity {
     function quitSub() external;
 
     /// @dev An identity was set or reset (which will remove all judgements).
+    /// @custom:selector 0xeb08135b86fecead18fa00540531bb9fad981bcce5c31c9ee0c0481988ee6888
     /// @param who Address of the target account
     event IdentitySet(address indexed who);
 
     /// @dev An identity was cleared, and the given balance returned.
+    /// @custom:selector 0xa777f634d44930c497bd4b851aefd038a52da2f15f7edebdb21f60877d2ac23f
     /// @param who Address of the target account
     event IdentityCleared(address indexed who);
 
     /// @dev A judgement was asked from a registrar.
+    /// @custom:selector 0x4dcc1a1d64e8f4fff56a8c7b79fb3ccd1d43d395885c8055b43ffcd19973cce1
     /// @param who Address of the requesting account
     /// @param regIndex The registrar's index
     event JudgementRequested(address indexed who, uint32 regIndex);
 
     /// @dev A judgement request was retracted.
+    /// @custom:selector 0x2cc002937486a4003ad4b7c2040fa764372302d2046f74a8772cb2497d8f8f12
     /// @param who Address of the target account.
     /// @param regIndex The registrar's index
     event JudgementUnrequested(address indexed who, uint32 regIndex);
 
     /// @dev A judgement was given by a registrar.
+    /// @custom:selector 0xaf856be0beb2ec7a72caba9d1ca9086bd91d9158e5a24abd6228851bc1c83bd6
     /// @param target Address of the target account
     /// @param regIndex The registrar's index
     event JudgementGiven(address indexed target, uint32 regIndex);
 
     /// @dev A sub-identity was added to an identity and the deposit paid.
+    /// @custom:selector 0x4fefd0c7c1fca7b7a705e41e874db7af28f38abbccb78092e4709f8e6ef4af359
     /// @param sub Address of the sub account
     /// @param main Address of the main account
     event SubIdentityAdded(address indexed sub, address indexed main);
 
     /// @dev A sub-identity was removed from an identity and the deposit freed.
+    /// @custom:selector 0x15022bda7bf8629c66ebc31c3daeb12492c2f5cc9a9ada7b680ec211b88f6f31
     /// @param sub Address of the sub account
     /// @param main Address of the main account
     event SubIdentityRemoved(address indexed sub, address indexed main);
 
     /// @dev A sub-identity was cleared and the given deposit repatriated from the main identity account to the sub-identity account
+    /// @custom:selector 0x8a494846ac628b9ba9117b3028b1cc01f9f557596e4a28651079daa5f7fc25e4
     /// @param sub Address of the sub account
     event SubIdentityRevoked(address indexed sub);
 
     /// @dev A registrar's fee was set.
+    /// @custom:selector 0xcc1797c66860e5dbd06a51b5b1635a34f38434a228170c0175cf74f27b4ac144
     /// @param regIndex The registrar's index
     /// @param fee The new fee amount
     event RegistrarFeeSet(uint32 indexed regIndex, uint256 fee);

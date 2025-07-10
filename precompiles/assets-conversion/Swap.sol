@@ -2,6 +2,7 @@
 pragma solidity ^0.8.0;
 
 /// @dev Uniswap V2 standard events
+/// @custom:selector 0xd78ad95fa46c994b6551d0da85fc275fe613ce37657fb8d5e3d130840159d822
 event Swap(
     address indexed sender,
     uint amount0In,

@@ -33,12 +33,16 @@ pub mod pallet {
     pub(super) type SNCount<T: Config> = StorageValue<_, u64, ValueQuery>;
 
     #[derive(Encode, Decode, Clone, PartialEq, Eq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
+    /// Details of a serial number. `initial_owner` is the address used for hash construction and never changes. `owner` is the current owner and can change via transfer.
     pub struct SerialNumberDetails<T: Config>
     where
         T: scale_info::TypeInfo,
     {
         pub sn_index: u64,
         pub sn_hash: [u8; 16], // blake2_128 hash
+        /// The original owner, used for hash construction. Never changes.
+        pub initial_owner: T::AccountId,
+        /// The current owner (can be transferred).
         pub owner: T::AccountId,
         pub created: T::BlockNumber,
         pub block_index: u32, // index within the block (0..MaxSerialNumbersPerBlock)
@@ -69,13 +73,17 @@ pub mod pallet {
 
     #[pallet::event]
     #[pallet::generate_deposit(pub(super) fn deposit_event)]
+    /// Events for serial number actions. OwnershipTransferred is emitted on transfer.
     pub enum Event<T: Config> {
         SerialNumberCreated(u64, [u8; 16], T::AccountId, u32), // sn_index, sn_hash, owner, block_index
         SerialNumberExpired(u64, [u8; 16]),
         SerialNumberUsed([u8; 16], T::AccountId), // sn_hash, user
+        /// OwnershipTransferred(sn_index, old_owner, new_owner)
+        OwnershipTransferred(u64, T::AccountId, T::AccountId),
     }
 
     #[pallet::error]
+    /// Errors for serial number actions. CannotTransferToSelf is returned if transfer_ownership is called with the same account.
     pub enum Error<T> {
         SerialNumberNotFound,
         SerialNumberExpired,
@@ -83,6 +91,8 @@ pub mod pallet {
         NotOwner,
         TooManySerialNumbersPerBlock,
         InvalidBlockIndex,
+        /// Cannot transfer ownership to self.
+        CannotTransferToSelf,
     }
 
     #[pallet::call]
@@ -107,6 +117,7 @@ pub mod pallet {
             let details = SerialNumberDetails::<T> {
                 sn_index,
                 sn_hash,
+                initial_owner: who.clone(),
                 owner: who.clone(),
                 created: current_block,
                 block_index,
@@ -146,7 +157,7 @@ pub mod pallet {
             ensure!(!UsedSerialNumbers::<T>::get(sn_hash), Error::<T>::SerialNumberAlreadyUsed);
             // Check if serial number exists and is valid
             ensure!(Self::verify_serial_number(sn_hash, <frame_system::Pallet<T>>::block_number()), Error::<T>::SerialNumberNotFound);
-            // Ownership check: only the owner can use their serial number
+            // Ownership check: only the current owner can use their serial number
             let sn_index = SNByHash::<T>::get(sn_hash).ok_or(Error::<T>::SerialNumberNotFound)?;
             let details = SerialNumbers::<T>::get(sn_index).ok_or(Error::<T>::SerialNumberNotFound)?;
             ensure!(details.owner == who, Error::<T>::NotOwner);
@@ -154,6 +165,32 @@ pub mod pallet {
             UsedSerialNumbers::<T>::insert(sn_hash, true);
             Self::deposit_event(Event::SerialNumberUsed(sn_hash, who));
             Ok(())
+        }
+
+        /// Transfer ownership of a serial number to a new account. Only the current owner can transfer. Cannot transfer to self. Emits OwnershipTransferred. The initial_owner never changes and is always used for hash construction.
+        #[pallet::call_index(3)]
+        #[pallet::weight(10_000)]
+        pub fn transfer_ownership(origin: OriginFor<T>, sn_index: u64, new_owner: T::AccountId) -> DispatchResult {
+            let who = ensure_signed(origin)?;
+            ensure!(who != new_owner, Error::<T>::CannotTransferToSelf);
+            SerialNumbers::<T>::try_mutate(sn_index, |maybe_details| {
+                let details = maybe_details.as_mut().ok_or(Error::<T>::SerialNumberNotFound)?;
+                ensure!(details.owner == who, Error::<T>::NotOwner);
+                ensure!(!details.is_expired, Error::<T>::SerialNumberExpired);
+                // Remove from old owner's SNOwners
+                SNOwners::<T>::mutate(&who, |ids| {
+                    if let Some(pos) = ids.iter().position(|&id| id == sn_index) {
+                        ids.swap_remove(pos);
+                    }
+                });
+                // Add to new owner's SNOwners
+                SNOwners::<T>::mutate(&new_owner, |ids| {
+                    ids.try_push(sn_index).ok();
+                });
+                details.owner = new_owner.clone();
+                Self::deposit_event(Event::OwnershipTransferred(sn_index, who, new_owner));
+                Ok(())
+            })
         }
     }
 
@@ -179,9 +216,9 @@ pub mod pallet {
                         return false;
                     }
                     
-                    // Recompute the hash to verify
+                    // Recompute the hash to verify (always use initial_owner for hash)
                     let block_hash = <frame_system::Pallet<T>>::block_hash(block);
-                    let expected_hash = Self::generate_serial_number(&details.owner, &block_hash, details.block_index);
+                    let expected_hash = Self::generate_serial_number(&details.initial_owner, &block_hash, details.block_index);
                     return expected_hash == sn_hash;
                 }
             }

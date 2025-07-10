@@ -42,13 +42,16 @@ where
     
     /// Get the total count of serial numbers created
     fn sn_count() -> u64;
+    /// Transfer ownership of a serial number
+    fn transfer_ownership(sn_index: u64, new_owner: Account) -> bool;
 }
 
 #[derive(Encode, Decode, Clone, PartialEq, Eq, TypeInfo)]
 pub struct SerialNumberDetails<AccountId, BlockNumber> {
     pub sn_index: u64,
     pub sn_hash: [u8; 16],
-    pub owner: AccountId,
+    pub initial_owner: AccountId, // never changes, used for hash
+    pub owner: AccountId, // current owner
     pub created: BlockNumber,
     pub block_index: u32,
     pub is_expired: bool,

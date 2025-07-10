@@ -46,3 +46,6 @@ std = [
 [lib]
 name = "pallet_evm_precompileset_serial_numbers"
 crate-type = ["rlib"] 
+
+[dev-dependencies]
+hex = "0.4" 

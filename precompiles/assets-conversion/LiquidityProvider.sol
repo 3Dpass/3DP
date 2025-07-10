@@ -2,7 +2,9 @@
 pragma solidity ^0.8.0;
 
 /// @dev Uniswap V2 standard events
+/// @custom:selector 0x4c209b5fc8ad50758f13e2e1088ba56a560dff690a1c6fef26394f4c03821c4f
 event Mint(address indexed sender, uint amount0, uint amount1);
+/// @custom:selector 0xdccd412f0b1252819cb1fd330b93224ca42612892bb3f4f789976e6d81936496
 event Burn(address indexed sender, uint amount0, uint amount1, address indexed to);
 
 /// @dev Interface for the assets conversion precompile

@@ -154,3 +154,31 @@ fn get_serial_numbers_and_owners_works() {
         assert_eq!(owner2, vec![1]);
     });
 } 
+
+#[test]
+fn transfer_ownership_works() {
+    new_test_ext().execute_with(|| {
+        // Create SN with block_index 0 by account 1
+        assert_ok!(SerialNumbers::create_serial_number(Origin::signed(1), 0));
+        let details = SerialNumbers::serial_numbers(0).unwrap();
+        assert_eq!(details.initial_owner, 1);
+        assert_eq!(details.owner, 1);
+
+        // Transfer to account 2
+        assert_ok!(SerialNumbers::transfer_ownership(Origin::signed(1), 0, 2));
+        let details = SerialNumbers::serial_numbers(0).unwrap();
+        assert_eq!(details.initial_owner, 1); // initial_owner never changes
+        assert_eq!(details.owner, 2);
+
+        // Old owner cannot use or expire
+        assert_noop!(SerialNumbers::use_serial_number(Origin::signed(1), details.sn_hash), pallet::Error::<Test>::NotOwner);
+        assert_noop!(SerialNumbers::turn_sn_expired(Origin::signed(1), 0), pallet::Error::<Test>::NotOwner);
+        // Old owner cannot transfer again
+        assert_noop!(SerialNumbers::transfer_ownership(Origin::signed(1), 0, 3), pallet::Error::<Test>::NotOwner);
+
+        // New owner can use and expire
+        assert_ok!(SerialNumbers::use_serial_number(Origin::signed(2), details.sn_hash));
+        // Mark as expired (should succeed even if already used)
+        assert_ok!(SerialNumbers::turn_sn_expired(Origin::signed(2), 0));
+    });
+} 

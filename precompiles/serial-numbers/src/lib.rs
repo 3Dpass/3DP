@@ -10,6 +10,7 @@ use core::marker::PhantomData;
 use sp_runtime::traits::SaturatedConversion;
 use alloc::string::String;
 use alloc::string::ToString;
+use alloc::vec;
 extern crate alloc;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -40,10 +41,18 @@ where
     Address(H160::from_slice(&bytes[0..20]))
 }
 
-// Event selectors for Solidity event emission
+// Convert addresses to H256 (left-pad H160 to H256)
+pub fn address_to_h256(addr: Address) -> H256 {
+    let mut padded = [0u8; 32];
+    padded[12..].copy_from_slice(addr.0.as_bytes());
+    H256::from(padded)
+}
+
+// Event selectors for SerialNumbers precompile compatibility
 pub const SELECTOR_LOG_SERIAL_NUMBER_CREATED: [u8; 32] = keccak256!("SerialNumberCreated(address,uint64,bytes16,uint32)");
 pub const SELECTOR_LOG_SERIAL_NUMBER_USED: [u8; 32] = keccak256!("SerialNumberUsed(bytes16,address)");
 pub const SELECTOR_LOG_SERIAL_NUMBER_EXPIRED: [u8; 32] = keccak256!("SerialNumberExpired(uint64,bytes16)");
+pub const SELECTOR_LOG_OWNERSHIP_TRANSFERRED: [u8; 32] = keccak256!("OwnershipTransferred(uint64,address,address)");
 
 pub struct SerialNumbersPrecompile<Runtime>(core::marker::PhantomData<Runtime>);
 
@@ -100,21 +109,55 @@ where
         _handle: &mut impl PrecompileHandle,
         sn_index: u64,
     ) -> EvmResult<(
-        bool, u64, H256, Address, U256, u32, bool, U256
+        bool, u64, H256, Address, Address, U256, u32, bool, U256
     )> {
         if let Some(details) = pallet_serial_numbers::Pallet::<Runtime>::serial_numbers(sn_index) {
             // Pad [u8; 16] to [u8; 32] for H256
             let mut padded = [0u8; 32];
             padded[..16].copy_from_slice(&details.sn_hash);
             let sn_hash_h256 = H256::from(padded);
+            let initial_owner = account_id_to_address::<Runtime>(&details.initial_owner);
             let owner = account_id_to_address::<Runtime>(&details.owner);
             let created = U256::from(details.created.saturated_into::<u64>());
             let block_index = details.block_index;
             let is_expired = details.is_expired;
             let expired = U256::from(details.expired.map(|b| b.saturated_into::<u64>()).unwrap_or(0));
-            Ok((true, sn_index, sn_hash_h256, owner, created, block_index, is_expired, expired))
+            Ok((true, sn_index, sn_hash_h256, initial_owner, owner, created, block_index, is_expired, expired))
         } else {
-            Ok((false, 0, H256::zero(), Address(H160::zero()), U256::zero(), 0, false, U256::zero()))
+            Ok((false, 0, H256::zero(), Address(H160::zero()), Address(H160::zero()), U256::zero(), 0, false, U256::zero()))
+        }
+    }
+
+    /// @custom:selector 0x0a0b0c07
+    #[precompile::public("transferOwnership(uint64,address)")]
+    fn transfer_ownership(
+        handle: &mut impl PrecompileHandle,
+        sn_index: u64,
+        new_owner: Address,
+    ) -> EvmResult<bool> {
+        // Fetch old owner before transfer
+        let old_owner = if let Some(details) = pallet_serial_numbers::Pallet::<Runtime>::serial_numbers(sn_index) {
+            account_id_to_address::<Runtime>(&details.owner)
+        } else {
+            return Ok(false);
+        };
+        let who: Runtime::AccountId = Runtime::AddressMapping::into_account_id(handle.context().caller);
+        let new_owner_id: Runtime::AccountId = Runtime::AddressMapping::into_account_id(new_owner.0);
+        let call = pallet_serial_numbers::Call::<Runtime>::transfer_ownership { sn_index, new_owner: new_owner_id };
+        let result = RuntimeHelper::<Runtime>::try_dispatch(handle, Some(who).into(), call);
+        match result {
+            Ok(_) => {
+                // Emit EVM event OwnershipTransferred
+                let topics = vec![
+                    H256::from(SELECTOR_LOG_OWNERSHIP_TRANSFERRED),
+                    H256::from_low_u64_be(sn_index),
+                    address_to_h256(old_owner),
+                    address_to_h256(new_owner),
+                ];
+                let _ = handle.log(handle.context().address, topics, vec![]);
+                Ok(true)
+            },
+            Err(e) => Err(e.into()),
         }
     }
 
@@ -202,5 +245,18 @@ where
             },
             Err(e) => Err(e.into()),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    extern crate hex;
+    #[test]
+    fn print_event_selectors() {
+        println!("SerialNumberCreated: 0x{}", hex::encode(SELECTOR_LOG_SERIAL_NUMBER_CREATED));
+        println!("SerialNumberUsed: 0x{}", hex::encode(SELECTOR_LOG_SERIAL_NUMBER_USED));
+        println!("SerialNumberExpired: 0x{}", hex::encode(SELECTOR_LOG_SERIAL_NUMBER_EXPIRED));
+        println!("OwnershipTransferred: 0x{}", hex::encode(SELECTOR_LOG_OWNERSHIP_TRANSFERRED));
     }
 } 
