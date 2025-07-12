@@ -5565,6 +5565,7 @@ dependencies = [
  "poscan-algo",
  "poscan-api",
  "scale-info",
+ "serial-numbers-api",
  "sp-consensus-poscan",
  "sp-core",
  "sp-inherents",

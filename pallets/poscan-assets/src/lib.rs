@@ -1426,6 +1426,25 @@ pub mod pallet {
 			Account::<T, I>::contains_key(asset, who)
 		}
 	}
+}
 
-	
+// PoscanApi implementation for Pallet<T, I>
+impl<T: Config<I>, I: 'static> poscan_api::PoscanApi<T::AccountId, T::BlockNumber> for Pallet<T, I> {
+    fn get_poscan_object(_i: u32) -> Option<sp_consensus_poscan::ObjData<T::AccountId, T::BlockNumber>> {
+        None
+    }
+    fn is_owner_of(_account_id: &T::AccountId, _obj_idx: u32) -> bool {
+        false
+    }
+    fn property(_obj_idx: u32, _prop_idx: u32) -> Option<sp_consensus_poscan::PropValue> {
+        None
+    }
+    fn replicas_of(_original_idx: u32) -> Vec<u32> {
+        Vec::new()
+    }
+    fn object_has_asset(obj_idx: u32) -> bool {
+        Asset::<T, I>::iter().any(|(_id, details)| {
+            details.obj_details.as_ref().map_or(false, |od| od.obj_idx == obj_idx)
+        })
+    }
 }

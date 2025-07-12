@@ -30,6 +30,7 @@ sp-consensus-poscan = { default-features = false, path = "../../primitives/conse
 poscan-algo = { default-features = false, path = "../../consensus/poscan_algo" }
 poscan-api = { default-features = false, path = "../../traits/poscan" }
 validator-set-api = { default-features = false, path = "../../traits/validator-set" }
+serial-numbers-api = { default-features = false, path = "../../traits/serial-numbers" }
 log = "0.4"
 
 [features]

@@ -1450,6 +1450,8 @@ impl pallet_poscan::Config for Runtime {
 	type RewardsDefault = RewardsDefault;
 	type AuthorPartDefault = AuthorPartDefault;
 	type Currency = Balances;
+	type SerialNumbers = Runtime;
+	type PoscanAssets = pallet_poscan_assets::Pallet<Runtime, Instance1>;
 }
 
 parameter_types! {

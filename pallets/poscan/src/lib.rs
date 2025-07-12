@@ -44,6 +44,7 @@ use frame_support::{
 use sp_runtime::SaturatedConversion;
 pub use sp_runtime::Percent;
 use sp_runtime::traits::{Saturating, Zero};
+use serial_numbers_api::SerialNumbersApi;
 
 // use sp_core::crypto::AccountId32;
 use sp_core::H256;
@@ -76,6 +77,8 @@ use sp_consensus_poscan::{
 	PropValue,
 	CopyPermission,
 };
+
+use sp_runtime::traits::StaticLookup;
 
 pub mod inherents;
 
@@ -162,6 +165,10 @@ pub mod pallet {
 		type ValidatorSet: ValidatorSetApi<Self::AccountId, Self::BlockNumber, BalanceOf::<Self>>;
 
 		// #[pallet::constant]MAX_OBJECT_SIZE Get<u32>;
+        /// Serial numbers API provider
+        type SerialNumbers: serial_numbers_api::SerialNumbersApi<Self::AccountId>;
+        /// poscanAssets API provider
+        type PoscanAssets: poscan_api::PoscanApi<Self::AccountId, Self::BlockNumber>;
 	}
 
 	const STORAGE_VERSION: StorageVersion = StorageVersion::new(2);
@@ -224,6 +231,16 @@ pub mod pallet {
 		ObjApproved(ObjIdx),
 		/// Event emitted when an object has not been approved (expired).
 		ObjNotApproved(ObjIdx, NotApprovedReason),
+        /// Event emitted when an object enters QC inspection
+        QCInspecting(ObjIdx, T::AccountId),
+        /// Event emitted when an object passes QC
+        QCPassed(ObjIdx, T::AccountId),
+        /// Event emitted when an object is rejected by QC
+        QCRejected(ObjIdx, T::AccountId),
+        /// Event emitted when object ownership is transferred
+        ObjectOwnershipTransferred(ObjIdx, T::AccountId, T::AccountId),
+        /// Event emitted when object ownership is abdicated
+        ObjectOwnershipAbdicated(ObjIdx, T::AccountId),
 	}
 
 	// Errors inform users that something went wrong.
@@ -267,6 +284,22 @@ pub mod pallet {
 		TooManyPermissions,
 		/// Cannot create replica of not approved object
 		OriginalNotApproved,
+        /// Serial number does not exist
+        SerialNumberNotFound,
+        /// Serial number already used
+        SerialNumberAlreadyUsed,
+        /// Serial number expired
+        SerialNumberExpired,
+        /// Not the owner of the serial number
+        SerialNumberNotOwner,
+        /// Only inspector can perform this action
+        NotInspector,
+        /// Object not in QCInspecting state
+        NotQCInspecting,
+        /// Object has associated asset and cannot be transferred
+        ObjectHasAsset,
+        /// Object ownership has been abdicated and cannot be transferred
+        OwnershipAbdicated,
 	}
 
 	#[pallet::hooks]
@@ -287,44 +320,38 @@ pub mod pallet {
 					match obj_data {
 						Some(ref mut obj_data) => {
 							match obj_data.state {
-								ObjectState::Created(when) |
-								ObjectState::Estimated(when, _) |
-								ObjectState::Estimating(when)
-								if {
-									let when_last_approved = obj_data.approvers
-										.last()
-										.map(|a| a.when)
-										.unwrap_or(when);
-									now > when_last_approved + T::ApproveTimeout::get().into()
-								} => {
-									log::debug!(target: LOG_TARGET, "on_initialize mark as NotApproved obj_idx={}", &obj_idx);
+								ObjectState::Created(_when) => {
+									obj_data.state = ObjectState::Estimating(now);
+									log::debug!(target: LOG_TARGET, "on_initialize: Created -> Estimating for obj_idx={}", &obj_idx);
+								},
+								ObjectState::Estimating(when) => {
+									// Check if estimation period has expired
+									if now.saturating_sub(when) >= T::EstimatePeriod::get().into() {
+										obj_data.state = ObjectState::NotApproved(now);
+										obj_data.est_outliers = Self::outliers(&obj_data.estimators);
+										Self::deposit_event(Event::ObjNotApproved(obj_idx, NotApprovedReason::Expired));
+										log::debug!(target: LOG_TARGET, "on_initialize: Estimating -> NotApproved (expired) for obj_idx={}", &obj_idx);
+									}
+									// Otherwise, keep it in Estimating state
+								},
+								ObjectState::Estimated(when, _) => {
+									// Check if approval timeout has expired
+									if now.saturating_sub(when) >= T::ApproveTimeout::get().into() {
+										obj_data.state = ObjectState::NotApproved(now);
+										obj_data.est_outliers = Self::outliers(&obj_data.estimators);
+										Self::deposit_event(Event::ObjNotApproved(obj_idx, NotApprovedReason::Expired));
+										log::debug!(target: LOG_TARGET, "on_initialize: Estimated -> NotApproved (expired) for obj_idx={}", &obj_idx);
+									}
+									// Otherwise, keep it in Estimated state
+								},
+								ObjectState::QCPassed(_, _when) => {
+									// Keep in QCPassed state - no timeout for QC passed objects
+								},
+								ObjectState::QCRejected(_, _when) => {
 									obj_data.state = ObjectState::NotApproved(now);
 									obj_data.est_outliers = Self::outliers(&obj_data.estimators);
 									Self::deposit_event(Event::ObjNotApproved(obj_idx, NotApprovedReason::Expired));
-
-								},
-								ObjectState::Created(_) => {
-									obj_data.state = ObjectState::Estimating(now);
-									log::debug!(target: LOG_TARGET, "on_initialize ok for obj_idx={}", &obj_idx);
-								},
-								ObjectState::Estimating(block_num) => {
-									log::debug!(target: LOG_TARGET, "on_initialize: Estimating");
-									if now > block_num + T::EstimatePeriod::get().into() {
-										obj_data.est_outliers = Self::outliers(&obj_data.estimators);
-										let n_est = obj_data.estimators.len() - obj_data.est_outliers.len();
-										let n_val = T::ValidatorSet::validators().len();
-
-										if n_est * 2 >= n_val {
-											let t = obj_data.estimators
-												.iter()
-												.filter(|a| !obj_data.est_outliers.contains(&a.0))
-												.fold(0, |_, t| t.1
-												);
-											obj_data.state = ObjectState::Estimated(now, t / (n_est as u64));
-											log::debug!(target: LOG_TARGET, "on_initialize mark as estimated obj_idx={}", &obj_idx);
-											Self::reward_estimators(obj_idx);
-										}
-									}
+									log::debug!(target: LOG_TARGET, "on_initialize: QCRejected -> NotApproved for obj_idx={}", &obj_idx);
 								},
 								_ => {},
 							};
@@ -343,10 +370,13 @@ pub mod pallet {
 			let onchain_version =  Pallet::<T>::on_chain_storage_version();
 			log::info!(target: LOG_TARGET, "on_runtime_upgrade: onchain_version={:?}", &onchain_version);
 			if onchain_version < 3 {
-				// Migrate all objects to set is_replica = false and original_obj = None
+				// Migrate all objects to set is_replica = false, original_obj = None, and sn_hash = None
 				Objects::<T>::translate::<ObjData<T::AccountId, T::BlockNumber>, _>(|_key, mut obj| {
 					obj.is_replica = false;
 					obj.original_obj = None;
+                    obj.sn_hash = None;
+                    obj.inspector = None;
+                    obj.is_ownership_abdicated = false;
 					Some(obj)
 				});
 				StorageVersion::new(3).put::<Pallet::<T>>();
@@ -373,6 +403,7 @@ pub mod pallet {
 			properties: BoundedVec<PropValue, ConstU32<MAX_PROPERTIES>>,
 			is_replica: bool,
 			original_obj: Option<ObjIdx>,
+            sn_hash: Option<u64>,
 		) -> DispatchResultWithPostInfo {
 			let acc = ensure_signed(origin)?;
 			let obj_idx = <Pallet::<T>>::obj_count();
@@ -387,7 +418,7 @@ pub mod pallet {
 
 			for (_idx, obj_data)
 				in Objects::<T>::iter().filter(
-					|obj| !matches!(obj.1.state, ObjectState::NotApproved(_))
+					|obj| !matches!(obj.1.state, ObjectState::<T::BlockNumber, T::AccountId>::NotApproved(_))
 			) {
 				match obj_data.compressed_with {
 					None if obj_data.obj == obj => {
@@ -430,7 +461,7 @@ pub mod pallet {
 				let orig = Objects::<T>::get(orig_idx).ok_or(Error::<T>::OriginalNotFound)?;
 				// Only allow if original is Approved
 				match orig.state {
-					ObjectState::Approved(_) => {},
+					ObjectState::<T::BlockNumber, T::AccountId>::Approved(_) => {},
 					_ => return Err(Error::<T>::OriginalNotApproved.into()),
 				}
 				// At least one hash must match
@@ -453,6 +484,25 @@ pub mod pallet {
 						return Err(Error::<T>::NotPermitted.into());
 					}
 				}
+                // Serial number checks for replicas
+                if let Some(sn_idx) = sn_hash {
+                    // a. Serial number exists
+                    let _sn_vec = <T as frame_system::Config>::BlockNumber::from(0u32); // dummy block number for API
+                    let sn_details = T::SerialNumbers::get_serial_numbers(Some(sn_idx));
+                    let sn_details = sn_details.get(0).ok_or(Error::<T>::SerialNumberNotFound)?;
+                    // b. Serial number is not used
+                    if T::SerialNumbers::is_serial_number_used(sn_details.sn_hash) {
+                        return Err(Error::<T>::SerialNumberAlreadyUsed.into());
+                    }
+                    // c. Serial number is not expired
+                    if sn_details.is_expired {
+                        return Err(Error::<T>::SerialNumberExpired.into());
+                    }
+                    // d. Serial number owner matches object owner
+                    if sn_details.owner != acc {
+                        return Err(Error::<T>::SerialNumberNotOwner.into());
+                    }
+                }
 				// Do NOT check for duplicate hashes (replica is allowed)
 			} else {
 				// Normal: reject if duplicate
@@ -488,7 +538,7 @@ pub mod pallet {
 			}
 
 			let block_num = <frame_system::Pallet<T>>::block_number();
-			let state =  ObjectState::Created(block_num);
+			let state =  ObjectState::<T::BlockNumber, T::AccountId>::Created(block_num);
 			let obj_data = ObjData::<T::AccountId, T::BlockNumber> {
 				state,
 				obj: compressed_obj,
@@ -508,6 +558,9 @@ pub mod pallet {
 				prop: properties,
 				is_replica,
 				original_obj,
+                sn_hash,
+                inspector: None,
+                is_ownership_abdicated: false,
 			};
 			<Objects<T>>::insert(obj_idx, obj_data);
 			<ObjCount<T>>::put(obj_idx + 1);
@@ -516,6 +569,255 @@ pub mod pallet {
 			// TODO:
 			Self::deposit_event(Event::ObjCreated(acc));
 			Ok(().into())
+		}
+
+		/// Inspect and put file to poscan storage (QC flow)
+		#[pallet::weight(<Pallet::<T>>::fee_per_byte().unwrap_or(FEE_PER_BYTE) * obj.len() as u64)]
+		pub fn inspect_put_object(
+			origin: OriginFor<T>,
+			category: ObjectCategory,
+			is_private: bool,
+			obj: BoundedVec<u8, ConstU32<MAX_OBJECT_SIZE>>,
+			num_approvals: u8,
+			hashes: Option<BoundedVec<H256, ConstU32<MAX_OBJECT_HASHES>>>,
+			properties: BoundedVec<PropValue, ConstU32<MAX_PROPERTIES>>,
+			is_replica: bool,
+			original_obj: Option<ObjIdx>,
+            sn_hash: Option<u64>,
+            inspector: <T::Lookup as StaticLookup>::Source,
+		) -> DispatchResultWithPostInfo {
+			let acc = ensure_signed(origin)?;
+            let inspector = T::Lookup::lookup(inspector)?;
+            let inspector_clone = inspector.clone();
+			let obj_idx = <Pallet::<T>>::obj_count();
+
+			if num_approvals == 0 {
+				return Err(Error::<T>::ZeroApprovalsRequested.into());
+			}
+
+			let compress_with = CompressWith::Lzss;
+			let compressed_obj: BoundedVec<u8, ConstU32<MAX_OBJECT_SIZE>> =
+				compress_with.compress(obj.to_vec()).try_into().unwrap();
+
+			for (_idx, obj_data)
+				in Objects::<T>::iter().filter(
+					|obj| !matches!(obj.1.state, ObjectState::<T::BlockNumber, T::AccountId>::NotApproved(_))
+			) {
+				match obj_data.compressed_with {
+					None if obj_data.obj == obj => {
+						return Err(Error::<T>::ObjectExists.into());
+					},
+					Some(CompressWith::Lzss) if obj_data.obj == compressed_obj => {
+						return Err(Error::<T>::ObjectExists.into());
+					},
+					_ => {},
+				}
+			}
+
+			let actual_rewords = Self::rewards(None).unwrap();
+			let lock_amount = actual_rewords.0 + actual_rewords.1;
+			let free = <T as pallet::Config>::Currency::free_balance(&acc);
+			if free < lock_amount {
+				return Err(Error::<T>::UnsufficientBalance.into());
+			}
+
+			let tot_locked= AccountLock::<T>::get(&acc);
+			let new_locked = tot_locked.saturating_add(lock_amount);
+			Self::set_lock(&acc, new_locked);
+
+			let hashes = match hashes {
+				Some(hashes) => hashes,
+				None => Self::calc_hashes(&category, None, &obj, DEFAULT_OBJECT_HASHES)?,
+			};
+
+			if hashes.len() == 0 {
+				return Err(Error::<T>::NoHashes.into());
+			}
+
+			log::debug!(target: LOG_TARGET, "inspect_put_object::hashes");
+			for a in hashes.iter() {
+				log::debug!(target: LOG_TARGET, "{:#?}", a);
+			}
+
+			if is_replica {
+				let orig_idx = original_obj.ok_or(Error::<T>::OriginalNotFound)?;
+				let orig = Objects::<T>::get(orig_idx).ok_or(Error::<T>::OriginalNotFound)?;
+				// Only allow if original is Approved
+				match orig.state {
+					ObjectState::<T::BlockNumber, T::AccountId>::Approved(_) => {},
+					_ => return Err(Error::<T>::OriginalNotApproved.into()),
+				}
+				// At least one hash must match
+				let match_found = hashes.iter().any(|h| orig.hashes.contains(h));
+				if !match_found {
+					return Err(Error::<T>::NotAReplica.into());
+				}
+				// Permission logic for private originals
+				if orig.is_private {
+					let perms = PrivateObjectPermissions::<T>::get(orig_idx);
+					let now = <frame_system::Pallet<T>>::block_number();
+					let mut allowed = false;
+					for perm in perms.iter() {
+						if perm.who == acc && perm.until >= now && perm.max_copies > 0 {
+							allowed = true;
+							break;
+						}
+					}
+					if !allowed {
+						return Err(Error::<T>::NotPermitted.into());
+					}
+				}
+                // Serial number checks for replicas
+                if let Some(sn_idx) = sn_hash {
+                    let sn_details = T::SerialNumbers::get_serial_numbers(Some(sn_idx));
+                    let sn_details = sn_details.get(0).ok_or(Error::<T>::SerialNumberNotFound)?;
+                    if T::SerialNumbers::is_serial_number_used(sn_details.sn_hash) {
+                        return Err(Error::<T>::SerialNumberAlreadyUsed.into());
+                    }
+                    if sn_details.is_expired {
+                        return Err(Error::<T>::SerialNumberExpired.into());
+                    }
+                    if sn_details.owner != acc {
+                        return Err(Error::<T>::SerialNumberNotOwner.into());
+                    }
+                }
+				// Do NOT check for duplicate hashes (replica is allowed)
+			} else {
+				// Normal: reject if duplicate
+				if let Some(_) = Self::find_dup(None, &hashes) {
+					return Err(Error::<T>::DuplicatedHashes.into());
+				}
+			}
+
+			let mut properties = properties.clone();
+			let share_prop = properties.iter()
+				.find(|PropValue {prop_idx, ..}| *prop_idx == 0);
+			if share_prop.is_none() {
+				properties.try_insert(0, PropValue {prop_idx: 0, max_value: 1} ).map_err(|_| Error::<T>::TooManyProperties)?;
+			}
+
+			for prop in properties.iter_mut() {
+				match Properties::<T>::get(&prop.prop_idx) {
+					Some(ref p) => {
+						if prop.max_value > p.max_value {
+							return Err(Error::<T>::InvalidPropValue.into())
+						}
+						if p.class == PropClass::Relative {
+							let mut r = prop.max_value.clone();
+							while r >= 10 { r /= 10; }
+							if r > 1 {
+								return Err(Error::<T>::InvalidSharePropValue.into())
+							}
+						}
+					}
+					None =>
+						return Err(Error::<T>::UnknownProperty.into()),
+				}
+			}
+
+			let block_num = <frame_system::Pallet<T>>::block_number();
+            let state = ObjectState::<T::BlockNumber, T::AccountId>::QCInspecting(inspector.clone(), block_num);
+			let obj_data = ObjData::<T::AccountId, T::BlockNumber> {
+				state,
+				obj: compressed_obj,
+				compressed_with: Some(CompressWith::Lzss),
+				category,
+				is_private,
+				hashes,
+				when_created: block_num,
+				when_approved: None,
+				owner: acc.clone(),
+				estimators: BoundedVec::default(),
+				est_outliers: BoundedVec::default(),
+				approvers: BoundedVec::default(),
+				num_approvals,
+				est_rewards: actual_rewords.0.saturated_into(),
+				author_rewards: actual_rewords.1.saturated_into(),
+				prop: properties,
+				is_replica,
+				original_obj,
+                sn_hash,
+                inspector: Some(inspector),
+                is_ownership_abdicated: false,
+			};
+			<Objects<T>>::insert(obj_idx, obj_data);
+			<ObjCount<T>>::put(obj_idx + 1);
+			let _ = <Owners<T>>::mutate(acc.clone(), |v| v.try_push(obj_idx));
+
+			Self::deposit_event(Event::ObjCreated(acc));
+            Self::deposit_event(Event::QCInspecting(obj_idx, inspector_clone));
+			Ok(().into())
+		}
+
+		/// Inspector approves the object (QC passed)
+		#[pallet::weight(1_000_000)]
+		pub fn qc_approve(
+			origin: OriginFor<T>,
+			obj_idx: ObjIdx,
+		) -> DispatchResultWithPostInfo {
+			let who = ensure_signed(origin)?;
+			Objects::<T>::mutate(obj_idx, |obj| {
+				if let Some(obj_data) = obj {
+					match &obj_data.state {
+						ObjectState::<T::BlockNumber, T::AccountId>::QCInspecting(ref inspector, _) if *inspector == who => {
+							let block_num = <frame_system::Pallet<T>>::block_number();
+							obj_data.state = ObjectState::<T::BlockNumber, T::AccountId>::QCPassed(who.clone(), block_num);
+						},
+						ObjectState::<T::BlockNumber, T::AccountId>::QCInspecting(_, _) => {
+							// Not the inspector
+							// Will error below
+						},
+						_ => {
+							// Not in QCInspecting
+						}
+					}
+				}
+			});
+			// Check result
+			let obj = Objects::<T>::get(obj_idx).ok_or(Error::<T>::ObjectNotFound)?;
+			match &obj.state {
+				ObjectState::<T::BlockNumber, T::AccountId>::QCPassed(_, _) => {
+                    Self::deposit_event(Event::QCPassed(obj_idx, who));
+					Ok(().into())
+				},
+				ObjectState::<T::BlockNumber, T::AccountId>::QCInspecting(inspector, _) if *inspector != who => Err(Error::<T>::NotInspector.into()),
+				_ => Err(Error::<T>::NotQCInspecting.into()),
+			}
+		}
+
+		/// Inspector rejects the object (QC rejected)
+		#[pallet::weight(1_000_000)]
+		pub fn qc_reject(
+			origin: OriginFor<T>,
+			obj_idx: ObjIdx,
+		) -> DispatchResultWithPostInfo {
+			let who = ensure_signed(origin)?;
+			Objects::<T>::mutate(obj_idx, |obj| {
+				if let Some(obj_data) = obj {
+					match &obj_data.state {
+						ObjectState::<T::BlockNumber, T::AccountId>::QCInspecting(ref inspector, _) if *inspector == who => {
+							let block_num = <frame_system::Pallet<T>>::block_number();
+							obj_data.state = ObjectState::<T::BlockNumber, T::AccountId>::QCRejected(who.clone(), block_num);
+						},
+						ObjectState::<T::BlockNumber, T::AccountId>::QCInspecting(_, _) => {
+							// Not the inspector
+						},
+						_ => {
+							// Not in QCInspecting
+						}
+					}
+				}
+			});
+			// Check result
+			let obj = Objects::<T>::get(obj_idx).ok_or(Error::<T>::ObjectNotFound)?;
+			match &obj.state {
+				ObjectState::<T::BlockNumber, T::AccountId>::QCRejected(_, _) => {
+                    Self::deposit_event(Event::QCRejected(obj_idx, who));
+					Ok(().into())
+				},
+				ObjectState::<T::BlockNumber, T::AccountId>::QCInspecting(inspector, _) if *inspector != who => Err(Error::<T>::NotInspector.into()),
+				_ => Err(Error::<T>::NotQCInspecting.into()),
+			}
 		}
 
 		/// Set permissions for private object replicas
@@ -548,7 +850,7 @@ pub mod pallet {
 			Objects::<T>::mutate(&obj_idx, |obj| {
 				match obj {
 					Some(ref mut obj_data) => {
-						if let ObjectState::Estimated(..) = obj_data.state {
+						if let ObjectState::<T::BlockNumber, T::AccountId>::Estimated(..) = obj_data.state {
 							let current_block = <frame_system::Pallet<T>>::block_number();
 							let approval = Approval { account_id: author.clone(), when: current_block, proof};
 							if obj_data.approvers.try_push(approval).is_err() {
@@ -573,7 +875,7 @@ pub mod pallet {
 							};
 							if obj_data.approvers.len() >= obj_data.num_approvals as usize {
 								if let Some(dup_idx) = Self::find_dup(Some(obj_idx), &obj_data.hashes) {
-									obj_data.state = ObjectState::NotApproved(current_block);
+									obj_data.state = ObjectState::<T::BlockNumber, T::AccountId>::NotApproved(current_block);
 									Self::deposit_event(Event::ObjNotApproved(
 										obj_idx,
 										NotApprovedReason::DuplicateFound(obj_idx, dup_idx))
@@ -582,7 +884,7 @@ pub mod pallet {
 								}
 
 								obj_data.when_approved = Some(current_block);
-								obj_data.state = ObjectState::Approved(current_block);
+								obj_data.state = ObjectState::<T::BlockNumber, T::AccountId>::Approved(current_block);
 								Self::deposit_event(Event::ObjApproved(obj_idx));
 								log::debug!(target: LOG_TARGET, "approve applyed for obj_idx={}", &obj_idx);
 
@@ -635,6 +937,49 @@ pub mod pallet {
 			<PropCount<T>>::put(prop_idx + 1);
 			Ok(().into())
 		}
+
+        /// Transfer object ownership to another account if allowed
+        #[pallet::weight(1_000_000)]
+        pub fn transfer_object_ownership(
+            origin: OriginFor<T>,
+            obj_idx: ObjIdx,
+            new_owner: <T::Lookup as StaticLookup>::Source,
+        ) -> DispatchResultWithPostInfo {
+            let who = ensure_signed(origin)?;
+            let new_owner = T::Lookup::lookup(new_owner)?;
+            Objects::<T>::try_mutate(obj_idx, |maybe_obj| {
+                let obj = maybe_obj.as_mut().ok_or(Error::<T>::ObjectNotFound)?;
+                ensure!(obj.owner == who, Error::<T>::NotOwner);
+                ensure!(!obj.is_ownership_abdicated, Error::<T>::OwnershipAbdicated);
+                // Asset association check (requires trait bound and runtime API)
+                if T::PoscanAssets::object_has_asset(obj_idx) {
+                    return Err::<(), DispatchError>(Error::<T>::ObjectHasAsset.into());
+                }
+                obj.owner = new_owner.clone();
+                Ok::<(), DispatchError>(())
+            })?;
+            Owners::<T>::mutate(&who, |v| v.retain(|&idx| idx != obj_idx));
+            Owners::<T>::mutate(&new_owner, |v| { let _ = v.try_push(obj_idx); });
+            Self::deposit_event(Event::ObjectOwnershipTransferred(obj_idx, who, new_owner));
+            Ok(().into())
+        }
+
+        /// Abdicate object ownership (irreversible)
+        #[pallet::weight(1_000_000)]
+        pub fn abdicate_the_obj_ownership(
+            origin: OriginFor<T>,
+            obj_idx: ObjIdx,
+        ) -> DispatchResultWithPostInfo {
+            let who = ensure_signed(origin)?;
+            Objects::<T>::try_mutate(obj_idx, |maybe_obj| {
+                let obj = maybe_obj.as_mut().ok_or(Error::<T>::ObjectNotFound)?;
+                ensure!(obj.owner == who, Error::<T>::NotOwner);
+                obj.is_ownership_abdicated = true;
+                Ok::<(), DispatchError>(())
+            })?;
+            Self::deposit_event(Event::ObjectOwnershipAbdicated(obj_idx, who));
+            Ok(().into())
+        }
 	}
 
 	#[pallet::inherent]
@@ -739,7 +1084,7 @@ impl<T: Config> Pallet<T> {
 
 		let mut v: Vec<(u32, ObjData<T::AccountId, T::BlockNumber>)> = Vec::new();
 		for (idx, obj_data) in Objects::<T>::iter() {
-			if let ObjectState::Created(_) = obj_data.state {
+			if let ObjectState::<T::BlockNumber, T::AccountId>::Created(_) = obj_data.state {
 				v.push((idx, obj_data));
 			}
 		}
@@ -755,13 +1100,15 @@ impl<T: Config> Pallet<T> {
 		log::debug!(target: LOG_TARGET, "Select estimated");
 
 		let mut v: Vec<(u32, ObjData<T::AccountId, T::BlockNumber>)> = Vec::new();
+		let current_block = <frame_system::Pallet<T>>::block_number();
+		
 		for (idx, obj_data) in Objects::<T>::iter() {
-			if let ObjectState::Estimated(_, diff) = obj_data.state {
-				if diff < Self::max_algo_time().millis() {
+			if let ObjectState::<T::BlockNumber, T::AccountId>::Estimated(when, _) = obj_data.state {
+				// Check if approval timeout has expired
+				if current_block.saturating_sub(when) < T::ApproveTimeout::get().into() {
 					v.push((idx, obj_data));
-				}
-				else {
-					log::info!(target: LOG_TARGET, "Estimation of object {} is too big", &idx);
+				} else {
+					log::info!(target: LOG_TARGET, "Estimation of object {} has expired (timeout)", &idx);
 				}
 			}
 		}
@@ -775,7 +1122,7 @@ impl<T: Config> Pallet<T> {
 		Objects::<T>::mutate(obj_idx, |obj_data| {
 			match obj_data {
 				Some(obj_data) => {
-					if let ObjectState::Estimating(..) = obj_data.state {
+					if let ObjectState::<T::BlockNumber, T::AccountId>::Estimating(..) = obj_data.state {
 						let mut a: Vec<_> = obj_data.estimators.to_vec();
 						a.push((acc.clone(), dt));
 						obj_data.estimators = a.try_into().unwrap();
@@ -787,6 +1134,7 @@ impl<T: Config> Pallet<T> {
 		});
 	}
 
+	#[allow(dead_code)]
 	fn reward_estimators(obj_idx: ObjIdx) {
 		log::debug!(target: LOG_TARGET, "reward_estimators");
 
@@ -881,7 +1229,7 @@ impl<T: Config> Pallet<T> {
 					continue
 				}
 			}
-			if matches!(obj.state, ObjectState::Approved(_)) {
+			if matches!(obj.state, ObjectState::<T::BlockNumber, T::AccountId>::Approved(_)) {
 				let min_len = core::cmp::min(hashes.len(), obj.hashes.len());
 				if hashes.iter().eq(obj.hashes[0..min_len].iter()) {
 					return Some(idx)
@@ -1006,37 +1354,40 @@ impl<T: Config> Pallet<T> {
 
 
 impl<T: Config> PoscanApi<T::AccountId, T::BlockNumber> for Pallet<T> {
-	fn get_poscan_object(i: u32) -> Option<sp_consensus_poscan::ObjData<T::AccountId, T::BlockNumber>> {
-		match Objects::<T>::get(i) {
-			Some(mut obj_data) => {
-				if let Some(compressor) = obj_data.compressed_with {
-					let resp_obj = obj_data.clone();
-					obj_data.obj = compressor.decompress(&resp_obj.obj).try_into().unwrap();
-					obj_data.compressed_with = None;
-					Some(obj_data)
-				}
-				else {
-					Some(obj_data)
-				}
-			},
-			None => None,
-		}
-	}
-	fn is_owner_of(account_id: &T::AccountId, obj_idx: u32) -> bool {
-		let own_objects = Owners::<T>::get(&account_id);
-		own_objects.contains(&obj_idx)
-	}
-	fn property(obj_idx: u32, prop_idx: u32) -> Option<PropValue> {
-		Objects::<T>::get(&obj_idx)
-			.map(
-					|obj_data|
-						obj_data.prop.iter()
-							.find(|p| p.prop_idx == prop_idx)
-							.cloned()
-			)
-			.flatten()
-	}
-	fn replicas_of(original_idx: u32) -> Vec<u32> {
-		Self::replicas_of(original_idx)
-	}
+    fn get_poscan_object(i: u32) -> Option<sp_consensus_poscan::ObjData<T::AccountId, T::BlockNumber>> {
+        match Objects::<T>::get(i) {
+            Some(mut obj_data) => {
+                if let Some(compressor) = obj_data.compressed_with {
+                    let resp_obj = obj_data.clone();
+                    obj_data.obj = compressor.decompress(&resp_obj.obj).try_into().unwrap();
+                    obj_data.compressed_with = None;
+                    Some(obj_data)
+                }
+                else {
+                    Some(obj_data)
+                }
+            },
+            None => None,
+        }
+    }
+    fn is_owner_of(account_id: &T::AccountId, obj_idx: u32) -> bool {
+        let own_objects = Owners::<T>::get(&account_id);
+        own_objects.contains(&obj_idx)
+    }
+    fn property(obj_idx: u32, prop_idx: u32) -> Option<PropValue> {
+        Objects::<T>::get(&obj_idx)
+            .map(
+                    |obj_data|
+                        obj_data.prop.iter()
+                            .find(|p| p.prop_idx == prop_idx)
+                            .cloned()
+            )
+            .flatten()
+    }
+    fn replicas_of(original_idx: u32) -> Vec<u32> {
+        Self::replicas_of(original_idx)
+    }
+    fn object_has_asset(_obj_idx: u32) -> bool {
+        false // stub for trait compliance
+    }
 }

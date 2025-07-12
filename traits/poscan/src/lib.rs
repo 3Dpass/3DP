@@ -19,6 +19,7 @@ pub trait PoscanApi<Account, Block>
 	fn is_owner_of(account_id: &Account, obj_idx: u32) -> bool;
 	fn property(obj_idx: u32, prop_idx: u32) -> Option<sp_consensus_poscan::PropValue>;
 	fn replicas_of(original_idx: u32) -> Vec<u32>;
+    fn object_has_asset(obj_idx: u32) -> bool;
 }
 
 
