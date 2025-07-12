@@ -46,6 +46,11 @@ interface I3DPRC2 {
         bytes32[] hashes;
         uint8 numApprovals;
         Property[] prop;
+        bool isReplica;
+        uint32 originalObj;
+        uint64 snHash;
+        address inspector;
+        bool isOwnershipAbdicated;
     }
 
     /// @dev Emitted when a new object is submitted
@@ -54,11 +59,19 @@ interface I3DPRC2 {
     /// @dev Emitted when permissions are set for a private object
     event PermissionsSet(uint32 indexed objIdx, address indexed setter);
 
+    /// @dev Emitted when an object enters QC inspection
+    event QCInspecting(uint32 indexed objIdx, address indexed inspector);
+    /// @dev Emitted when an object passes QC
+    event QCPassed(uint32 indexed objIdx, address indexed inspector);
+    /// @dev Emitted when an object is rejected by QC
+    event QCRejected(uint32 indexed objIdx, address indexed inspector);
+
     /**
      * @notice Get object details by index
      * @param objIdx The object index
      * @return info The object info struct
      * @custom:selector 0xa1b2c001
+     * @dev state: 0=Created, 1=Estimating, 2=Estimated, 3=NotApproved, 4=Approved, 5=QCInspecting, 6=QCPassed, 7=QCRejected
      */
     function getObject(uint32 objIdx) external view returns (ObjectInfo memory info);
 
@@ -109,6 +122,9 @@ interface I3DPRC2 {
      * @param numApprovals Number of approvals required
      * @param hashes Optional array of object hashes (can be empty for None)
      * @param properties Array of property values
+     * @param isReplica Whether this is a replica
+     * @param originalObj The original object index (if replica)
+     * @param snHash The serial number hash (if replica, else 0)
      * @return success True if the object was submitted successfully
      * @dev Emits an ObjectSubmitted event on success
      * @custom:selector 0x0c53c51c
@@ -122,8 +138,55 @@ interface I3DPRC2 {
         bytes32[] calldata hashes,
         Property[] calldata properties,
         bool isReplica,
-        uint32 originalObj
+        uint32 originalObj,
+        uint64 snHash
     ) external returns (bool);
+
+    /**
+     * @notice Inspect and put file to poscan storage (QC flow)
+     * @param category The object category
+     * @param algo3d The Algo3D variant
+     * @param isPrivate Whether the object is private
+     * @param obj The OBJ file bytes
+     * @param numApprovals Number of approvals required
+     * @param hashes Optional array of object hashes
+     * @param properties Array of property values
+     * @param isReplica Whether this is a replica
+     * @param originalObj The original object index (if replica)
+     * @param snHash The serial number hash (if replica, else 0)
+     * @param inspector The inspector address
+     * @return success True if the object was submitted for QC
+     * @custom:selector 0x0c53c51f
+     */
+    function inspectPutObject(
+        uint8 category,
+        uint8 algo3d,
+        bool isPrivate,
+        bytes calldata obj,
+        uint8 numApprovals,
+        bytes32[] calldata hashes,
+        Property[] calldata properties,
+        bool isReplica,
+        uint32 originalObj,
+        uint64 snHash,
+        address inspector
+    ) external returns (bool);
+
+    /**
+     * @notice Inspector approves the object (QC passed)
+     * @param objIdx The object index
+     * @return success True if approved
+     * @custom:selector 0x0c53c520
+     */
+    function qcApprove(uint32 objIdx) external returns (bool);
+
+    /**
+     * @notice Inspector rejects the object (QC rejected)
+     * @param objIdx The object index
+     * @return success True if rejected
+     * @custom:selector 0x0c53c521
+     */
+    function qcReject(uint32 objIdx) external returns (bool);
 
     /**
      * @notice Set permissions for private object replicas
@@ -137,4 +200,21 @@ interface I3DPRC2 {
         uint32 objIdx,
         Permission[] calldata permissions
     ) external returns (bool);
+
+    /**
+     * @notice Transfer object ownership to another account
+     * @param objIdx The object index
+     * @param newOwner The new owner address
+     * @return success True if ownership was transferred
+     * @custom:selector 0x0c53c522
+     */
+    function transferObjectOwnership(uint32 objIdx, address newOwner) external returns (bool);
+
+    /**
+     * @notice Abdicate object ownership (irreversible)
+     * @param objIdx The object index
+     * @return success True if ownership was abdicated
+     * @custom:selector 0x0c53c523
+     */
+    function abdicateTheObjOwnership(uint32 objIdx) external returns (bool);
 } 

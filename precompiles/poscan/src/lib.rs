@@ -9,6 +9,7 @@ use precompile_utils::prelude::*;
 use sp_core::{H160, H256, U256};
 use sp_std::{marker::PhantomData, vec::Vec};
 use sp_arithmetic::traits::SaturatedConversion;
+use sp_runtime::traits::StaticLookup;
 
 // No alias, use precompile_utils::data::String directly
 use pallet_evm::AddressMapping;
@@ -17,6 +18,7 @@ use precompile_utils::data::UnboundedString;
 use sp_consensus_poscan::{ObjectState, ObjectCategory};
 use frame_support::pallet_prelude::ConstU32;
 use alloc::string::String;
+use precompile_utils::substrate::RuntimeHelper;
 
 // Event selectors for modern event emission
 pub const SELECTOR_LOG_OBJECT_SUBMITTED: [u8; 32] = keccak256!("ObjectSubmitted(address,uint32)");
@@ -66,20 +68,25 @@ where
         Vec<H256>, // hashes
         u8, // numApprovals
         Vec<(u32, u128)>, // prop: (propIdx, maxValue)
+        bool, // is_replica
+        u32, // original_obj
+        u64, // sn_hash
+        Address, // inspector
+        bool, // is_ownership_abdicated
     )> {
         use pallet_poscan::Pallet as PoScanPallet;
-        // Fetch the object from storage
         let obj_opt = PoScanPallet::<Runtime>::objects(obj_idx);
         if let Some(obj) = obj_opt {
-            // --- State discriminant and block ---
             let (state_discriminant, state_block) = match &obj.state {
                 ObjectState::Created(bn) => (0u8, (*bn).saturated_into()),
                 ObjectState::Estimating(bn) => (1u8, (*bn).saturated_into()),
                 ObjectState::Estimated(bn, _) => (2u8, (*bn).saturated_into()),
                 ObjectState::NotApproved(bn) => (3u8, (*bn).saturated_into()),
                 ObjectState::Approved(bn) => (4u8, (*bn).saturated_into()),
+                ObjectState::QCInspecting(_, bn) => (5u8, (*bn).saturated_into()),
+                ObjectState::QCPassed(_, bn) => (6u8, (*bn).saturated_into()),
+                ObjectState::QCRejected(_, bn) => (7u8, (*bn).saturated_into()),
             };
-            // --- Category discriminant ---
             let category_discriminant = match &obj.category {
                 ObjectCategory::Objects3D(_) => 0u8,
                 ObjectCategory::Drawings2D => 1u8,
@@ -88,23 +95,21 @@ where
                 ObjectCategory::Movements => 4u8,
                 ObjectCategory::Texts => 5u8,
             };
-            // --- whenCreated ---
             let when_created = obj.when_created.saturated_into();
-            // --- whenApproved ---
             let when_approved = obj.when_approved.map(|b| b.saturated_into()).unwrap_or(0u64);
-            // --- owner as EVM address (H160) using canonical mapping ---
             let owner = account_id_to_address::<Runtime>(&obj.owner);
-            // --- isPrivate ---
             let is_private = obj.is_private;
-            // --- hashes ---
             let hashes = obj.hashes.to_vec();
-            // --- numApprovals ---
             let num_approvals = obj.num_approvals;
-            // --- prop ---
             let prop = obj.prop.iter().map(|p| (p.prop_idx, p.max_value)).collect();
-            Ok((true, state_discriminant, state_block, category_discriminant, when_created, when_approved, owner, is_private, hashes, num_approvals, prop))
+            let is_replica = obj.is_replica;
+            let original_obj = obj.original_obj.unwrap_or(0);
+            let sn_hash = obj.sn_hash.unwrap_or(0);
+            let inspector = obj.inspector.map_or(Address(H160::zero()), |acc| account_id_to_address::<Runtime>(&acc));
+            let is_ownership_abdicated = obj.is_ownership_abdicated;
+            Ok((true, state_discriminant, state_block, category_discriminant, when_created, when_approved, owner, is_private, hashes, num_approvals, prop, is_replica, original_obj, sn_hash, inspector, is_ownership_abdicated))
         } else {
-            Ok((false, 0, 0, 0, 0, 0, Address(H160::zero()), false, vec![], 0, vec![]))
+            Ok((false, 0, 0, 0, 0, 0, Address(H160::zero()), false, vec![], 0, vec![], false, 0, 0, Address(H160::zero()), false))
         }
     }
 
@@ -185,9 +190,9 @@ where
         Ok(lock.saturated_into())
     }
 
-    /// Submit a new object to the PoScan pallet
+    /// Submit a new object to the PoScan pallet (with sn_hash)
     /// @custom:selector 0x0c53c51c
-    #[precompile::public("putObject(uint8,uint8,bool,bytes,uint8,bytes32[],(uint32,uint128)[],bool,uint32)")]
+    #[precompile::public("putObject(uint8,uint8,bool,bytes,uint8,bytes32[],(uint32,uint128)[],bool,uint32,uint64)")]
     fn put_object(
         handle: &mut impl PrecompileHandle,
         category: u8,
@@ -199,10 +204,10 @@ where
         properties: Vec<(u32, u128)>,
         is_replica: bool,
         original_obj: u32,
+        sn_hash: u64,
     ) -> EvmResult<bool> {
         use sp_consensus_poscan::{ObjectCategory, Algo3D, PropValue};
         use frame_support::BoundedVec;
-        // Map enums
         let category = match category {
             0 => ObjectCategory::Objects3D(match algo3d {
                 0 => Algo3D::Grid2dLow,
@@ -216,23 +221,14 @@ where
             5 => ObjectCategory::Texts,
             _ => return Err(revert("Invalid category")),
         };
-        // BoundedVec conversions and checks (as before)
-        // Validate OBJ file format and size
-        if obj.len() > 1_048_576 { // 1MB = 1024 * 1024 bytes
+        if obj.len() > 1_048_576 {
             return Err(revert("Object file too large (max 1MB)"));
         }
-        // Check for OBJ file signature (should start with common OBJ keywords)
         if obj.len() > 0 {
             let obj_str = String::from_utf8_lossy(&obj);
             if !obj_str.lines().any(|line| {
                 let trimmed = line.trim();
-                trimmed.starts_with("v ") || // vertex
-                trimmed.starts_with("vt ") || // texture vertex
-                trimmed.starts_with("vn ") || // vertex normal
-                trimmed.starts_with("f ") || // face
-                trimmed.starts_with("g ") || // group
-                trimmed.starts_with("o ") || // object
-                trimmed.starts_with("#") // comment
+                trimmed.starts_with("v ") || trimmed.starts_with("vt ") || trimmed.starts_with("vn ") || trimmed.starts_with("f ") || trimmed.starts_with("g ") || trimmed.starts_with("o ") || trimmed.starts_with("#")
             }) {
                 return Err(revert("Invalid OBJ file format"));
             }
@@ -246,7 +242,6 @@ where
         let properties = BoundedVec::try_from(
             properties.into_iter().map(|(prop_idx, max_value)| PropValue { prop_idx, max_value }).collect::<Vec<_>>()
         ).map_err(|_| revert("too many properties"))?;
-        // Dispatch call as EVM caller
         let who: Runtime::AccountId = <Runtime as pallet_evm::Config>::AddressMapping::into_account_id(handle.context().caller);
         let result = RuntimeHelper::<Runtime>::try_dispatch(
             handle,
@@ -260,14 +255,12 @@ where
                 properties,
                 is_replica,
                 original_obj: if is_replica { Some(original_obj) } else { None },
+                sn_hash: if is_replica { Some(sn_hash) } else { None },
             },
         );
         match result {
             Ok(_) => {
-                // Record gas cost for event emission
                 handle.record_log_costs_manual(3, 32)?;
-                
-                // Emit ObjectSubmitted event (modern pattern)
                 log3(
                     handle.context().address,
                     SELECTOR_LOG_OBJECT_SUBMITTED,
@@ -275,13 +268,89 @@ where
                     handle.context().caller,
                     EvmDataWriter::new()
                         .write(Address(handle.context().caller))
-                        .write(U256::from(0u32)) // Placeholder for object index
+                        .write(U256::from(0u32))
                         .build(),
                 )
                 .record(handle)?;
-                
                 Ok(true)
             },
+            Err(e) => Err(e.into()),
+        }
+    }
+
+    /// Inspect and put file to poscan storage (QC flow)
+    /// @custom:selector 0x0c53c51f
+    #[precompile::public("inspectPutObject(uint8,uint8,bool,bytes,uint8,bytes32[],(uint32,uint128)[],bool,uint32,uint64,address)")]
+    fn inspect_put_object(
+        handle: &mut impl PrecompileHandle,
+        category: u8,
+        algo3d: u8,
+        is_private: bool,
+        obj: Vec<u8>,
+        num_approvals: u8,
+        hashes: Vec<H256>,
+        properties: Vec<(u32, u128)>,
+        is_replica: bool,
+        original_obj: u32,
+        sn_hash: u64,
+        inspector: Address,
+    ) -> EvmResult<bool> {
+        use sp_consensus_poscan::{ObjectCategory, Algo3D, PropValue};
+        use frame_support::BoundedVec;
+        let category = match category {
+            0 => ObjectCategory::Objects3D(match algo3d {
+                0 => Algo3D::Grid2dLow,
+                1 => Algo3D::Grid2dHigh,
+                _ => return Err(revert("Invalid Algo3D")),
+            }),
+            1 => ObjectCategory::Drawings2D,
+            2 => ObjectCategory::Music,
+            3 => ObjectCategory::Biometrics,
+            4 => ObjectCategory::Movements,
+            5 => ObjectCategory::Texts,
+            _ => return Err(revert("Invalid category")),
+        };
+        if obj.len() > 1_048_576 {
+            return Err(revert("Object file too large (max 1MB)"));
+        }
+        if obj.len() > 0 {
+            let obj_str = String::from_utf8_lossy(&obj);
+            if !obj_str.lines().any(|line| {
+                let trimmed = line.trim();
+                trimmed.starts_with("v ") || trimmed.starts_with("vt ") || trimmed.starts_with("vn ") || trimmed.starts_with("f ") || trimmed.starts_with("g ") || trimmed.starts_with("o ") || trimmed.starts_with("#")
+            }) {
+                return Err(revert("Invalid OBJ file format"));
+            }
+        }
+        let obj: BoundedVec<u8, ConstU32<{ sp_consensus_poscan::MAX_OBJECT_SIZE }>> = obj.try_into().map_err(|_| revert("obj too large"))?;
+        let hashes = if hashes.is_empty() {
+            None
+        } else {
+            Some(BoundedVec::try_from(hashes).map_err(|_| revert("too many hashes"))?)
+        };
+        let properties = BoundedVec::try_from(
+            properties.into_iter().map(|(prop_idx, max_value)| PropValue { prop_idx, max_value }).collect::<Vec<_>>()
+        ).map_err(|_| revert("too many properties"))?;
+        let who: Runtime::AccountId = <Runtime as pallet_evm::Config>::AddressMapping::into_account_id(handle.context().caller);
+        let inspector_id: Runtime::AccountId = <Runtime as pallet_evm::Config>::AddressMapping::into_account_id(inspector.into());
+        let result = RuntimeHelper::<Runtime>::try_dispatch(
+            handle,
+            Some(who.clone()).into(),
+            pallet_poscan::Call::<Runtime>::inspect_put_object {
+                category,
+                is_private,
+                obj,
+                num_approvals,
+                hashes,
+                properties,
+                is_replica,
+                original_obj: if is_replica { Some(original_obj) } else { None },
+                sn_hash: if is_replica { Some(sn_hash) } else { None },
+                inspector: <Runtime as frame_system::Config>::Lookup::unlookup(inspector_id),
+            },
+        );
+        match result {
+            Ok(_) => Ok(true),
             Err(e) => Err(e.into()),
         }
     }
@@ -348,6 +417,78 @@ where
         let replicas = PoScanPallet::<Runtime>::replicas_of(original_obj);
         Ok(replicas)
     }
+
+    /// QC Approve (inspector only)
+    /// @custom:selector 0x0c53c520
+    #[precompile::public("qcApprove(uint32)")]
+    fn qc_approve(
+        handle: &mut impl PrecompileHandle,
+        obj_idx: u32,
+    ) -> EvmResult<bool> {
+        let who: Runtime::AccountId = <Runtime as pallet_evm::Config>::AddressMapping::into_account_id(handle.context().caller);
+        let result = RuntimeHelper::<Runtime>::try_dispatch(
+            handle,
+            Some(who.clone()).into(),
+            pallet_poscan::Call::<Runtime>::qc_approve { obj_idx },
+        );
+        match result {
+            Ok(_) => Ok(true),
+            Err(e) => Err(e.into()),
+        }
+    }
+    /// QC Reject (inspector only)
+    /// @custom:selector 0x0c53c521
+    #[precompile::public("qcReject(uint32)")]
+    fn qc_reject(
+        handle: &mut impl PrecompileHandle,
+        obj_idx: u32,
+    ) -> EvmResult<bool> {
+        let who: Runtime::AccountId = <Runtime as pallet_evm::Config>::AddressMapping::into_account_id(handle.context().caller);
+        let result = RuntimeHelper::<Runtime>::try_dispatch(
+            handle,
+            Some(who.clone()).into(),
+            pallet_poscan::Call::<Runtime>::qc_reject { obj_idx },
+        );
+        match result {
+            Ok(_) => Ok(true),
+            Err(e) => Err(e.into()),
+        }
+    }
+
+    /// Transfer object ownership
+    /// @custom:selector 0x0c53c522
+    #[precompile::public("transferObjectOwnership(uint32,address)")]
+    fn transfer_object_ownership(
+        handle: &mut impl PrecompileHandle,
+        obj_idx: u32,
+        new_owner: Address,
+    ) -> EvmResult<bool> {
+        use pallet_poscan::Call as PoScanCall;
+        let origin = handle.context().caller;
+        let runtime_new_owner = <Runtime as pallet_evm::Config>::AddressMapping::into_account_id(new_owner.into());
+        let call = PoScanCall::<Runtime>::transfer_object_ownership {
+            obj_idx,
+            new_owner: <Runtime as frame_system::Config>::Lookup::unlookup(runtime_new_owner),
+        };
+        let account_id = <Runtime as pallet_evm::Config>::AddressMapping::into_account_id(origin);
+        let result = RuntimeHelper::<Runtime>::try_dispatch(handle, Some(account_id).into(), call);
+        Ok(result.is_ok())
+    }
+
+    /// Abdicate object ownership
+    /// @custom:selector 0x0c53c523
+    #[precompile::public("abdicateTheObjOwnership(uint32)")]
+    fn abdicate_the_obj_ownership(
+        handle: &mut impl PrecompileHandle,
+        obj_idx: u32,
+    ) -> EvmResult<bool> {
+        use pallet_poscan::Call as PoScanCall;
+        let origin = handle.context().caller;
+        let call = PoScanCall::<Runtime>::abdicate_the_obj_ownership { obj_idx };
+        let account_id = <Runtime as pallet_evm::Config>::AddressMapping::into_account_id(origin);
+        let result = RuntimeHelper::<Runtime>::try_dispatch(handle, Some(account_id).into(), call);
+        Ok(result.is_ok())
+    }
 }
 
 #[cfg(test)]
@@ -366,9 +507,14 @@ mod tests {
             ("getProperties", "getProperties()", "getProperties()"),
             ("getFeePerByte", "getFeePerByte()", "getFeePerByte()"),
             ("getAccountLock", "getAccountLock(address)", "getAccountLock(address)"),
-            ("putObject", "putObject(uint8,uint8,bool,bytes,uint8,bytes32[],(uint32,uint128)[],bool,uint32)", "putObject(uint8,uint8,bool,bytes,uint8,bytes32[],(uint32,uint128)[],bool,uint32)"),
+            ("putObject", "putObject(uint8,uint8,bool,bytes,uint8,bytes32[],(uint32,uint128)[],bool,uint32,uint64)", "putObject(uint8,uint8,bool,bytes,uint8,bytes32[],(uint32,uint128)[],bool,uint32,uint64)"),
             ("setPrivateObjectPermissions", "setPrivateObjectPermissions(uint32,(address,uint32,uint64)[])", "setPrivateObjectPermissions(uint32,(address,uint32,uint64)[])"),
             ("getReplicasOf", "getReplicasOf(uint32)", "getReplicasOf(uint32)"),
+            ("inspectPutObject", "inspectPutObject(uint8,uint8,bool,bytes,uint8,bytes32[],(uint32,uint128)[],bool,uint32,uint64,address)", "inspectPutObject(uint8,uint8,bool,bytes,uint8,bytes32[],(uint32,uint128)[],bool,uint32,uint64,address)"),
+            ("qcApprove", "qcApprove(uint32)", "qcApprove(uint32)"),
+            ("qcReject", "qcReject(uint32)", "qcReject(uint32)"),
+            ("transferObjectOwnership", "transferObjectOwnership(uint32,address)", "transferObjectOwnership(uint32,address)"),
+            ("abdicateTheObjOwnership", "abdicateTheObjOwnership(uint32)", "abdicateTheObjOwnership(uint32)"),
         ];
         
         for (function_name, rust_macro, solidity_sig) in test_cases {

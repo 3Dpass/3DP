@@ -249,11 +249,18 @@ pub enum ObjectCategory
 
 #[derive(Clone, PartialEq, Encode, Decode, TypeInfo, MaxEncodedLen, RuntimeDebug)]
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
-pub enum ObjectState<Block>
+pub enum ObjectState<Block, Account>
 	where
 		Block: Encode + Decode + TypeInfo + Member,
+		Account: Encode + Decode + TypeInfo + Member,
 {
 	Created(Block),
+    /// Object is under preliminary QC inspection by inspector
+    QCInspecting(Account, Block),
+    /// Object has passed QC inspection
+    QCPassed(Account, Block),
+    /// Object has been rejected by QC
+    QCRejected(Account, Block),
 	Estimating(Block),
 	Estimated(Block, u64),
 	NotApproved(Block),
@@ -341,7 +348,7 @@ pub struct ObjData<Account, Block>
 		Account: Encode + Decode + TypeInfo + Member,
 		Block: Encode + Decode + TypeInfo + Member,
 {
-	pub state: ObjectState<Block>,
+	pub state: ObjectState<Block, Account>,
 	pub obj: BoundedVec<u8, ConstU32<MAX_OBJECT_SIZE>>,
 	pub compressed_with: Option<CompressWith>,
 	pub category: ObjectCategory,
@@ -360,6 +367,9 @@ pub struct ObjData<Account, Block>
 	// New fields for replica logic
 	pub is_replica: bool,
 	pub original_obj: Option<ObjIdx>,
+    pub sn_hash: Option<u64>,
+    pub inspector: Option<Account>,
+    pub is_ownership_abdicated: bool,
 }
 
 #[derive(Clone, PartialEq, Encode, Decode, TypeInfo, MaxEncodedLen)]
@@ -369,7 +379,7 @@ pub struct OldObjData<Account, Block>
 		Account: Encode + Decode + TypeInfo + Member,
 		Block: Encode + Decode + TypeInfo + Member,
 {
-	pub state: ObjectState<Block>,
+	pub state: ObjectState<Block, Account>,
 	pub obj: BoundedVec<u8, ConstU32<MAX_OBJECT_SIZE_OLD>>,
 	pub compressed_with: Option<CompressWith>,
 	pub category: ObjectCategory,
