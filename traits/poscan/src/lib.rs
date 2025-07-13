@@ -20,6 +20,13 @@ pub trait PoscanApi<Account, Block>
 	fn property(obj_idx: u32, prop_idx: u32) -> Option<sp_consensus_poscan::PropValue>;
 	fn replicas_of(original_idx: u32) -> Vec<u32>;
     fn object_has_asset(obj_idx: u32) -> bool;
+	fn get_dynamic_rewards_growth_rate() -> Option<u32>;
+	fn get_author_part() -> Option<u8>;
+	fn get_unspent_rewards(obj_idx: u32) -> Option<u128>;
+	fn get_fee_payer(obj_idx: u32) -> Option<Account>;
+	fn get_pending_storage_fees() -> Option<u128>;
+	fn get_rewards() -> Option<u128>;
+	fn get_qc_timeout(obj_idx: u32) -> Option<u32>;
 }
 
 

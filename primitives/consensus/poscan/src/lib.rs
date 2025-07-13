@@ -196,6 +196,12 @@ sp_api::decl_runtime_apis! {
 		fn check_object(alg_id: &[u8;16], obj: &Vec<u8>, hashes: &Vec<H256>) -> bool;
 		fn get_obj_hashes_wasm(ver: &[u8; 16], data: &Vec<u8>, pre: &H256, depth: u32, patch_rot: bool) -> Vec<H256>;
 		fn replicas_of(original_idx: u32) -> Vec<u32>;
+		fn get_dynamic_rewards_growth_rate() -> Option<u32>;
+		fn get_author_part() -> Option<u8>;
+		fn get_unspent_rewards(obj_idx: u32) -> Option<u128>;
+		fn get_fee_payer(obj_idx: u32) -> Option<AccountId>;
+		fn get_pending_storage_fees() -> Option<u128>;
+		fn get_rewards() -> Option<u128>;
 	}
 }
 
@@ -265,6 +271,8 @@ pub enum ObjectState<Block, Account>
 	Estimated(Block, u64),
 	NotApproved(Block),
 	Approved(Block),
+	/// Object is self-proved (replica with proof of existence)
+	SelfProved(Block),
 }
 
 #[derive(Clone, PartialEq, Encode, Decode, TypeInfo, MaxEncodedLen, RuntimeDebug)]
@@ -370,6 +378,16 @@ pub struct ObjData<Account, Block>
     pub sn_hash: Option<u64>,
     pub inspector: Option<Account>,
     pub is_ownership_abdicated: bool,
+	// New fields for self-proved objects
+	pub is_self_proved: bool,
+	pub proof_of_existence: Option<H256>,
+	pub ipfs_link: Option<BoundedVec<u8, ConstU32<512>>>, // IPFS link as string
+	// Fee payer (initial submitter who will be charged for verification)
+	pub fee_payer: Account,
+	// Inspector fee reserved for QC inspection
+	pub inspector_fee: u128,
+	// Custom QC timeout in blocks (5-100,000)
+	pub qc_timeout: u32,
 }
 
 #[derive(Clone, PartialEq, Encode, Decode, TypeInfo, MaxEncodedLen)]

@@ -1435,7 +1435,8 @@ impl pallet_asset_conversion::Config for Runtime {
 parameter_types! {
 	pub const RewardsDefault: u128 = 500 * DOLLARS;
 	pub const AuthorPartDefault: Percent = Percent::from_percent(30);
-
+	pub const EstimatorsShareDefault: Percent = Percent::from_percent(70);
+	pub const DynamicRewardsGrowthRate: u32 = 10; // Controls exponential growth rate (higher = slower growth)
 }
 
 impl pallet_poscan::Config for Runtime {
@@ -1449,9 +1450,11 @@ impl pallet_poscan::Config for Runtime {
 	// type MaxObjectSize = ConstU32<100_000>;
 	type RewardsDefault = RewardsDefault;
 	type AuthorPartDefault = AuthorPartDefault;
+	type DynamicRewardsGrowthRate = DynamicRewardsGrowthRate;
 	type Currency = Balances;
 	type SerialNumbers = Runtime;
 	type PoscanAssets = pallet_poscan_assets::Pallet<Runtime, Instance1>;
+	type CouncilOrigin = EnsureRootOrHalfCouncil;
 }
 
 parameter_types! {
@@ -2298,6 +2301,24 @@ impl_runtime_apis! {
 		}
 		fn replicas_of(original_idx: u32) -> Vec<u32> {
 			<PoScan as PoscanApi<AccountId, BlockNumber>>::replicas_of(original_idx)
+		}
+		fn get_dynamic_rewards_growth_rate() -> Option<u32> {
+			<PoScan as PoscanApi<AccountId, BlockNumber>>::get_dynamic_rewards_growth_rate()
+		}
+		fn get_author_part() -> Option<u8> {
+			<PoScan as PoscanApi<AccountId, BlockNumber>>::get_author_part()
+		}
+		fn get_unspent_rewards(obj_idx: u32) -> Option<u128> {
+			<PoScan as PoscanApi<AccountId, BlockNumber>>::get_unspent_rewards(obj_idx)
+		}
+		fn get_fee_payer(obj_idx: u32) -> Option<AccountId> {
+			<PoScan as PoscanApi<AccountId, BlockNumber>>::get_fee_payer(obj_idx)
+		}
+		fn get_pending_storage_fees() -> Option<u128> {
+			<PoScan as PoscanApi<AccountId, BlockNumber>>::get_pending_storage_fees()
+		}
+		fn get_rewards() -> Option<u128> {
+			<PoScan as PoscanApi<AccountId, BlockNumber>>::get_rewards()
 		}
 	}
 

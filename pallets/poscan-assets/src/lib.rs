@@ -1447,4 +1447,11 @@ impl<T: Config<I>, I: 'static> poscan_api::PoscanApi<T::AccountId, T::BlockNumbe
             details.obj_details.as_ref().map_or(false, |od| od.obj_idx == obj_idx)
         })
     }
+    fn get_dynamic_rewards_growth_rate() -> Option<u32> { None }
+    fn get_author_part() -> Option<u8> { None }
+    fn get_unspent_rewards(_obj_idx: u32) -> Option<u128> { None }
+    fn get_fee_payer(_obj_idx: u32) -> Option<T::AccountId> { None }
+    fn get_pending_storage_fees() -> Option<u128> { None }
+    fn get_rewards() -> Option<u128> { None }
+    fn get_qc_timeout(_obj_idx: u32) -> Option<u32> { None }
 }

@@ -26,6 +26,7 @@ pallet-evm = { path = "../../pallets/evm", default-features = false, features = 
 pallet-poscan = { path = "../../pallets/poscan", default-features = false }
 sp-consensus-poscan = { path = "../../primitives/consensus/poscan", default-features = false }
 sp-arithmetic = { git = "https://github.com/paritytech/substrate", rev = "b0777b4c7f7", default-features = false }
+poscan-api = { path = "../../traits/poscan", default-features = false }
 
 [features]
 default = [ "std" ]
