@@ -10,7 +10,8 @@ use core::marker::PhantomData;
 use sp_runtime::traits::SaturatedConversion;
 use alloc::string::String;
 use alloc::string::ToString;
-use alloc::vec;
+use alloc::vec::Vec;
+#[macro_use]
 extern crate alloc;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -109,23 +110,33 @@ where
         _handle: &mut impl PrecompileHandle,
         sn_index: u64,
     ) -> EvmResult<(
-        bool, u64, H256, Address, Address, U256, u32, bool, U256
+        bool, u64, H256, U256, u32, bool, U256
     )> {
         if let Some(details) = pallet_serial_numbers::Pallet::<Runtime>::serial_numbers(sn_index) {
             // Pad [u8; 16] to [u8; 32] for H256
             let mut padded = [0u8; 32];
             padded[..16].copy_from_slice(&details.sn_hash);
             let sn_hash_h256 = H256::from(padded);
-            let initial_owner = account_id_to_address::<Runtime>(&details.initial_owner);
-            let owner = account_id_to_address::<Runtime>(&details.owner);
             let created = U256::from(details.created.saturated_into::<u64>());
             let block_index = details.block_index;
             let is_expired = details.is_expired;
             let expired = U256::from(details.expired.map(|b| b.saturated_into::<u64>()).unwrap_or(0));
-            Ok((true, sn_index, sn_hash_h256, initial_owner, owner, created, block_index, is_expired, expired))
+            Ok((true, sn_index, sn_hash_h256, created, block_index, is_expired, expired))
         } else {
-            Ok((false, 0, H256::zero(), Address(H160::zero()), Address(H160::zero()), U256::zero(), 0, false, U256::zero()))
+            Ok((false, 0, H256::zero(), U256::zero(), 0, false, U256::zero()))
         }
+    }
+
+    /// @custom:selector 0x0a0b0c08
+    #[precompile::public("serialNumbersOf(address)")]
+    fn serial_numbers_of(
+        _handle: &mut impl PrecompileHandle,
+        owner: Address,
+    ) -> EvmResult<Vec<u64>> {
+        // Map H160 to runtime AccountId
+        let account_id = Runtime::AddressMapping::into_account_id(owner.into());
+        let serial_numbers = pallet_serial_numbers::Pallet::<Runtime>::get_sn_owners(account_id);
+        Ok(serial_numbers.into())
     }
 
     /// @custom:selector 0x0a0b0c07
@@ -252,11 +263,36 @@ where
 mod tests {
     use super::*;
     extern crate hex;
+    
     #[test]
     fn print_event_selectors() {
         println!("SerialNumberCreated: 0x{}", hex::encode(SELECTOR_LOG_SERIAL_NUMBER_CREATED));
         println!("SerialNumberUsed: 0x{}", hex::encode(SELECTOR_LOG_SERIAL_NUMBER_USED));
         println!("SerialNumberExpired: 0x{}", hex::encode(SELECTOR_LOG_SERIAL_NUMBER_EXPIRED));
         println!("OwnershipTransferred: 0x{}", hex::encode(SELECTOR_LOG_OWNERSHIP_TRANSFERRED));
+    }
+
+    /// This test ensures that the Rust macro attribute signature matches the Solidity interface signature.
+    #[test]
+    fn test_macro_attribute_matches_solidity_signature() {
+        // List of (function_name, rust_macro_attribute, solidity_signature)
+        let test_cases = vec![
+            ("createSerialNumber", "createSerialNumber(uint32)", "createSerialNumber(uint32)"),
+            ("getSerialNumber", "getSerialNumber(uint64)", "getSerialNumber(uint64)"),
+            ("serialNumbersOf", "serialNumbersOf(address)", "serialNumbersOf(address)"),
+            ("isSerialNumberUsed", "isSerialNumberUsed(bytes16)", "isSerialNumberUsed(bytes16)"),
+            ("snByHash", "snByHash(bytes16)", "snByHash(bytes16)"),
+            ("expireSerialNumber", "expireSerialNumber(uint64)", "expireSerialNumber(uint64)"),
+            ("useSerialNumber", "useSerialNumber(bytes16)", "useSerialNumber(bytes16)"),
+            ("transferOwnership", "transferOwnership(uint64,address)", "transferOwnership(uint64,address)"),
+        ];
+        
+        for (function_name, rust_macro, solidity_sig) in test_cases {
+            assert_eq!(
+                rust_macro, solidity_sig,
+                "Signature mismatch for {}: Rust macro '{}', Solidity '{}'",
+                function_name, rust_macro, solidity_sig
+            );
+        }
     }
 } 

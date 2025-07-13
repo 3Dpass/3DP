@@ -29,8 +29,6 @@ interface SerialNumbers {
         bool isValid; // true if the serial number exists, false otherwise
         uint64 snIndex;
         bytes16 snHash;
-        address initialOwner;
-        address owner;
         uint256 created;
         uint32 blockIndex;
         bool isExpired;
@@ -63,8 +61,6 @@ interface SerialNumbers {
     /// @return isValid True if the serial number exists, false otherwise
     /// @return snIndexOut The serial number index
     /// @return snHash The serial number hash (bytes32, first 16 bytes are the hash, rest are zero padding)
-    /// @return initialOwner The initial owner address
-    /// @return owner The current owner address
     /// @return created The creation timestamp
     /// @return blockIndex The block index used
     /// @return isExpired True if expired
@@ -73,13 +69,17 @@ interface SerialNumbers {
         bool isValid,
         uint64 snIndexOut,
         bytes32 snHash,
-        address initialOwner,
-        address owner,
         uint256 created,
         uint32 blockIndex,
         bool isExpired,
         uint256 expired
     );
+
+    /// @notice Get all serial number indices owned by an address
+    /// @custom:selector 0x0a0b0c08
+    /// @param owner The owner address (EVM H160)
+    /// @return serialNumberIndices Array of serial number indices (uint64[])
+    function serialNumbersOf(address owner) external view returns (uint64[] memory serialNumberIndices);
 
     /// @notice Check if a serial number has been used
     /// @custom:selector 0x0a0b0c05
