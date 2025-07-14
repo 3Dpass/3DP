@@ -158,6 +158,15 @@ interface I3DPRC2 {
     function getPendingStorageFees() external view returns (bool exists, uint128 amount);
 
     /**
+     * @notice Get object index by proof of existence hash
+     * @param proofOfExistence The proof of existence hash (bytes32)
+     * @return exists True if an object with the given proof exists, false otherwise
+     * @return objIdx The object index (uint32, 0 if not found)
+     * @custom:selector 0x9e2c4b2c
+     */
+    function getObjectIdxByProofOfExistence(bytes32 proofOfExistence) external view returns (bool exists, uint32 objIdx);
+
+    /**
      * @notice Submit a new object to the PoScan pallet
      * @param category The object category (enum discriminant)
      * @param algo3d The Algo3D variant (only used if category == Objects3D, otherwise set to 0)

@@ -2320,6 +2320,9 @@ impl_runtime_apis! {
 		fn get_rewards() -> Option<u128> {
 			<PoScan as PoscanApi<AccountId, BlockNumber>>::get_rewards()
 		}
+		fn get_object_idx_by_proof_of_existence(proof: H256) -> Option<u32> {
+			<PoScan as PoscanApi<AccountId, BlockNumber>>::get_object_idx_by_proof_of_existence(proof)
+		}
 	}
 
 	#[cfg(feature = "try-runtime")]

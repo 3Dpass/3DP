@@ -44,6 +44,12 @@ pub trait PoscanRpcApi<BlockHash> {
 		&self,
 		obj_idx: ObjIdx,
 	) -> RpcResult<Option<AccountId>>;
+
+	#[method(name = "poscan_getObjectIdxByProofOfExistence")]
+	fn get_object_idx_by_proof_of_existence(
+		&self,
+		proof: sp_core::H256,
+	) -> RpcResult<Option<u32>>;
 }
 
 pub struct PoscanRpc<C, Block>
@@ -135,6 +141,24 @@ impl<C, Block> PoscanRpcApiServer<<Block as BlockT>::Hash> for PoscanRpc<C, Bloc
 		let resp = self.client.runtime_api().get_fee_payer(&block_id, obj_idx);
 		match resp {
 			Ok(maybe_fee_payer) => Ok(maybe_fee_payer),
+			Err(e) => {
+				Err(JsonRpseeError::Call(CallError::Custom(ErrorObject::owned(
+					ErrorCode::ServerError(RES_NOT_FOUND).code(),
+					format!("Error: {}", e),
+					None::<()>,
+				))))
+			},
+		}
+	}
+
+	fn get_object_idx_by_proof_of_existence(
+		&self,
+		proof: sp_core::H256,
+	) -> RpcResult<Option<u32>> {
+		let block_id = BlockId::Hash(self.client.info().best_hash);
+		let resp = self.client.runtime_api().get_object_idx_by_proof_of_existence(&block_id, proof);
+		match resp {
+			Ok(idx) => Ok(idx),
 			Err(e) => {
 				Err(JsonRpseeError::Call(CallError::Custom(ErrorObject::owned(
 					ErrorCode::ServerError(RES_NOT_FOUND).code(),
