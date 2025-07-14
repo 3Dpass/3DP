@@ -6355,6 +6355,7 @@ dependencies = [
  "frame-system",
  "parity-scale-codec",
  "sp-consensus-poscan",
+ "sp-core",
  "sp-runtime",
  "sp-std",
 ]

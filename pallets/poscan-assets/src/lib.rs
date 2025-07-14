@@ -156,6 +156,7 @@ use frame_support::{
 use frame_system::Config as SystemConfig;
 
 use poscan_api::PoscanApi;
+use sp_core::H256;
 
 pub use pallet::*;
 pub use weights::WeightInfo;
@@ -1454,4 +1455,6 @@ impl<T: Config<I>, I: 'static> poscan_api::PoscanApi<T::AccountId, T::BlockNumbe
     fn get_pending_storage_fees() -> Option<u128> { None }
     fn get_rewards() -> Option<u128> { None }
     fn get_qc_timeout(_obj_idx: u32) -> Option<u32> { None }
+
+    fn get_object_idx_by_proof_of_existence(_proof: H256) -> Option<u32> { None }
 }

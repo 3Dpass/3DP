@@ -17,6 +17,7 @@ log = { default-features = false, version = '0.4.17'}
 codec = { package = "parity-scale-codec", version = "3.1", default-features = false }
 scale-info = { version = "2.0", default-features = false, features = ["derive"] }
 sp-std = { default-features = false, git = "https://github.com/paritytech/substrate", rev = "b0777b4c7f7" }
+sp-core = { default-features = false, git = "https://github.com/paritytech/substrate", rev = "b0777b4c7f7" }
 # Needed for various traits. In our case, `OnFinalize`.
 sp-runtime = { default-features = false, git = "https://github.com/paritytech/substrate", rev = "b0777b4c7f7" }
 # Needed for type-safe access to storage DB.

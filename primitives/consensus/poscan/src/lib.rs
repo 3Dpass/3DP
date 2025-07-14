@@ -202,6 +202,7 @@ sp_api::decl_runtime_apis! {
 		fn get_fee_payer(obj_idx: u32) -> Option<AccountId>;
 		fn get_pending_storage_fees() -> Option<u128>;
 		fn get_rewards() -> Option<u128>;
+        fn get_object_idx_by_proof_of_existence(proof: H256) -> Option<u32>;
 	}
 }
 

@@ -43,15 +43,14 @@ use frame_support::{
 };
 
 // Import the same permission structure as used in rewards pallet
-use frame_support::traits::EitherOfDiverse;
-use frame_system::EnsureRoot;
-use pallet_collective::EnsureProportionAtLeast;
+// use frame_support::traits::EitherOfDiverse;
+// use frame_system::EnsureRoot;
+// use pallet_collective::EnsureProportionAtLeast;
 use frame_support::traits::BalanceStatus;
 
 use sp_runtime::SaturatedConversion;
 pub use sp_runtime::Percent;
 use sp_runtime::traits::{Saturating, Zero, Hash};
-use num_traits::float::Float;
 use serial_numbers_api::SerialNumbersApi;
 
 // use sp_core::crypto::AccountId32;
@@ -90,13 +89,9 @@ use sp_consensus_poscan::{
 
 use sp_runtime::traits::StaticLookup;
 
-// Define the same permission structure as used in rewards pallet
-// Note: This type is defined for potential future use but currently unused
-#[allow(dead_code)]
-type EnsureRootOrHalfCouncil<T> = EitherOfDiverse<
-	EnsureRoot<<T as frame_system::Config>::AccountId>,
-	EnsureProportionAtLeast<<T as frame_system::Config>::AccountId, pallet_collective::Instance1, 1, 2>,
->;
+// Required for .sqrt() on f64 in no_std (Substrate runtime)
+#[allow(unused_imports)]
+use num_traits::float::Float;
 
 pub mod inherents;
 
@@ -384,7 +379,9 @@ pub mod pallet {
 			poscan_algo::hashable_object::try_call_128();
 			poscan_algo::hashable_object::try_call_130();
 
+			let mut num_objects = 0u64;
 			for obj_idx in Objects::<T>::iter_keys() {
+				num_objects += 1;
 				Objects::<T>::mutate(obj_idx, |obj_data| {
 					match obj_data {
 						Some(ref mut obj_data) => {
@@ -487,9 +484,15 @@ pub mod pallet {
 			
 			// Distribute pending storage fees to validators
 			Self::distribute_storage_fees_to_validators();
-			
-			// TODO:
-			0
+
+			// Calculate weight
+			let num_validators = T::ValidatorSet::validators().len() as u64;
+			let db_weight = T::DbWeight::get();
+			let object_rw = db_weight.reads(num_objects) + db_weight.writes(num_objects);
+			let validator_writes = db_weight.writes(num_validators);
+			let pending_fees_rw = db_weight.reads(1) + db_weight.writes(1);
+			let base_weight = 10_000;
+			base_weight + object_rw + validator_writes + pending_fees_rw
 		}
 
 		fn on_runtime_upgrade() -> frame_support::weights::Weight {
@@ -1953,4 +1956,16 @@ impl<T: Config> PoscanApi<T::AccountId, T::BlockNumber> for Pallet<T> {
 		let obj_data = Objects::<T>::get(&obj_idx)?;
 		Some(obj_data.qc_timeout)
 	}
+
+    /// Fetch object's (replica) index by its proof of existence hash
+    fn get_object_idx_by_proof_of_existence(proof: H256) -> Option<u32> {
+        for (obj_idx, obj_data) in Objects::<T>::iter() {
+            if let Some(obj_proof) = obj_data.proof_of_existence {
+                if obj_proof == proof {
+                    return Some(obj_idx);
+                }
+            }
+        }
+        None
+    }
 }

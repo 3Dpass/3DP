@@ -293,6 +293,21 @@ where
         }
     }
 
+    /// Solidity-friendly getter for object index by proof of existence hash
+    /// @custom:selector 0x9e2c4b2c
+    #[precompile::public("getObjectIdxByProofOfExistence(bytes32)")]
+    fn get_object_idx_by_proof_of_existence(
+        _handle: &mut impl PrecompileHandle,
+        proof: H256,
+    ) -> EvmResult<(bool, u32)> {
+        use pallet_poscan::Pallet as PoScanPallet;
+        let idx = PoScanPallet::<Runtime>::get_object_idx_by_proof_of_existence(proof);
+        match idx {
+            Some(i) => Ok((true, i)),
+            None => Ok((false, 0)),
+        }
+    }
+
 
     /// Submit a new object to the PoScan pallet (with sn_hash)
     /// @custom:selector 0x0c53c51c
