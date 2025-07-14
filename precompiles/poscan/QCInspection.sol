@@ -47,6 +47,7 @@ interface IQCInspection {
      * @param proofOfExistence The proof of existence hash (if self-proved)
      * @param ipfsLink The IPFS link (if self-proved)
      * @return success True if the object was submitted for QC
+     * @dev Replicas must be submitted as self-proved objects. Submitting a replica as a regular object will revert.
      * @custom:selector 0x0c53c51f
      */
     function inspectPutObject(

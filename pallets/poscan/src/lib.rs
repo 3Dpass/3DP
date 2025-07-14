@@ -256,6 +256,10 @@ pub mod pallet {
 	#[pallet::getter(fn private_object_permissions)]
 	pub type PrivateObjectPermissions<T: Config> = StorageMap<_, Twox64Concat, ObjIdx, BoundedVec<CopyPermission<T::AccountId, T::BlockNumber>, ConstU32<32>>, ValueQuery>;
 
+	#[pallet::storage]
+	#[pallet::getter(fn proof_to_object_idx)]
+	pub type ProofToObjectIdx<T: Config> = StorageMap<_, Twox64Concat, H256, ObjIdx, OptionQuery>;
+
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(super) fn deposit_event)]
 	pub enum Event<T: Config> {
@@ -364,6 +368,8 @@ pub mod pallet {
         QCTimeoutTooShort,
         /// QC timeout is too long (maximum 100,000 blocks)
         QCTimeoutTooLong,
+        /// Replica must be submitted as a self-proved object
+        ReplicaMustBeSelfProved,
 	}
 
 	#[pallet::hooks]
@@ -458,13 +464,17 @@ pub mod pallet {
 									// Otherwise, keep it in QCInspecting state
 								},
 								ObjectState::QCPassed(_, _when) => {
-									// Transition QCPassed to Created to start the normal estimation process
-									obj_data.state = ObjectState::Created(now);
-									log::debug!(target: LOG_TARGET, "on_initialize: QCPassed -> Created for obj_idx={}", &obj_idx);
+									// If self-proved, transition to SelfProved (terminal), else to Created
+									if obj_data.is_self_proved {
+										obj_data.state = ObjectState::SelfProved(now);
+										log::debug!(target: LOG_TARGET, "on_initialize: QCPassed -> SelfProved for obj_idx={}", &obj_idx);
+									} else {
+										obj_data.state = ObjectState::Created(now);
+										log::debug!(target: LOG_TARGET, "on_initialize: QCPassed -> Created for obj_idx={}", &obj_idx);
+									}
 								},
 								ObjectState::SelfProved(_when) => {
-									// Keep in SelfProved state - no automatic transition
-									// Self-proved objects need manual verification via verify_self_proved_object
+									// Do nothing: SelfProved objects remain in this state forever
 								},
 								ObjectState::QCRejected(_, _when) => {
 									obj_data.state = ObjectState::NotApproved(now);
@@ -567,6 +577,13 @@ pub mod pallet {
 				weight = weight.saturating_add(2000u64);
 			}
 			
+			// After all other migration logic, populate ProofToObjectIdx for all objects with proof_of_existence
+			for (obj_idx, obj_data) in Objects::<T>::iter() {
+				if let Some(proof) = obj_data.proof_of_existence {
+					ProofToObjectIdx::<T>::insert(proof, obj_idx);
+				}
+			}
+			
 			weight
 		}
 	}
@@ -590,45 +607,74 @@ pub mod pallet {
 			original_obj: Option<ObjIdx>,
             sn_hash: Option<u64>,
             is_self_proved: bool,
-            proof_of_existence: Option<H256>,
+            mut proof_of_existence: Option<H256>,
             ipfs_link: Option<BoundedVec<u8, ConstU32<512>>>,
 		) -> DispatchResultWithPostInfo {
 			let acc = ensure_signed(origin)?;
 			let obj_idx = <Pallet::<T>>::obj_count();
 
+			// For self-proved, auto-calculate proof_of_existence if not provided (do this first!)
+			if is_self_proved && proof_of_existence.is_none() {
+				proof_of_existence = Some(BlakeTwo256::hash(&obj).into());
+			}
+
 			if num_approvals == 0 {
 				return Err(Error::<T>::ZeroApprovalsRequested.into());
 			}
 
+			// Always define compressed_obj before use
 			let compress_with = CompressWith::Lzss;
 			let compressed_obj: BoundedVec<u8, ConstU32<MAX_OBJECT_SIZE>> =
 				compress_with.compress(obj.to_vec()).try_into().unwrap();
 
-			for (_idx, obj_data)
-				in Objects::<T>::iter().filter(
-					|obj| !matches!(obj.1.state, ObjectState::<T::BlockNumber, T::AccountId>::NotApproved(_))
-			) {
-				match obj_data.compressed_with {
-					None if obj_data.obj == obj => {
-						return Err(Error::<T>::ObjectExists.into());
-					},
-					Some(CompressWith::Lzss) if obj_data.obj == compressed_obj => {
-						return Err(Error::<T>::ObjectExists.into());
-					},
-					_ => {},
-				}
-			}
+			// Calculate object size (0 for self-proved)
+			let object_size = if is_self_proved { 0 } else { obj.len() };
 
-			let actual_rewords = Self::rewards(None).unwrap();
-			let lock_amount = actual_rewords.0 + actual_rewords.1;
+			// Calculate metadata size (all fields except the object)
+			use codec::Encode;
+			let metadata_tuple = (
+				&category,
+				&is_private,
+				&num_approvals,
+				&hashes,
+				&properties,
+				&is_replica,
+				&original_obj,
+				&sn_hash,
+				&is_self_proved,
+				&proof_of_existence,
+				&ipfs_link,
+			);
+			let metadata_size = metadata_tuple.encode().len();
+
+			let fee_per_byte = <Pallet::<T>>::fee_per_byte().unwrap_or(FEE_PER_BYTE);
+			let total_fee_u64 = fee_per_byte * (object_size + metadata_size) as u64;
+			let total_fee: BalanceOf<T> = total_fee_u64.saturated_into();
 			let free = <T as pallet::Config>::Currency::free_balance(&acc);
-			if free < lock_amount {
+			if free < total_fee {
 				return Err(Error::<T>::UnsufficientBalance.into());
 			}
+			<T as pallet::Config>::Currency::withdraw(&acc, total_fee, WithdrawReasons::RESERVE, ExistenceRequirement::KeepAlive)
+				.map_err(|_| Error::<T>::UnsufficientBalance)?;
+			PendingStorageFees::<T>::mutate(|pending_fees| {
+				*pending_fees = pending_fees.saturating_add(total_fee);
+			});
+			Self::deposit_event(Event::VerificationFeeCharged(obj_idx, acc.clone(), total_fee));
 
-			let tot_locked= AccountLock::<T>::get(&acc);
-			let new_locked = tot_locked.saturating_add(lock_amount);
-			Self::set_lock(&acc, new_locked);
+			// Set rewards correctly
+			let (est_rewards, author_rewards) = if is_self_proved {
+				(Zero::zero(), Zero::zero())
+			} else {
+				Self::rewards(None).unwrap()
+			};
+
+			// Only set the rewards lock if not self-proved
+			if !is_self_proved {
+				let tot_locked = AccountLock::<T>::get(&acc);
+				let rewards_locked: BalanceOf<T> = est_rewards.saturated_into::<BalanceOf<T>>().saturating_add(author_rewards.saturated_into());
+				let new_locked = tot_locked.saturating_add(rewards_locked);
+				Self::set_lock(&acc, new_locked);
+			}
 
 			let hashes = match hashes {
 				Some(hashes) => hashes,
@@ -725,20 +771,9 @@ pub mod pallet {
 				}
 			}
 
-			// Validate self-proved object parameters
-			if is_self_proved {
-				// Self-proved objects must be replicas
-				if !is_replica {
-					return Err(Error::<T>::NotAReplica.into());
-				}
-				// Must have proof of existence
-				if proof_of_existence.is_none() {
-					return Err(Error::<T>::NoHashes.into());
-				}
-				// Must have IPFS link
-				if ipfs_link.is_none() {
-					return Err(Error::<T>::NoHashes.into());
-				}
+			// Restrict: Replica must only be allowed as Self-Proved
+			if is_replica && !is_self_proved {
+				return Err(Error::<T>::ReplicaMustBeSelfProved.into());
 			}
 
 			let block_num = <frame_system::Pallet<T>>::block_number();
@@ -752,7 +787,7 @@ pub mod pallet {
 				// For self-proved objects, don't store the actual object
 				BoundedVec::default()
 			} else {
-				compressed_obj
+				compressed_obj.clone()
 			};
 			
 			let obj_data = ObjData::<T::AccountId, T::BlockNumber> {
@@ -769,8 +804,8 @@ pub mod pallet {
 				est_outliers: BoundedVec::default(),
 				approvers: BoundedVec::default(),
 				num_approvals,
-				est_rewards: actual_rewords.0.saturated_into(),
-				author_rewards: actual_rewords.1.saturated_into(),
+				est_rewards: est_rewards.saturated_into::<u128>(),
+				author_rewards: author_rewards.saturated_into::<u128>(),
 				prop: properties,
 				is_replica,
 				original_obj,
@@ -790,6 +825,9 @@ pub mod pallet {
 
 			// TODO:
 			Self::deposit_event(Event::ObjCreated(acc));
+			if let Some(proof) = proof_of_existence {
+				ProofToObjectIdx::<T>::insert(proof, obj_idx);
+			}
 			Ok(().into())
 		}
 
@@ -810,7 +848,7 @@ pub mod pallet {
             inspector_fee: BalanceOf<T>,
             qc_timeout: u32,
             is_self_proved: bool,
-            proof_of_existence: Option<H256>,
+            mut proof_of_existence: Option<H256>,
             ipfs_link: Option<BoundedVec<u8, ConstU32<512>>>,
 		) -> DispatchResultWithPostInfo {
 			let acc = ensure_signed(origin)?;
@@ -818,44 +856,71 @@ pub mod pallet {
             let inspector_clone = inspector.clone();
 			let obj_idx = <Pallet::<T>>::obj_count();
 
+			// For self-proved, auto-calculate proof_of_existence if not provided (do this first!)
+			if is_self_proved && proof_of_existence.is_none() {
+				proof_of_existence = Some(BlakeTwo256::hash(&obj).into());
+			}
+
 			if num_approvals == 0 {
 				return Err(Error::<T>::ZeroApprovalsRequested.into());
 			}
 
-			// Validate QC timeout bounds (5-100,000 blocks)
-			ensure!(qc_timeout >= 5, Error::<T>::QCTimeoutTooShort);
-			ensure!(qc_timeout <= 100_000, Error::<T>::QCTimeoutTooLong);
-
+			// Always define compressed_obj before use
 			let compress_with = CompressWith::Lzss;
 			let compressed_obj: BoundedVec<u8, ConstU32<MAX_OBJECT_SIZE>> =
 				compress_with.compress(obj.to_vec()).try_into().unwrap();
 
-			for (_idx, obj_data)
-				in Objects::<T>::iter().filter(
-					|obj| !matches!(obj.1.state, ObjectState::<T::BlockNumber, T::AccountId>::NotApproved(_))
-			) {
-				match obj_data.compressed_with {
-					None if obj_data.obj == obj => {
-						return Err(Error::<T>::ObjectExists.into());
-					},
-					Some(CompressWith::Lzss) if obj_data.obj == compressed_obj => {
-						return Err(Error::<T>::ObjectExists.into());
-					},
-					_ => {},
-				}
-			}
+			// Calculate object size (0 for self-proved)
+			let object_size = if is_self_proved { 0 } else { obj.len() };
 
-			let actual_rewords = Self::rewards(None).unwrap();
-			let lock_amount = actual_rewords.0 + actual_rewords.1;
-			let total_required = lock_amount + inspector_fee;
+			// Calculate metadata size (all fields except the object)
+			use codec::Encode;
+			let metadata_tuple = (
+				&category,
+				&is_private,
+				&num_approvals,
+				&hashes,
+				&properties,
+				&is_replica,
+				&original_obj,
+				&sn_hash,
+				&inspector,
+				&inspector_fee,
+				&qc_timeout,
+				&is_self_proved,
+				&proof_of_existence,
+				&ipfs_link,
+			);
+			let metadata_size = metadata_tuple.encode().len();
+
+			let fee_per_byte = <Pallet::<T>>::fee_per_byte().unwrap_or(FEE_PER_BYTE);
+			let total_fee_u64 = fee_per_byte * (object_size + metadata_size) as u64;
+			let total_fee: BalanceOf<T> = total_fee_u64.saturated_into();
 			let free = <T as pallet::Config>::Currency::free_balance(&acc);
-			if free < total_required {
+			if free < total_fee + inspector_fee {
 				return Err(Error::<T>::UnsufficientBalance.into());
 			}
+			<T as pallet::Config>::Currency::withdraw(&acc, total_fee, WithdrawReasons::RESERVE, ExistenceRequirement::KeepAlive)
+				.map_err(|_| Error::<T>::UnsufficientBalance)?;
+			PendingStorageFees::<T>::mutate(|pending_fees| {
+				*pending_fees = pending_fees.saturating_add(total_fee);
+			});
+			Self::deposit_event(Event::VerificationFeeCharged(obj_idx, acc.clone(), total_fee));
 
-			let tot_locked= AccountLock::<T>::get(&acc);
-			let new_locked = tot_locked.saturating_add(lock_amount);
-			Self::set_lock(&acc, new_locked);
+			// Set rewards correctly
+			let (est_rewards, author_rewards) = if is_self_proved {
+				(Zero::zero(), Zero::zero())
+			} else {
+				Self::rewards(None).unwrap()
+			};
+
+			// Only set the rewards lock if not self-proved
+			if !is_self_proved {
+				let tot_locked = AccountLock::<T>::get(&acc);
+				let rewards_locked: BalanceOf<T> = est_rewards.saturated_into::<BalanceOf<T>>().saturating_add(author_rewards.saturated_into());
+				let new_locked = tot_locked.saturating_add(rewards_locked);
+				Self::set_lock(&acc, new_locked);
+			}
 
 			// Reserve inspector fee
 			T::Currency::reserve(&acc, inspector_fee)?;
@@ -950,20 +1015,9 @@ pub mod pallet {
 				}
 			}
 
-			// Validate self-proved object parameters
-			if is_self_proved {
-				// Self-proved objects must be replicas
-				if !is_replica {
-					return Err(Error::<T>::NotAReplica.into());
-				}
-				// Must have proof of existence
-				if proof_of_existence.is_none() {
-					return Err(Error::<T>::NoHashes.into());
-				}
-				// Must have IPFS link
-				if ipfs_link.is_none() {
-					return Err(Error::<T>::NoHashes.into());
-				}
+			// Restrict: Replica must only be allowed as Self-Proved
+			if is_replica && !is_self_proved {
+				return Err(Error::<T>::ReplicaMustBeSelfProved.into());
 			}
 
 			let block_num = <frame_system::Pallet<T>>::block_number();
@@ -973,7 +1027,7 @@ pub mod pallet {
 				// For self-proved objects, don't store the actual object
 				BoundedVec::default()
 			} else {
-				compressed_obj
+				compressed_obj.clone()
 			};
 			
 			let obj_data = ObjData::<T::AccountId, T::BlockNumber> {
@@ -990,8 +1044,8 @@ pub mod pallet {
 				est_outliers: BoundedVec::default(),
 				approvers: BoundedVec::default(),
 				num_approvals,
-				est_rewards: actual_rewords.0.saturated_into(),
-				author_rewards: actual_rewords.1.saturated_into(),
+				est_rewards: est_rewards.saturated_into::<u128>(),
+				author_rewards: author_rewards.saturated_into::<u128>(),
 				prop: properties,
 				is_replica,
 				original_obj,
@@ -1012,6 +1066,9 @@ pub mod pallet {
 
 			Self::deposit_event(Event::ObjCreated(acc));
             Self::deposit_event(Event::QCInspecting(obj_idx, inspector_clone));
+			if let Some(proof) = proof_of_existence {
+				ProofToObjectIdx::<T>::insert(proof, obj_idx);
+			}
 			Ok(().into())
 		}
 
@@ -1278,69 +1335,6 @@ pub mod pallet {
             Ok(().into())
         }
 
-        /// Verify a self-proved object by providing the actual object data
-        #[pallet::weight(<Pallet::<T>>::fee_per_byte().unwrap_or(FEE_PER_BYTE) * obj.len() as u64)]
-        pub fn verify_self_proved_object(
-            origin: OriginFor<T>,
-            obj: BoundedVec<u8, ConstU32<MAX_OBJECT_SIZE>>,
-        ) -> DispatchResultWithPostInfo {
-            let who = ensure_signed(origin)?;
-            
-            // Calculate proof of existence hash from the provided object
-            let proof_of_existence = BlakeTwo256::hash(&obj).into();
-            
-            // Find the self-proved object by proof of existence hash
-            let mut found_obj_idx = None;
-            for (obj_idx, obj_data) in Objects::<T>::iter() {
-                if let Some(ref proof) = obj_data.proof_of_existence {
-                    if *proof == proof_of_existence {
-                        found_obj_idx = Some(obj_idx);
-                        break;
-                    }
-                }
-            }
-            
-            let obj_idx = found_obj_idx.ok_or(Error::<T>::ObjectNotFound)?;
-            let mut obj_data = Objects::<T>::get(obj_idx).ok_or(Error::<T>::ObjectNotFound)?;
-            
-            // Verify it's a self-proved object
-            ensure!(obj_data.is_self_proved, Error::<T>::ObjectNotFound);
-            ensure!(matches!(obj_data.state, ObjectState::<T::BlockNumber, T::AccountId>::SelfProved(_)), Error::<T>::ObjectNotFound);
-            
-            // Verify the current owner is the one submitting
-            ensure!(obj_data.owner == who, Error::<T>::NotOwner);
-            
-            // Charge verification fee from the fee payer (not the transaction sender)
-            Self::charge_verification_fee_from_payer(obj_idx, &obj_data.fee_payer, obj.len())?;
-            
-            // Calculate hashes for the object
-            let hashes = Self::calc_hashes(&obj_data.category, None, &obj.to_vec(), DEFAULT_OBJECT_HASHES)?;
-            
-            // Verify at least one hash matches (replica requirement)
-            if obj_data.is_replica {
-                if let Some(orig_idx) = obj_data.original_obj {
-                    let orig = Objects::<T>::get(orig_idx).ok_or(Error::<T>::OriginalNotFound)?;
-                    let match_found = hashes.iter().any(|h| orig.hashes.contains(h));
-                    if !match_found {
-                        return Err(Error::<T>::NotAReplica.into());
-                    }
-                }
-            }
-            
-            // Update the object with the actual data and move to Created state
-            let block_num = <frame_system::Pallet<T>>::block_number();
-            obj_data.state = ObjectState::<T::BlockNumber, T::AccountId>::Created(block_num);
-            obj_data.obj = obj;
-            obj_data.compressed_with = Some(CompressWith::Lzss);
-            obj_data.hashes = hashes;
-            
-            // Insert the updated object
-            Objects::<T>::insert(obj_idx, obj_data);
-            
-            Self::deposit_event(Event::ObjCreated(who));
-            Ok(().into())
-        }
-
 		/// Unlock unspent rewards for a NotApproved object
 		#[pallet::weight(1_000_000)]
 		pub fn unlock_unspent_rewards(
@@ -1525,14 +1519,13 @@ impl<T: Config> Pallet<T> {
 
 		let mut v: Vec<(u32, ObjData<T::AccountId, T::BlockNumber>)> = Vec::new();
 		let current_block = <frame_system::Pallet<T>>::block_number();
-		
 		for (idx, obj_data) in Objects::<T>::iter() {
-			if let ObjectState::<T::BlockNumber, T::AccountId>::Estimated(when, _) = obj_data.state {
-				// Check if approval timeout has expired
-				if current_block.saturating_sub(when) < T::ApproveTimeout::get().into() {
+			if let ObjectState::Estimated(when, diff) = obj_data.state {
+				if diff < Self::max_algo_time().millis()
+					&& current_block.saturating_sub(when) < T::ApproveTimeout::get().into() {
 					v.push((idx, obj_data));
 				} else {
-					log::info!(target: LOG_TARGET, "Estimation of object {} has expired (timeout)", &idx);
+					log::info!(target: LOG_TARGET, "Estimation of object {} is not eligible (diff={}, when={:?}, current_block={:?})", &idx, diff, when, current_block);
 				}
 			}
 		}
@@ -1817,35 +1810,6 @@ impl<T: Config> Pallet<T> {
 			queue_size, base_u128, growth_rate, multiplier, result);
 		
 		result.saturated_into()
-	}
-
-	/// Charge verification fee from the fee payer account
-	fn charge_verification_fee_from_payer(
-		obj_idx: ObjIdx,
-		fee_payer: &T::AccountId,
-		obj_len: usize,
-	) -> Result<(), Error<T>> {
-		let fee_per_byte = Self::fee_per_byte().unwrap_or(FEE_PER_BYTE);
-		let total_fee = fee_per_byte * obj_len as u64;
-		
-		// Check if fee payer has sufficient balance
-		let fee_payer_balance = T::Currency::free_balance(fee_payer);
-		ensure!(fee_payer_balance >= total_fee.saturated_into(), Error::<T>::FeePayerInsufficientBalance);
-		
-		// Charge the fee from the fee payer using RESERVE instead of FEE to avoid burning
-		T::Currency::withdraw(fee_payer, total_fee.saturated_into(), WithdrawReasons::RESERVE, ExistenceRequirement::KeepAlive)
-			.map_err(|_| Error::<T>::FeePayerInsufficientBalance)?;
-		
-		// Add the fee to pending storage fees for distribution to validators
-		PendingStorageFees::<T>::mutate(|pending_fees| {
-			*pending_fees = pending_fees.saturating_add(total_fee.saturated_into());
-		});
-		
-		// Emit event for fee charging
-		Self::deposit_event(Event::VerificationFeeCharged(obj_idx, fee_payer.clone(), total_fee.saturated_into()));
-		
-		log::info!(target: LOG_TARGET, "Charged verification fee {} from fee payer {:?} for object size {}, added to pending storage fees", total_fee, fee_payer, obj_len);
-		Ok(())
 	}
 
 	/// Distribute pending storage fees to validators
