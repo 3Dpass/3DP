@@ -311,6 +311,7 @@ where
 
     /// Submit a new object to the PoScan pallet (with sn_hash)
     /// @custom:selector 0x0c53c51c
+    /// @dev Replicas must be submitted as self-proved objects. Submitting a replica as a regular object will revert.
     #[precompile::public("putObject(uint8,uint8,bool,bytes,uint8,bytes32[],(uint32,uint128)[],bool,uint32,uint64,bool,bytes32,string)")]
     fn put_object(
         handle: &mut impl PrecompileHandle,
@@ -328,6 +329,10 @@ where
         proof_of_existence: H256,
         ipfs_link: Vec<u8>,
     ) -> EvmResult<bool> {
+        // Early check for replica restriction
+        if is_replica && !is_self_proved {
+            return Err(revert("Replica must be submitted as a self-proved object"));
+        }
         use sp_consensus_poscan::{ObjectCategory, Algo3D, PropValue};
         use frame_support::BoundedVec;
         let category = match category {
@@ -405,6 +410,7 @@ where
 
     /// Inspect and put file to poscan storage (QC flow)
     /// @custom:selector 0x0c53c51f
+    /// @dev Replicas must be submitted as self-proved objects. Submitting a replica as a regular object will revert.
     #[precompile::public("inspectPutObject(uint8,uint8,bool,bytes,uint8,bytes32[],(uint32,uint128)[],bool,uint32,uint64,address,uint256,uint32,bool,bytes32,string)")]
     fn inspect_put_object(
         handle: &mut impl PrecompileHandle,
@@ -425,6 +431,10 @@ where
         proof_of_existence: H256,
         ipfs_link: Vec<u8>,
     ) -> EvmResult<bool> {
+        // Early check for replica restriction
+        if is_replica && !is_self_proved {
+            return Err(revert("Replica must be submitted as a self-proved object"));
+        }
         use sp_consensus_poscan::{ObjectCategory, Algo3D, PropValue};
         use frame_support::BoundedVec;
         let category = match category {
@@ -647,45 +657,6 @@ where
         Ok(result.is_ok())
     }
 
-    /// Verify a self-proved object by providing the actual object data
-    /// @custom:selector 0x0c53c524
-    #[precompile::public("verifySelfProvedObject(bytes)")]
-    fn verify_self_proved_object(
-        handle: &mut impl PrecompileHandle,
-        obj: Vec<u8>,
-    ) -> EvmResult<bool> {
-        if obj.len() > 1_048_576 {
-            return Err(revert("Object file too large (max 1MB)"));
-        }
-        let obj: sp_runtime::BoundedVec<u8, ConstU32<{ sp_consensus_poscan::MAX_OBJECT_SIZE }>> = sp_runtime::BoundedVec::try_from(obj).map_err(|_| revert("obj too large"))?;
-        let who: Runtime::AccountId = <Runtime as pallet_evm::Config>::AddressMapping::into_account_id(handle.context().caller);
-        let result = RuntimeHelper::<Runtime>::try_dispatch(
-            handle,
-            Some(who.clone()).into(),
-            pallet_poscan::Call::<Runtime>::verify_self_proved_object {
-                obj,
-            },
-        );
-        match result {
-            Ok(_) => {
-                handle.record_log_costs_manual(3, 32)?;
-                log3(
-                    handle.context().address,
-                    SELECTOR_LOG_OBJECT_SUBMITTED,
-                    handle.context().caller,
-                    handle.context().caller,
-                    EvmDataWriter::new()
-                        .write(Address(handle.context().caller))
-                        .write(U256::from(0u32))
-                        .build(),
-                )
-                .record(handle)?;
-                Ok(true)
-            },
-            Err(e) => Err(e.into()),
-        }
-    }
-
     /// Unlock unspent rewards for a NotApproved object (fee payer only)
     /// @custom:selector 0x0c53c525
     #[precompile::public("unlockUnspentRewards(uint32)")]
@@ -749,12 +720,11 @@ mod tests {
             ("putObject", "putObject(uint8,uint8,bool,bytes,uint8,bytes32[],(uint32,uint128)[],bool,uint32,uint64,bool,bytes32,string)", "putObject(uint8,uint8,bool,bytes,uint8,bytes32[],(uint32,uint128)[],bool,uint32,uint64,bool,bytes32,string)"),
             ("setPrivateObjectPermissions", "setPrivateObjectPermissions(uint32,(address,uint32,uint64)[])", "setPrivateObjectPermissions(uint32,(address,uint32,uint64)[])"),
             ("getReplicasOf", "getReplicasOf(uint32)", "getReplicasOf(uint32)"),
-            ("inspectPutObject", "inspectPutObject(uint8,uint8,bool,bytes,uint8,bytes32[],(uint32,uint128)[],bool,uint32,uint64,address,uint256,bool,bytes32,string)", "inspectPutObject(uint8,uint8,bool,bytes,uint8,bytes32[],(uint32,uint128)[],bool,uint32,uint64,address,uint256,bool,bytes32,string)"),
+            ("inspectPutObject", "inspectPutObject(uint8,uint8,bool,bytes,uint8,bytes32[],(uint32,uint128)[],bool,uint32,uint64,address,uint256,uint32,bool,bytes32,string)", "inspectPutObject(uint8,uint8,bool,bytes,uint8,bytes32[],(uint32,uint128)[],bool,uint32,uint64,address,uint256,uint32,bool,bytes32,string)"),
             ("qcApprove", "qcApprove(uint32)", "qcApprove(uint32)"),
             ("qcReject", "qcReject(uint32)", "qcReject(uint32)"),
             ("transferObjectOwnership", "transferObjectOwnership(uint32,address)", "transferObjectOwnership(uint32,address)"),
             ("abdicateTheObjOwnership", "abdicateTheObjOwnership(uint32)", "abdicateTheObjOwnership(uint32)"),
-            ("verifySelfProvedObject", "verifySelfProvedObject(bytes)", "verifySelfProvedObject(bytes)"),
             ("unlockUnspentRewards", "unlockUnspentRewards(uint32)", "unlockUnspentRewards(uint32)"),
         ];
         

@@ -183,6 +183,7 @@ interface I3DPRC2 {
      * @param ipfsLink The IPFS link (if self-proved)
      * @return success True if the object was submitted successfully
      * @dev Emits an ObjectSubmitted event on success
+     * @dev Replicas must be submitted as self-proved objects. Submitting a replica as a regular object will revert.
      * @custom:selector 0x0c53c51c
      */
     function putObject(
@@ -217,15 +218,6 @@ interface I3DPRC2 {
      * @custom:selector 0x0c53c523
      */
     function abdicateTheObjOwnership(uint32 objIdx) external returns (bool);
-
-    /**
-     * @notice Verify a self-proved object by providing the actual object data
-     * @param obj The OBJ file bytes (max 1MB)
-     * @return success True if the object was verified successfully
-     * @dev Emits an ObjectSubmitted event on success
-     * @custom:selector 0x0c53c524
-     */
-    function verifySelfProvedObject(bytes calldata obj) external returns (bool);
 
     /**
      * @notice Unlock unspent rewards for a NotApproved object (fee payer only)
