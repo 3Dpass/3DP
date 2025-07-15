@@ -51,14 +51,19 @@ interface I3DPRC2 {
     }
 
     /// @dev Emitted when a new object is submitted
+    /// @custom:selector 4ee46e58f06d5de76d364c9ef0a9701ea754bc413467a36515e3914ff4697d7f
     event ObjectSubmitted(address indexed submitter, uint32 indexed objIdx);
 
     /// @dev Emitted when permissions are set for a private object
+    /// @custom:selector 4ee46e58f06d5de76d364c9ef0a9701ea754bc413467a36515e3914ff4697d7f
     event PermissionsSet(uint32 indexed objIdx, address indexed setter);
 
     /// @dev Emitted when object ownership is transferred
+    /// @custom:selector c9016539193c90a337f4e334ed4d04f01cbb5f0217d7e03e5ae891fafa562439
     event ObjectOwnershipTransferred(uint32 indexed objIdx, address indexed oldOwner, address indexed newOwner);
+    
     /// @dev Emitted when unspent rewards are unlocked
+    /// @custom:selector 8bd1bc05f187ab2e18d77e8ff98a49c3946c5d8a6c0a4bf7a452afed0635abda
     event UnspentRewardsUnlocked(uint32 indexed objIdx, address indexed feePayer, uint256 amount);
 
     /**

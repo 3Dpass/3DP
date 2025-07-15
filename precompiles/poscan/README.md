@@ -1,6 +1,6 @@
 # PoScan Precompile
 
-The PoScan Precompile provides an interface for managing 3D objects and digital assets on the 3Dpass network. It allows users to submit, manage, and query 3D objects, drawings, music, biometrics, movements, and texts.
+The PoScan Precompile provides a Solidity interface for authentication of objects as well as digital assets management within the The Ledger of Things network. It allows users to submit, manage, and query 3D objects, drawings, music, biometrics, movements, and texts.
 
 ## Address
 ```
@@ -12,45 +12,52 @@ The PoScan Precompile provides an interface for managing 3D objects and digital 
 ### Property
 ```solidity
 struct Property {
-    uint32 propIdx;    // Property index
-    uint128 maxValue;  // Maximum value for the property
+    uint32 propIdx;
+    uint128 maxValue;
 }
 ```
 
 ### Permission
 ```solidity
 struct Permission {
-    address who;       // Address with permission
-    uint32 maxCopies;  // Maximum copies allowed
-    uint64 until;      // Permission expiry timestamp
+    address who;
+    uint32 maxCopies;
+    uint64 until;
 }
 ```
 
 ### PropertyInfo
 ```solidity
 struct PropertyInfo {
-    bool isValid;      // Whether the property exists
-    uint32 propIdx;    // Property index
-    string name;       // Property name
-    uint8 class;       // 0=Relative, 1=Absolute
-    uint128 maxValue;  // Maximum value
+    bool isValid;
+    uint32 propIdx;
+    string name;
+    uint8 class; // 0=Relative, 1=Absolute
+    uint128 maxValue;
 }
 ```
 
 ### ObjectInfo
 ```solidity
 struct ObjectInfo {
-    bool isValid;           // Whether the object exists
-    uint8 state;            // Object state
-    uint64 stateBlock;      // Block when state changed
-    uint8 category;         // Object category
-    uint64 whenCreated;     // Creation timestamp
-    uint64 whenApproved;    // Approval timestamp (0 if not approved)
-    bytes32 owner;          // Owner address
-    bool isPrivate;         // Whether object is private
-    bytes32[] hashes;       // Object hashes
-    uint8 numApprovals;     // Number of approvals required
-    Property[] prop;        // Object properties
+    bool isValid;
+    uint8 state; // 0=Created, 1=Estimating, 2=Estimated, 3=NotApproved, 4=Approved, 5=QCInspecting, 6=QCPassed, 7=QCRejected, 8=SelfProved
+    uint64 stateBlock;
+    uint8 category; // 0=Objects3D, 1=Drawings2D, 2=Music, 3=Biometrics, 4=Movements, 5=Texts
+    uint64 whenCreated;
+    uint64 whenApproved;
+    bool isPrivate;
+    bytes32[] hashes;
+    uint8 numApprovals;
+    Property[] prop;
+    bool isReplica;
+    uint32 originalObj;
+    uint64 snHash;
+    bool isOwnershipAbdicated;
+    bool isSelfProved;
+    bytes32 proofOfExistence;
+    string ipfsLink;
+    uint32 qcTimeout;
 }
 ```
 
@@ -59,171 +66,307 @@ struct ObjectInfo {
 The PoScan precompile emits the following events:
 
 ### ObjectSubmitted
-Emitted when a new object is successfully submitted to the PoScan pallet.
-
 ```solidity
 event ObjectSubmitted(address indexed submitter, uint32 indexed objIdx);
 ```
 
-**Parameters:**
-- `address indexed submitter` - The address that submitted the object
-- `uint32 indexed objIdx` - The index of the submitted object
-
 ### PermissionsSet
-Emitted when permissions are set for a private object.
-
 ```solidity
 event PermissionsSet(uint32 indexed objIdx, address indexed setter);
 ```
 
-**Parameters:**
-- `uint32 indexed objIdx` - The object index for which permissions were set
-- `address indexed setter` - The address that set the permissions
+### ObjectOwnershipTransferred
+```solidity
+event ObjectOwnershipTransferred(uint32 indexed objIdx, address indexed oldOwner, address indexed newOwner);
+```
+
+### QCInspecting
+```solidity
+event QCInspecting(uint32 indexed objIdx, address indexed inspector);
+```
+
+### QCPassed
+```solidity
+event QCPassed(uint32 indexed objIdx, address indexed inspector);
+```
+
+### QCRejected
+```solidity
+event QCRejected(uint32 indexed objIdx, address indexed inspector);
+```
+
+### InspectorFeePaid
+```solidity
+event InspectorFeePaid(uint32 indexed objIdx, address indexed inspector, uint256 fee);
+```
+
+### QCInspectionTimeout
+```solidity
+event QCInspectionTimeout(uint32 indexed objIdx, address indexed feePayer, uint256 fee);
+```
+
+### UnspentRewardsUnlocked
+```solidity
+event UnspentRewardsUnlocked(uint32 indexed objIdx, address indexed feePayer, uint256 amount);
+```
 
 ## Functions
 
 ### View Functions
 
 #### `getObject(uint32 objIdx)`
-Retrieves detailed information about a specific object.
+Returns detailed information about a specific object.
 
-**Parameters:**
-- `uint32 objIdx` - Object index
+Parameters:
+- `uint32 objIdx`: The index of the object to retrieve.
 
-**Returns:**
-- `ObjectInfo memory info` - Complete object information
-
-**Example:**
-```solidity
-// Get object with index 1
-ObjectInfo memory obj = poscan.getObject(1);
-if (obj.isValid) {
-    console.log("Object owner:", obj.owner);
-    console.log("Object state:", obj.state);
-    console.log("Is private:", obj.isPrivate);
-}
-```
+Returns:
+- `ObjectInfo`: Detailed information about the object.
 
 #### `getObjectsOf(address owner)`
 Returns all object indices owned by a specific address.
 
-**Parameters:**
-- `address owner` - Owner address (EVM H160)
+Parameters:
+- `address owner`: The address to query.
 
-**Returns:**
-- `uint32[] memory objectIndices` - Array of object indices
+Returns:
+- `uint32[]`: Array of object indices owned by the address.
 
-**Example:**
-```solidity
-// Get all objects owned by msg.sender
-uint32[] memory myObjects = poscan.getObjectsOf(msg.sender);
-for (uint i = 0; i < myObjects.length; i++) {
-    console.log("My object index:", myObjects[i]);
-}
-```
+#### `getObjectsOfInspector(address inspector)`
+Returns all object indices assigned to an inspector.
+
+Parameters:
+- `address inspector`: The address of the inspector to query.
+
+Returns:
+- `uint32[]`: Array of object indices assigned to the inspector.
 
 #### `getObjectCount()`
 Returns the total number of objects in the system.
 
-**Returns:**
-- `uint32 count` - Total number of objects
-
-**Example:**
-```solidity
-uint32 totalObjects = poscan.getObjectCount();
-console.log("Total objects in system:", totalObjects);
-```
+Returns:
+- `uint32`: The total number of objects.
 
 #### `getProperties()`
 Returns all available properties for object tokenization.
 
-**Returns:**
-- `PropertyInfo[] memory properties` - Array of property information
-
-**Example:**
-```solidity
-PropertyInfo[] memory properties = poscan.getProperties();
-for (uint i = 0; i < properties.length; i++) {
-    if (properties[i].isValid) {
-        console.log("Property:", properties[i].name);
-        console.log("Class:", properties[i].class);
-        console.log("Max value:", properties[i].maxValue);
-    }
-}
-```
+Returns:
+- `PropertyInfo[]`: Array of available properties.
 
 #### `getFeePerByte()`
 Returns the storage fee per byte.
 
-**Returns:**
-- `(bool exists, uint64 fee)` - Whether fee exists and the fee amount
-
-**Example:**
-```solidity
-(bool exists, uint64 fee) = poscan.getFeePerByte();
-if (exists) {
-    console.log("Storage fee per byte:", fee);
-}
-```
+Returns:
+- `uint256`: The storage fee per byte.
 
 #### `getAccountLock(address owner)`
 Returns the account lock value for a given address.
 
-**Parameters:**
-- `address owner` - Owner address
+Parameters:
+- `address owner`: The address to query.
 
-**Returns:**
-- `uint128 lock` - Account lock value
+Returns:
+- `uint256`: The account lock value.
 
-**Example:**
-```solidity
-uint128 lockValue = poscan.getAccountLock(msg.sender);
-console.log("Account lock value:", lockValue);
-```
+#### `getRewards()`
+Returns the council-controlled rewards.
+
+Returns:
+- `uint256`: The total rewards.
+
+#### `getDynamicRewardsGrowthRate()`
+Returns the dynamic rewards growth rate.
+
+Returns:
+- `uint256`: The dynamic rewards growth rate.
+
+#### `getAuthorPart()`
+Returns the author share percentage.
+
+Returns:
+- `uint256`: The author share percentage.
+
+#### `getUnspentRewards(uint32 objIdx)`
+Returns the unspent rewards for a NotApproved object.
+
+Parameters:
+- `uint32 objIdx`: The index of the NotApproved object.
+
+Returns:
+- `uint256`: The unspent rewards amount.
+
+#### `getPendingStorageFees()`
+Returns the pending storage fees to be distributed to validators.
+
+Returns:
+- `uint256`: The total pending storage fees.
+
+#### `getQCTimeout(uint32 objIdx)`
+Returns the QC timeout for an object.
+
+Parameters:
+- `uint32 objIdx`: The index of the object.
+
+Returns:
+- `uint32`: The QC timeout in seconds.
+
+#### `getObjectIdxByProofOfExistence(bytes32 proofOfExistence)`
+Returns the object index by proof of existence hash.
+
+Parameters:
+- `bytes32 proofOfExistence`: The hash of the proof of existence.
+
+Returns:
+- `uint32`: The object index.
 
 #### `getReplicasOf(uint32 originalObj)`
 Returns all replica indices for a given original object.
 
-**Parameters:**
-- `uint32 originalObj` - Original object index
+Parameters:
+- `uint32 originalObj`: The index of the original object.
 
-**Returns:**
-- `uint32[] memory` - Array of replica indices
-
-**Example:**
-```solidity
-uint32[] memory replicas = poscan.getReplicasOf(1);
-console.log("Number of replicas:", replicas.length);
-for (uint i = 0; i < replicas.length; i++) {
-    console.log("Replica index:", replicas[i]);
-}
-```
+Returns:
+- `uint32[]`: Array of replica indices.
 
 ### State-Changing Functions
 
-#### `putObject(uint8 category, uint8 algo3d, bool isPrivate, bytes calldata obj, uint8 numApprovals, bytes32[] calldata hashes, Property[] calldata properties, bool isReplica, uint32 originalObj)`
-Submits a new object to the PoScan pallet.
+#### `putObject(uint8 category, uint8 algo3d, bool isPrivate, bytes calldata obj, uint8 numApprovals, bytes32[] calldata hashes, Property[] calldata properties, bool isReplica, uint32 originalObj, uint64 snHash, bool isSelfProved, bytes32 proofOfExistence, string calldata ipfsLink)`
+Submits a new object to the PoScan pallet. Replicas must be submitted as self-proved objects.
 
-**Parameters:**
-- `uint8 category` - Object category (0=Objects3D, 1=Drawings2D, 2=Music, 3=Biometrics, 4=Movements, 5=Texts)
-- `uint8 algo3d` - Algo3D variant (only used if category == Objects3D: 0=Grid2dLow, 1=Grid2dHigh)
-- `bool isPrivate` - Whether the object is private
-- `bytes calldata obj` - The OBJ file bytes (max 1MB)
-- `uint8 numApprovals` - Number of approvals required
-- `bytes32[] calldata hashes` - Optional array of object hashes (can be empty)
-- `Property[] calldata properties` - Array of property values
-- `bool isReplica` - Whether this is a replica
-- `uint32 originalObj` - Original object index (only used if isReplica is true)
+Parameters:
+- `uint8 category`: The category of the object (0=Objects3D, 1=Drawings2D, 2=Music, 3=Biometrics, 4=Movements, 5=Texts).
+- `uint8 algo3d`: The Algo3D variant (0=Grid2dLow, 1=Grid2dHigh).
+- `bool isPrivate`: Whether the object is private.
+- `bytes calldata obj`: The raw object data.
+- `uint8 numApprovals`: The required number of approvals.
+- `bytes32[] calldata hashes`: Array of hashes of the object data.
+- `Property[] calldata properties`: Array of properties for the object.
+- `bool isReplica`: Whether the object is a replica.
+- `uint32 originalObj`: The index of the original object (if it's a replica).
+- `uint64 snHash`: The hash of the object data.
+- `bool isSelfProved`: Whether the object is self-proved.
+- `bytes32 proofOfExistence`: The hash of the proof of existence.
+- `string calldata ipfsLink`: The IPFS link for the object data.
 
-**Returns:**
-- `bool` - Success status
+Returns:
+- `bool`: `true` on success, `false` on failure.
 
-**Events:**
-- Emits `ObjectSubmitted(address indexed submitter, uint32 indexed objIdx)` on success
+#### `inspectPutObject(uint8 category, uint8 algo3d, bool isPrivate, bytes calldata obj, uint8 numApprovals, bytes32[] calldata hashes, Property[] calldata properties, bool isReplica, uint32 originalObj, uint64 snHash, address inspector, uint256 inspectorFee, uint32 qcTimeout, bool isSelfProved, bytes32 proofOfExistence, string calldata ipfsLink)`
+Submits a new object for QC inspection. Replicas must be submitted as self-proved objects.
 
-**Example:**
+Parameters:
+- `uint8 category`: The category of the object (0=Objects3D, 1=Drawings2D, 2=Music, 3=Biometrics, 4=Movements, 5=Texts).
+- `uint8 algo3d`: The Algo3D variant (0=Grid2dLow, 1=Grid2dHigh).
+- `bool isPrivate`: Whether the object is private.
+- `bytes calldata obj`: The raw object data.
+- `uint8 numApprovals`: The required number of approvals.
+- `bytes32[] calldata hashes`: Array of hashes of the object data.
+- `Property[] calldata properties`: Array of properties for the object.
+- `bool isReplica`: Whether the object is a replica.
+- `uint32 originalObj`: The index of the original object (if it's a replica).
+- `uint64 snHash`: The hash of the object data.
+- `address inspector`: The address of the inspector.
+- `uint256 inspectorFee`: The fee paid by the inspector.
+- `uint32 qcTimeout`: The QC timeout in seconds.
+- `bool isSelfProved`: Whether the object is self-proved.
+- `bytes32 proofOfExistence`: The hash of the proof of existence.
+- `string calldata ipfsLink`: The IPFS link for the object data.
+
+Returns:
+- `bool`: `true` on success, `false` on failure.
+
+#### `setPrivateObjectPermissions(uint32 objIdx, Permission[] calldata permissions)`
+Sets permissions for private object replicas.
+
+Parameters:
+- `uint32 objIdx`: The index of the private object.
+- `Permission[] calldata permissions`: Array of permissions to set.
+
+Returns:
+- `bool`: `true` on success, `false` on failure.
+
+#### `qcApprove(uint32 objIdx)`
+Inspector approves the object (QC passed).
+
+Parameters:
+- `uint32 objIdx`: The index of the object.
+
+Returns:
+- `bool`: `true` on success, `false` on failure.
+
+#### `qcReject(uint32 objIdx)`
+Inspector rejects the object (QC rejected).
+
+Parameters:
+- `uint32 objIdx`: The index of the object.
+
+Returns:
+- `bool`: `true` on success, `false` on failure.
+
+#### `transferObjectOwnership(uint32 objIdx, address newOwner)`
+Transfers object ownership to another account.
+
+Parameters:
+- `uint32 objIdx`: The index of the object.
+- `address newOwner`: The new owner address.
+
+Returns:
+- `bool`: `true` on success, `false` on failure.
+
+#### `abdicateTheObjOwnership(uint32 objIdx)`
+Abdicates object ownership (irreversible).
+
+Parameters:
+- `uint32 objIdx`: The index of the object.
+
+Returns:
+- `bool`: `true` on success, `false` on failure.
+
+#### `unlockUnspentRewards(uint32 objIdx)`
+Unlocks unspent rewards for a NotApproved object (fee payer only).
+
+Parameters:
+- `uint32 objIdx`: The index of the NotApproved object.
+
+Returns:
+- `bool`: `true` on success, `false` on failure.
+
+## Object Categories
+
+| Value | Category    | Description                  |
+|-------|-------------|------------------------------|
+| 0     | Objects3D   | 3D objects with Algo3D       |
+| 1     | Drawings2D  | 2D drawings                  |
+| 2     | Music       | Musical compositions         |
+| 3     | Biometrics  | Biometric data               |
+| 4     | Movements   | Movement patterns            |
+| 5     | Texts       | Text documents               |
+
+## Object States
+
+| Value | State         | Description                  |
+|-------|--------------|------------------------------|
+| 0     | Created      | Object has been created      |
+| 1     | Estimating   | Object is being estimated    |
+| 2     | Estimated    | Object has been estimated    |
+| 3     | NotApproved  | Object was not approved      |
+| 4     | Approved     | Object has been approved     |
+| 5     | QCInspecting | Object is under QC inspection|
+| 6     | QCPassed     | Object passed QC             |
+| 7     | QCRejected   | Object rejected by QC        |
+| 8     | SelfProved   | Object is self-proved        |
+
+## Algo3D Variants
+
+| Value | Variant      | Description                  |
+|-------|-------------|------------------------------|
+| 0     | Grid2dLow   | Low-resolution 2D grid       |
+| 1     | Grid2dHigh  | High-resolution 2D grid      |
+
+## Usage Examples
+
+### Submit a 3D object
 ```solidity
-// Submit a 3D object
 uint8 category = 0; // Objects3D
 uint8 algo3d = 0;   // Grid2dLow
 bool isPrivate = false;
@@ -236,26 +379,19 @@ properties[0] = Property(0, 1000); // Property 0 with max value 1000
 
 bool success = poscan.putObject(
     category, algo3d, isPrivate, objFile, numApprovals, 
-    hashes, properties, false, 0
+    hashes, properties, false, 0, 0, false, bytes32(0), ""
 );
 ```
 
-#### `setPrivateObjectPermissions(uint32 objIdx, Permission[] calldata permissions)`
-Sets permissions for private object replicas.
-
-**Parameters:**
-- `uint32 objIdx` - Object index
-- `Permission[] calldata permissions` - Array of permissions
-
-**Returns:**
-- `bool` - Success status
-
-**Events:**
-- Emits `PermissionsSet(uint32 indexed objIdx, address indexed setter)` on success
-
-**Example:**
+### Submit a 3D object for QC inspection
 ```solidity
-// Set permissions for private object
+bool success = poscan.inspectPutObject(
+    0, 0, false, objFile, 1, hashes, properties, false, 0, 0, inspector, 1000000000000000000, 100, false, bytes32(0), ""
+);
+```
+
+### Set permissions for private object
+```solidity
 uint32 objIdx = 1;
 Permission[] memory permissions = new Permission[](1);
 permissions[0] = Permission(
@@ -267,80 +403,26 @@ permissions[0] = Permission(
 bool success = poscan.setPrivateObjectPermissions(objIdx, permissions);
 ```
 
-## Object Categories
-
-| Value | Category | Description |
-|-------|----------|-------------|
-| 0 | Objects3D | 3D objects with Algo3D variants |
-| 1 | Drawings2D | 2D drawings |
-| 2 | Music | Musical compositions |
-| 3 | Biometrics | Biometric data |
-| 4 | Movements | Movement patterns |
-| 5 | Texts | Text documents |
-
-## Object States
-
-| Value | State | Description |
-|-------|-------|-------------|
-| 0 | Created | Object has been created |
-| 1 | Estimating | Object is being estimated |
-| 2 | Estimated | Object has been estimated |
-| 3 | NotApproved | Object was not approved |
-| 4 | Approved | Object has been approved |
-
-## Algo3D Variants
-
-| Value | Variant | Description |
-|-------|---------|-------------|
-| 0 | Grid2dLow | Low-resolution 2D grid |
-| 1 | Grid2dHigh | High-resolution 2D grid |
-
-## Usage Examples
-
-### Complete Object Submission Workflow
+### Transfer object ownership
 ```solidity
-// 1. Check storage fee
-(bool feeExists, uint64 feePerByte) = poscan.getFeePerByte();
-require(feeExists, "Storage fee not set");
-
-// 2. Calculate fee for object
-uint256 objectSize = objFile.length;
-uint256 totalFee = objectSize * feePerByte;
-
-// 3. Submit object
-bool success = poscan.putObject(
-    category, algo3d, isPrivate, objFile, numApprovals, 
-    hashes, properties, false, 0
-);
-
-// 4. Check object details
-ObjectInfo memory obj = poscan.getObject(1);
-require(obj.isValid, "Object not found");
+bool success = poscan.transferObjectOwnership(1, 0x1234567890123456789012345678901234567890);
 ```
 
-### Private Object with Permissions
+### Abdicate object ownership
 ```solidity
-// 1. Submit private object
-bool success = poscan.putObject(
-    0, 0, true, objFile, 1, hashes, properties, false, 0
-);
+bool success = poscan.abdicateTheObjOwnership(1);
+```
 
-// 2. Set permissions for specific users
-Permission[] memory permissions = new Permission[](2);
-permissions[0] = Permission(user1, 3, block.timestamp + 30 days);
-permissions[1] = Permission(user2, 1, block.timestamp + 7 days);
-
-poscan.setPrivateObjectPermissions(1, permissions);
+### Unlock unspent rewards
+```solidity
+bool success = poscan.unlockUnspentRewards(1);
 ```
 
 ### Querying Object Information
 ```solidity
-// Get all objects owned by user
 uint32[] memory myObjects = poscan.getObjectsOf(msg.sender);
-
 for (uint i = 0; i < myObjects.length; i++) {
     ObjectInfo memory obj = poscan.getObject(myObjects[i]);
-    
     if (obj.isValid) {
         console.log("Object", myObjects[i], "state:", obj.state);
         console.log("Category:", obj.category);
@@ -352,34 +434,8 @@ for (uint i = 0; i < myObjects.length; i++) {
 
 ## Event Monitoring
 
-### Listening to ObjectSubmitted Events
-```solidity
-// Listen for new object submissions
-poscan.ObjectSubmitted().watch((address submitter, uint32 objIdx) => {
-    console.log("New object submitted by:", submitter);
-    console.log("Object index:", objIdx);
-});
-```
-
-### Listening to PermissionsSet Events
-```solidity
-// Listen for permission changes
-poscan.PermissionsSet().watch((uint32 objIdx, address setter) => {
-    console.log("Permissions set for object:", objIdx);
-    console.log("Set by:", setter);
-});
-```
-
-### JavaScript/TypeScript Example
+### Listen for ObjectSubmitted events
 ```javascript
-// Using ethers.js
-const poscanContract = new ethers.Contract(
-    '0x0000000000000000000000000000000000000903',
-    poscanABI,
-    provider
-);
-
-// Listen for ObjectSubmitted events
 poscanContract.on('ObjectSubmitted', (submitter, objIdx, event) => {
     console.log('New object submitted:', {
         submitter: submitter,
@@ -388,8 +444,10 @@ poscanContract.on('ObjectSubmitted', (submitter, objIdx, event) => {
         transactionHash: event.transactionHash
     });
 });
+```
 
-// Listen for PermissionsSet events
+### Listen for PermissionsSet events
+```javascript
 poscanContract.on('PermissionsSet', (objIdx, setter, event) => {
     console.log('Permissions updated:', {
         objectIndex: objIdx.toString(),
@@ -398,6 +456,16 @@ poscanContract.on('PermissionsSet', (objIdx, setter, event) => {
         transactionHash: event.transactionHash
     });
 });
+```
+
+### Listen for QC and Ownership events
+```javascript
+poscanContract.on('QCInspecting', (objIdx, inspector, event) => { ... });
+poscanContract.on('QCPassed', (objIdx, inspector, event) => { ... });
+poscanContract.on('QCRejected', (objIdx, inspector, event) => { ... });
+poscanContract.on('InspectorFeePaid', (objIdx, inspector, fee, event) => { ... });
+poscanContract.on('ObjectOwnershipTransferred', (objIdx, oldOwner, newOwner, event) => { ... });
+poscanContract.on('UnspentRewardsUnlocked', (objIdx, feePayer, amount, event) => { ... });
 ```
 
 ## Error Handling
@@ -416,11 +484,13 @@ The precompile will revert with descriptive error messages for:
 - Permission setting: ~50,000 gas
 - Object queries: ~30,000 gas
 - Property queries: ~20,000 gas
+- QC inspection: ~250,000 gas
+- Ownership transfer: ~40,000 gas
 
 ## Security Notes
 
 - Always validate OBJ file format before submission
-- Check object ownership before setting permissions
+- Check object ownership before setting permissions or transferring ownership
 - Verify property values are within acceptable ranges
 - Use appropriate approval requirements for sensitive objects
 - Consider gas costs for large object files 
