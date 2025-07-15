@@ -16,16 +16,22 @@ interface IQCInspection {
     }
 
     /// @dev Emitted when an object enters QC inspection
+    /// @custom:selector 99d934e15b1e9f0c54ade770a4cec8c09b0317ecbc2dda047f7f11bd4c09d4b6
     event QCInspecting(uint32 indexed objIdx, address indexed inspector);
     /// @dev Emitted when an object passes QC
+    /// @custom:selector 1b7600d3c3de3e71aceb593db0de1a27988f1f4ee1bf443f6f2b6f4fbc708c97
     event QCPassed(uint32 indexed objIdx, address indexed inspector);
     /// @dev Emitted when an object is rejected by QC
+    /// @custom:selector e71aa02f1750578098ed760fb72ecca09a80be8e2b88d10c4ab6159f75aafe48
     event QCRejected(uint32 indexed objIdx, address indexed inspector);
     /// @dev Emitted when inspector fee is paid
+    /// @custom:selector 66a0ee0e1e04e690057977ea001e29370975ca4cb2edf05f3f274400ac60107e
     event InspectorFeePaid(uint32 indexed objIdx, address indexed inspector, uint256 fee);
     /// @dev Emitted when QC inspection times out and inspector fee is unreserved
+    /// @custom:selector f4a61831b610c582d0087536f502e0a93efae3f12b83a68a087fed6e0f8688b5
     event QCInspectionTimeout(uint32 indexed objIdx, address indexed feePayer, uint256 fee);
     /// @dev Emitted when permissions are set for a private object
+    /// @custom:selector 8bd1bc05f187ab2e18d77e8ff98a49c3946c5d8a6c0a4bf7a452afed0635abda
     event PermissionsSet(uint32 indexed objIdx, address indexed setter);
 
     /**

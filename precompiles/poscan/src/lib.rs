@@ -14,6 +14,7 @@ use sp_runtime::traits::StaticLookup;
 // No alias, use precompile_utils::data::String directly
 use pallet_evm::AddressMapping;
 use precompile_utils::data::UnboundedString;
+use precompile_utils::data::Address;
 
 use sp_consensus_poscan::{ObjectState, ObjectCategory};
 use frame_support::pallet_prelude::ConstU32;
@@ -27,6 +28,13 @@ pub const SELECTOR_LOG_PERMISSIONS_SET: [u8; 32] = keccak256!("PermissionsSet(ui
 pub const SELECTOR_LOG_OWNERSHIP_TRANSFERRED: [u8; 32] = keccak256!("ObjectOwnershipTransferred(uint32,address,address)");
 pub const SELECTOR_LOG_QC_INSPECTION_TIMEOUT: [u8; 32] = keccak256!("QCInspectionTimeout(uint32,address,uint256)");
 
+// Add missing event selectors
+pub const SELECTOR_LOG_QC_INSPECTING: [u8; 32] = keccak256!("QCInspecting(uint32,address)");
+pub const SELECTOR_LOG_QC_PASSED: [u8; 32] = keccak256!("QCPassed(uint32,address)");
+pub const SELECTOR_LOG_QC_REJECTED: [u8; 32] = keccak256!("QCRejected(uint32,address)");
+pub const SELECTOR_LOG_INSPECTOR_FEE_PAID: [u8; 32] = keccak256!("InspectorFeePaid(uint32,address,uint256)");
+pub const SELECTOR_LOG_UNSPENT_REWARDS_UNLOCKED: [u8; 32] = keccak256!("UnspentRewardsUnlocked(uint32,address,uint256)");
+
 // Function selectors for reference
 pub const SELECTOR_GET_OBJECT: [u8; 4] = [0xA1, 0xB2, 0xC0, 0x01];
 
@@ -39,6 +47,13 @@ where
 {
     let bytes = account_id.as_ref();
     Address(H160::from_slice(&bytes[0..20]))
+}
+
+// Helper to convert Address (H160) to H256 (left-padded)
+fn address_to_h256(addr: Address) -> H256 {
+    let mut padded = [0u8; 32];
+    padded[12..].copy_from_slice(addr.0.as_bytes());
+    H256::from(padded)
 }
 
 #[derive(Debug, Clone)]
@@ -495,7 +510,17 @@ where
             },
         );
         match result {
-            Ok(_) => Ok(true),
+            Ok(_) => {
+                // Emit QCInspecting event: indexed objIdx, indexed inspector
+                log3(
+                    handle.context().address,
+                    SELECTOR_LOG_QC_INSPECTING,
+                    H256::from_low_u64_be(original_obj as u64), // topic1: objIdx
+                    address_to_h256(inspector), // topic2: inspector
+                    EvmDataWriter::new().build(), // no non-indexed params
+                ).record(handle)?;
+                Ok(true)
+            },
             Err(e) => Err(e.into()),
         }
     }
@@ -577,7 +602,25 @@ where
             pallet_poscan::Call::<Runtime>::qc_approve { obj_idx },
         );
         match result {
-            Ok(_) => Ok(true),
+            Ok(_) => {
+                // Emit QCPassed event: indexed objIdx, indexed inspector
+                log3(
+                    handle.context().address,
+                    SELECTOR_LOG_QC_PASSED,
+                    H256::from_low_u64_be(obj_idx as u64),
+                    address_to_h256(Address(handle.context().caller)),
+                    EvmDataWriter::new().build(),
+                ).record(handle)?;
+                // Emit InspectorFeePaid event: indexed objIdx, indexed inspector, fee (0 placeholder)
+                log3(
+                    handle.context().address,
+                    SELECTOR_LOG_INSPECTOR_FEE_PAID,
+                    H256::from_low_u64_be(obj_idx as u64),
+                    address_to_h256(Address(handle.context().caller)),
+                    EvmDataWriter::new().write(U256::from(0u32)).build(),
+                ).record(handle)?;
+                Ok(true)
+            },
             Err(e) => Err(e.into()),
         }
     }
@@ -595,7 +638,25 @@ where
             pallet_poscan::Call::<Runtime>::qc_reject { obj_idx },
         );
         match result {
-            Ok(_) => Ok(true),
+            Ok(_) => {
+                // Emit QCRejected event: indexed objIdx, indexed inspector
+                log3(
+                    handle.context().address,
+                    SELECTOR_LOG_QC_REJECTED,
+                    H256::from_low_u64_be(obj_idx as u64),
+                    address_to_h256(Address(handle.context().caller)),
+                    EvmDataWriter::new().build(),
+                ).record(handle)?;
+                // Emit InspectorFeePaid event: indexed objIdx, indexed inspector, fee (0 placeholder)
+                log3(
+                    handle.context().address,
+                    SELECTOR_LOG_INSPECTOR_FEE_PAID,
+                    H256::from_low_u64_be(obj_idx as u64),
+                    address_to_h256(Address(handle.context().caller)),
+                    EvmDataWriter::new().write(U256::from(0u32)).build(),
+                ).record(handle)?;
+                Ok(true)
+            },
             Err(e) => Err(e.into()),
         }
     }
@@ -673,21 +734,14 @@ where
             Ok(_) => {
                 // Record gas cost for event emission
                 handle.record_log_costs_manual(3, 32)?;
-                
-                // Emit UnspentRewardsUnlocked event
+                // Emit UnspentRewardsUnlocked event: indexed objIdx, indexed feePayer, amount (0 placeholder)
                 log3(
                     handle.context().address,
-                    SELECTOR_LOG_OBJECT_SUBMITTED, // Reusing existing selector for now
-                    handle.context().caller,
-                    handle.context().caller,
-                    EvmDataWriter::new()
-                        .write(U256::from(obj_idx))
-                        .write(Address(handle.context().caller))
-                        .write(U256::from(0u32)) // Placeholder for unspent amount
-                        .build(),
-                )
-                .record(handle)?;
-                
+                    SELECTOR_LOG_UNSPENT_REWARDS_UNLOCKED,
+                    H256::from_low_u64_be(obj_idx as u64),
+                    address_to_h256(Address(handle.context().caller)),
+                    EvmDataWriter::new().write(U256::from(0u32)).build(),
+                ).record(handle)?;
                 Ok(true)
             },
             Err(e) => Err(e.into()),

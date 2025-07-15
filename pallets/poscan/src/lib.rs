@@ -1914,7 +1914,7 @@ impl<T: Config> PoscanApi<T::AccountId, T::BlockNumber> for Pallet<T> {
 		Some(PendingStorageFees::<T>::get().saturated_into())
 	}
 	fn get_rewards() -> Option<u128> {
-		Some(PendingStorageFees::<T>::get().saturated_into())
+		Rewards::<T>::get().map(|r| r.saturated_into())
 	}
 	fn get_qc_timeout(obj_idx: u32) -> Option<u32> {
 		let obj_data = Objects::<T>::get(&obj_idx)?;

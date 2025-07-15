@@ -1,53 +1,54 @@
 # PoScan pallet (3DPRC-2 implementation)
 
-[3DPRC-2](https://github.com/3Dpass/whitepaper/blob/main/3DPRC-2.md) (3Dpass Request for Comments), proposed by PaulS in September 2023, is a standard p2p protocol for the tokenization of objects operating within “The Ledger of Things” decentralized blockchain platform. Substrate based.
+[3DPRC-2](https://github.com/3Dpass/whitepaper/blob/main/3DPRC-2.md) (3Dpass Request for Comments), proposed by PaulS in September 2023, is a standard p2p protocol for the authentication of objects operating within “The Ledger of Things”.
 
-The PoScan pallet is integrated into 3dpass network runtime providing the access to the network decentralized storage by means of the object tokenization API, which allows for:
+The PoScan pallet is integrated into 3dpass network runtime providing the access to the network decentralized storage by means of the object authentication API, which allows for:
 - the user object authentication and its protection from being copied to the extent for the recognition algorithm precision;
 - non-fungible digital asset creation;
 - property rights definition and its transfers;
-- backed cryptocurrency issuance (fungible tokens backed by the asset).
 
 ## API
 
 ### 1. poscan.putObject
 
-This method allows for users to put an object into the poScan storage. The object authentication procedure will be triggered, as well. Either, the object will be `Approved` or `NotApproved` as a result (see more THE OBJECT AUTHENTICATION PROTOCOL). 
+This method allows for users to put an object onto the poScan storage, which triggers the object authentication procedure resulting as either `Approved` or `NotApproved`. (see more THE OBJECT AUTHENTICATION PROTOCOL). 
 
 - If `Approved`, the object will be allowed for any further operation with the asset (property rights transfers, backed currency issuance, etc), and the copy protection will be applied. The object will be available on the network storage with all the authentication history data attached.
 
 - `NotApproved` keeps the object and all the authentication history data available on the network storage, however, all further operations will be prohibited, and the copy protection will not be applied.
 
-
 ```
 putObject(
-       category, 
-       obj, 
-       numApprovals,
-       hashes,
-       properties
+    category,
+    is_private,
+    obj,
+    numApprovals,
+    hashes,
+    properties,
+    is_replica,
+    original_obj,
+    sn_hash,
+    is_self_proved,
+    proof_of_existence,
+    ipfs_link
 )
 ```
 
-`category` - the object category: 
-- `Objects3D`: 
-   - `Grid2dLow` - Grid2d algorithm (low precision), preset: `-s 12 -g 8 -a grid2d_v3a` (see more [pass3d](https://github.com/3Dpass/pass3d) recognition toolkit to learn about Grid2D algo parameters) ,
-   - `Grid2dHigh` - Grid2d algorithm (high precision),
-- `Drawings2D`, 
-- `Music`, 
-- `Biometrics`, 
-- `Movements`, 
-- `Texts`
+**Parameters:**
+- `category`: The object category (e.g., `Objects3D:Grid2dLow`, `Objects3D:Grid2dHigh`, etc.).
+- `is_private`: Boolean. If true, the object is private and only accessible to permitted users.
+- `obj`: The object data to tokenize (e.g., a 3D model in .obj format), as a byte array.
+- `numApprovals`: Number of block author approvals required (u8, 1-255).
+- `hashes`: Optional. List of up to 10 object hashes (e.g., top 10 Grid2D output hashes).
+- `properties`: List of object properties for tokenization. Each property is `{ propIdx: u32, maxValue: u128 }`.
+- `is_replica`: Boolean. If true, this object is a replica of another.
+- `original_obj`: Optional. The object index of the original object if this is a replica.
+- `sn_hash`: Optional. Serial number hash for replicas (u64).
+- `is_self_proved`: Boolean. If true, the object is self-proved and skips estimation/approval.
+- `proof_of_existence`: Optional. Hash proving the object's existence (H256). Auto-calculated if not provided and `is_self_proved` is true.
+- `ipfs_link`: Optional. IPFS link to the object or related data (byte array, max 512 bytes).
 
-`obj ` - the object to tokenize (ex. 3D model in .obj format)
-
-`numApprovals: u8` - the number of confirmations in blocks to order (1-255). The object authentication loop will repeat itself as much times as it is requested
-
-`hashes: Option<Vec<H256>>`  - the hashes (10 at max) of the object HASH ID (ex. the top10 hashes Grid2D output)
-
-`properties: Vec<SpConsensusPoscanPropValue> (Vec<PropValue>)` - the list of the object properties, which might be used for its tokenization (Non-fungible, Share, Weight, Density, etc). Each property is defined by two parameters: 
-- `propIdx: u32` - the property index on the `poScan` module storage (ex, 0 - Non-fungible; 1 - Share)
-- `maxValue: u128` - Max Supply limit for tokens, backed by this property (might be issued afterwards, if having the object `Approved`). `maxValue: 1` is a must for the `propIdx: 0` (Non-fungible). A value in the format of `10^x` is a must for the `propIdx: 1`(Share). For example, `maxValue: 1000000` or `maxValue: 1000` are both correct, and the `maxValue: 2000000` or `maxValue: 1234567` are incorrect.   
+---
 
 ### 2. poscan_getPoscanObject
 
@@ -167,46 +168,251 @@ Whereas the following parameters supplied:
   - `propIdx: u32` - the property index on the `poScan` module storage (ex, `0` - Non-fungible; `1` - Share)
   - `maxValue: u128` - Max Supply limit for tokens, backed by this property (might be issued, if having the object `Approved`).
 
-### 3. poscan.setAlgoTime
+---
 
-This method allows to set up the time frame limit in seconds for the objets to get processed. This value can be set up by the Council vote only.
-
-```
-setAlgoTime(
-           algoTime: u32
-)
-
-```
-
-- `algoTime: u32` - the timeframe limit in seconds (10 seconds is set up by default)
-
-### 4. poscan.setFeePerByte
-
-This method allows to set up the object authentication fee. This value can be set up by the Council vote only.
-
-```
-setFeePerByte(
-            fee: u64
-)
-
-```
-- `fee: u64` - P3D/Byte for user to pay
-
-### 5. poscan.approve
+### 3. poscan.approve
 
 This method is utilized by new block authors (miners) to provide their judgement on objects “Estimated” (after the estimation procedure, performed by Validators, is completed successfully). If the estimation procedure was not successful or fully complete (ex, the object is still at “Estimating” or “Created”), the judgement and the block will be rejected by the majority of the network.
 
 ```
 approve(
-        author, 
-        objIdx, 
-        proof
+    author, 
+    objIdx, 
+    proof
 )
 ```
+**Parameters:**
+- `author`: AccountId of the block author (address).
+- `objIdx`: Index of the object to approve (u32).
+- `proof`: Optional. Zero-knowledge proof hash (H256).
 
-- `author: P3D address` - block author
-- `objIdx: u32` - the object index on the poScan storage
-- `proof: Option<H256>` - zero-knowledge proof of work hash (see more THE OBJECT AUTHENTICATION PROTOCOL)
+---
+
+### 6. poscan.inspectPutObject
+
+Submit an object for QC (Quality Control) inspection, specifying an inspector, inspector fee, and custom timeout. The object enters a QC inspection state and must be approved or rejected by the inspector.
+
+```
+inspectPutObject(
+    category,
+    is_private,
+    obj,
+    numApprovals,
+    hashes,
+    properties,
+    is_replica,
+    original_obj,
+    sn_hash,
+    inspector,
+    inspector_fee,
+    qc_timeout,
+    is_self_proved,
+    proof_of_existence,
+    ipfs_link
+)
+```
+**Parameters:**
+- All parameters as in `putObject`, plus:
+- `inspector`: AccountId of the inspector (address).
+- `inspector_fee`: Fee to be reserved and paid to the inspector (balance).
+- `qc_timeout`: Custom timeout (in blocks) for the QC inspection phase.
+
+---
+
+### 7. poscan.qcApprove
+
+Called by the inspector to approve an object under QC inspection. The inspector receives the reserved inspector fee.
+
+```
+qcApprove(
+    objIdx
+)
+```
+**Parameters:**
+- `objIdx`: Index of the object under QC inspection (u32).
+
+---
+
+### 8. poscan.qcReject
+
+Called by the inspector to reject an object under QC inspection. The inspector still receives the reserved inspector fee.
+
+```
+qcReject(
+    objIdx
+)
+```
+**Parameters:**
+- `objIdx`: Index of the object under QC inspection (u32).
+
+---
+
+### 9. poscan.setPrivateObjectPermissions
+
+Allows the owner of a private object to set or update permissions for who can create replicas of the object.
+
+```
+setPrivateObjectPermissions(
+    objIdx,
+    permissions
+)
+```
+**Parameters:**
+- `objIdx`: Index of the private object (u32).
+- `permissions`: List of permissions (who, until, max_copies, etc.).
+
+---
+
+### 10. poscan.transferObjectOwnership
+
+Transfers ownership of an object to another account, if allowed (e.g., no associated asset, not abdicated).
+
+```
+transferObjectOwnership(
+    objIdx,
+    newOwner
+)
+```
+**Parameters:**
+- `objIdx`: Index of the object to transfer (u32).
+- `newOwner`: AccountId of the new owner (address).
+
+---
+
+### 11. poscan.abdicateTheObjOwnership
+
+Allows the owner to irreversibly abdicate ownership of an object.
+
+```
+abdicateTheObjOwnership(
+    objIdx
+)
+```
+**Parameters:**
+- `objIdx`: Index of the object to abdicate (u32).
+
+---
+
+### 12. poscan.setAlgoTime
+
+Sets the maximum allowed time for object processing (Council/admin only).
+
+```
+setAlgoTime(
+    algoTime
+)
+```
+**Parameters:**
+- `algoTime`: Maximum allowed time for object processing (u32, in seconds).
+
+---
+
+### 13. poscan.setFeePerByte
+
+Sets the fee per byte for object authentication (Council/admin only).
+
+```
+setFeePerByte(
+    fee
+)
+```
+**Parameters:**
+- `fee`: Fee per byte for object authentication (u64).
+
+---
+
+### 14. poscan.addPropertyType
+
+Adds a new property type that can be associated with objects (admin only).
+
+```
+addPropertyType(
+    name,
+    class,
+    maxValue
+)
+```
+**Parameters:**
+- `name`: Name of the property (string/byte array, max 64 bytes).
+- `class`: Property class (e.g., Relative, Absolute).
+- `maxValue`: Maximum value for the property (u128).
+
+---
+
+### 15. poscan.setDynamicRewardsGrowthRate
+
+Sets the dynamic rewards growth rate for estimators (Council only).
+
+```
+setDynamicRewardsGrowthRate(
+    growthRate
+)
+```
+**Parameters:**
+- `growthRate`: Dynamic rewards growth rate (u32, recommended 1-100).
+
+---
+
+### 16. poscan.setRewards
+
+Sets the base rewards for object authentication (Council only).
+
+```
+setRewards(
+    rewards
+)
+```
+**Parameters:**
+- `rewards`: Base rewards for object authentication (balance).
+
+---
+
+### 17. poscan.unlockUnspentRewards
+
+Allows the fee payer to unlock and reclaim unspent rewards for a NotApproved object.
+
+```
+unlockUnspentRewards(
+    objIdx
+)
+```
+**Parameters:**
+- `objIdx`: Index of the NotApproved object (u32).
+
+---
+
+### 18. poscan.setAuthorPart
+
+Sets the percentage of rewards allocated to authors (Council only).
+
+```
+setAuthorPart(
+    part
+)
+```
+**Parameters:**
+- `part`: Percentage of rewards allocated to authors (Percent type).
+
+---
+
+## Dynamic Rewards Formula
+
+The PoScan pallet uses a dynamic rewards formula to incentivize validators based on the current queue size of objects waiting for processing. The formula increases rewards as the queue grows, encouraging faster processing during periods of high demand.
+
+**Formula:**
+
+```
+dynamic_rewards = base_rewards * (1 + sqrt(queue_size) / growth_rate)
+```
+
+- `base_rewards`: The base reward amount (set by governance).
+- `queue_size`: The number of objects currently in the queue (states: Created, Estimating, or QCInspecting).
+- `growth_rate`: A configurable parameter (set by governance) that controls how quickly rewards increase with queue size. Higher values mean slower growth.
+
+**Explanation:**
+- If there are no objects in the queue, the dynamic rewards equal the base rewards.
+- As the queue size increases, the rewards grow according to the square root of the queue size, divided by the growth rate.
+- This mechanism helps balance validator incentives and network throughput.
 
 ### License
 License: Unlicense
