@@ -138,6 +138,42 @@ impl IsFatalError for InherentError {
 	}
 }
 
+// --- MIGRATION SUPPORT: OldObjectState, OldApproval, and OldObjData for v2/v3 -> v4 migration ---
+#[derive(Encode, Decode, Clone, PartialEq)]
+pub enum OldObjectState<BlockNumber> {
+    Created(BlockNumber),
+    Estimating(BlockNumber),
+    Estimated(BlockNumber, u64),
+    Approved(BlockNumber),
+    NotApproved(BlockNumber),
+}
+
+#[derive(Encode, Decode, Clone, PartialEq)]
+pub struct OldApproval<AccountId, BlockNumber> {
+    pub account_id: AccountId,
+    pub when: BlockNumber,
+    pub proof: Option<H256>,
+}
+
+#[derive(Encode, Decode, Clone, PartialEq)]
+pub struct OldObjData<AccountId, BlockNumber> {
+    pub state: OldObjectState<BlockNumber>,
+    pub obj: BoundedVec<u8, ConstU32<MAX_OBJECT_SIZE>>,
+    pub compressed_with: Option<CompressWith>,
+    pub category: ObjectCategory,
+    pub is_private: bool,
+    pub hashes: BoundedVec<H256, ConstU32<MAX_OBJECT_HASHES>>,
+    pub when_created: BlockNumber,
+    pub when_approved: Option<BlockNumber>,
+    pub owner: AccountId,
+    pub estimators: BoundedVec<(AccountId, u64), ConstU32<MAX_ESTIMATORS>>,
+    pub est_outliers: BoundedVec<AccountId, ConstU32<MAX_ESTIMATORS>>,
+    pub approvers: BoundedVec<OldApproval<AccountId, BlockNumber>, ConstU32<MAX_ESTIMATORS>>,
+    pub num_approvals: u8,
+    pub est_rewards: u128,
+    pub author_rewards: u128,
+    pub prop: BoundedVec<PropValue, ConstU32<MAX_PROPERTIES>>,
+}
 
 #[frame_support::pallet]
 pub mod pallet {
@@ -508,82 +544,96 @@ pub mod pallet {
 		fn on_runtime_upgrade() -> frame_support::weights::Weight {
 			let onchain_version = Pallet::<T>::on_chain_storage_version();
 			log::info!(target: LOG_TARGET, "on_runtime_upgrade: onchain_version={:?}", &onchain_version);
-			
 			let mut weight = Weight::zero();
-			
-			// Handle migration from old mainnet version (v2) to new version (v4)
+
+			// Only run migration if onchain_version < 4
 			if onchain_version < 4 {
 				log::info!(target: LOG_TARGET, "on_runtime_upgrade: starting migration from v{:?} to v4", onchain_version);
-				
-				// First, handle the old v2 migration if needed
-			if onchain_version < 3 {
-					log::info!(target: LOG_TARGET, "on_runtime_upgrade: applying v3 migration first");
-				
-				// Migrate all objects to add replica, self-proved, fee_payer, inspector_fee, and qc_timeout fields
-				let _migrated_count = Objects::<T>::translate::<ObjData<T::AccountId, T::BlockNumber>, _>(|_key, mut obj| {
-					// Add replica fields
-					obj.is_replica = false;
-					obj.original_obj = None;
-                    obj.sn_hash = None;
-                    obj.inspector = None;
-                    obj.is_ownership_abdicated = false;
-					
-					// Add self-proved fields
-					obj.is_self_proved = false;
-					obj.proof_of_existence = None;
-                    obj.ipfs_link = None;
-					
-					// Add fee_payer field (initially same as owner)
-					obj.fee_payer = obj.owner.clone();
-					
-					// Add inspector_fee field (initially zero)
-					obj.inspector_fee = 0u128;
-					
-					// Add qc_timeout field (use default timeout)
-					obj.qc_timeout = T::ApproveTimeout::get();
-					
-					Some(obj)
+
+				// --- v2/v3 -> v4 migration: decode using OldObjData, map to new ObjData ---
+				let mut migrated_count = 0u32;
+				Objects::<T>::translate::<OldObjData<T::AccountId, T::BlockNumber>, _>(|_key, old_obj| {
+					migrated_count += 1;
+					// Convert OldObjectState to ObjectState
+					let new_state = match old_obj.state {
+						OldObjectState::Created(bn, ) => ObjectState::Created(bn),
+						OldObjectState::Estimating(bn) => ObjectState::Estimating(bn),
+						OldObjectState::Estimated(bn, t) => ObjectState::Estimated(bn, t),
+						OldObjectState::Approved(bn) => ObjectState::Approved(bn),
+						OldObjectState::NotApproved(bn) => ObjectState::NotApproved(bn),
+					};
+
+					// Convert OldApproval to Approval
+					let new_approvers = {
+						let mut v = BoundedVec::default();
+						for a in old_obj.approvers.into_iter() {
+							let _ = v.try_push(Approval {
+								account_id: a.account_id,
+								when: a.when,
+								proof: a.proof,
+							});
+						}
+						v
+					};
+
+					Some(ObjData::<T::AccountId, T::BlockNumber> {
+						state: new_state,
+						obj: old_obj.obj,
+						compressed_with: old_obj.compressed_with,
+						category: old_obj.category,
+						is_private: old_obj.is_private,
+						hashes: old_obj.hashes,
+						when_created: old_obj.when_created,
+						when_approved: old_obj.when_approved,
+						owner: old_obj.owner.clone(),
+						estimators: old_obj.estimators,
+						est_outliers: old_obj.est_outliers,
+						approvers: new_approvers,
+						num_approvals: old_obj.num_approvals,
+						est_rewards: old_obj.est_rewards,
+						author_rewards: old_obj.author_rewards,
+						prop: old_obj.prop,
+						// New fields in v4:
+						is_replica: false,
+						original_obj: None,
+						sn_hash: None,
+						inspector: None,
+						is_ownership_abdicated: false,
+						is_self_proved: false,
+						proof_of_existence: None,
+						ipfs_link: None,
+						fee_payer: old_obj.owner,
+						inspector_fee: 0u128,
+						qc_timeout: T::ApproveTimeout::get(),
+					})
 				});
-				
-					log::info!(target: LOG_TARGET, "on_runtime_upgrade: successfully migrated objects to v3");
-					weight = weight.saturating_add(1000u64);
-				}
-				
-				// Now apply v4 migration - add new storage fields and update reward system
-				log::info!(target: LOG_TARGET, "on_runtime_upgrade: applying v4 migration");
-				
-				// Initialize new storage fields with default values
-				// EstimatorsShare defaults to 70% (from old AuthorPart logic)
+				log::info!(target: LOG_TARGET, "on_runtime_upgrade: migrated {} objects to v4", migrated_count);
+				weight = weight.saturating_add(1000u64);
+
+				// Initialize new storage fields with default values if needed
 				let author_part = AuthorPart::<T>::get().unwrap_or(T::AuthorPartDefault::get());
 				AuthorPart::<T>::put(author_part);
 				log::info!(target: LOG_TARGET, "on_runtime_upgrade: initialized AuthorPart to {:?}", author_part);
-				
-				// DynamicRewardsGrowthRate defaults to 100
+
 				if DynamicRewardsGrowthRate::<T>::get().is_none() {
 					DynamicRewardsGrowthRate::<T>::put(100u32);
 					log::info!(target: LOG_TARGET, "on_runtime_upgrade: initialized DynamicRewardsGrowthRate to 100");
 				}
-				
-				// PendingStorageFees starts at zero
+
 				PendingStorageFees::<T>::put(BalanceOf::<T>::zero());
 				log::info!(target: LOG_TARGET, "on_runtime_upgrade: initialized PendingStorageFees to zero");
-				
+
 				// Update storage version to v4
 				StorageVersion::new(4).put::<Pallet::<T>>();
-				
 				log::info!(target: LOG_TARGET, "on_runtime_upgrade: successfully migrated to v4 with new storage fields and reward system");
-				
-				// Add weight for migration operations
-				weight = weight.saturating_add(2000u64);
-			}
-			
-			// After all other migration logic, populate ProofToObjectIdx for all objects with proof_of_existence
-			for (obj_idx, obj_data) in Objects::<T>::iter() {
-				if let Some(proof) = obj_data.proof_of_existence {
-					ProofToObjectIdx::<T>::insert(proof, obj_idx);
+
+				// After all other migration logic, populate ProofToObjectIdx for all objects with proof_of_existence
+				for (obj_idx, obj_data) in Objects::<T>::iter() {
+					if let Some(proof) = obj_data.proof_of_existence {
+						ProofToObjectIdx::<T>::insert(proof, obj_idx);
+					}
 				}
 			}
-			
 			weight
 		}
 	}
