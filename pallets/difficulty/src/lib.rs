@@ -87,7 +87,7 @@ decl_module! {
 			RuntimeLogger::init();
 
 			if PalletVersion::get() == 0 {
-				Scale::put(1_000_000);
+				// Scale::put(1_000_000);
 				PalletVersion::put(1);
 				T::DbWeight::get().reads_writes(1, 1)
 			}
