@@ -138,14 +138,14 @@ impl IsFatalError for InherentError {
 	}
 }
 
-// --- MIGRATION SUPPORT: OldObjectState, OldApproval, and OldObjData for v2/v3 -> v4 migration ---
+// --- MIGRATION SUPPORT: OldObjectState for v2/v3 -> v4 migration ---
 #[derive(Encode, Decode, Clone, PartialEq)]
 pub enum OldObjectState<BlockNumber> {
     Created(BlockNumber),
     Estimating(BlockNumber),
     Estimated(BlockNumber, u64),
-    Approved(BlockNumber),
     NotApproved(BlockNumber),
+    Approved(BlockNumber),
 }
 
 #[derive(Encode, Decode, Clone, PartialEq)]
@@ -554,13 +554,13 @@ pub mod pallet {
 				let mut migrated_count = 0u32;
 				Objects::<T>::translate::<OldObjData<T::AccountId, T::BlockNumber>, _>(|_key, old_obj| {
 					migrated_count += 1;
-					// Convert OldObjectState to ObjectState
+					// Map old 5-variant state to new 9-variant state explicitly
 					let new_state = match old_obj.state {
-						OldObjectState::Created(bn, ) => ObjectState::Created(bn),
+						OldObjectState::Created(bn) => ObjectState::Created(bn),
 						OldObjectState::Estimating(bn) => ObjectState::Estimating(bn),
 						OldObjectState::Estimated(bn, t) => ObjectState::Estimated(bn, t),
-						OldObjectState::Approved(bn) => ObjectState::Approved(bn),
 						OldObjectState::NotApproved(bn) => ObjectState::NotApproved(bn),
+						OldObjectState::Approved(bn) => ObjectState::Approved(bn),
 					};
 
 					// Convert OldApproval to Approval
