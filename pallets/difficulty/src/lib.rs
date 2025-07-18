@@ -87,7 +87,7 @@ decl_module! {
 			RuntimeLogger::init();
 
 			if PalletVersion::get() == 0 {
-				// Scale::put(1_000_000);
+				// Scale::put(1_000_000); Must be uncommented for Mainnet! This was commented out for Testnet only to prevent consensus from falling apart at low difficully on runtime upgrade. 
 				PalletVersion::put(1);
 				T::DbWeight::get().reads_writes(1, 1)
 			}

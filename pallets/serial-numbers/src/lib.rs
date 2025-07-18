@@ -88,6 +88,7 @@ pub mod pallet {
         SerialNumberNotFound,
         SerialNumberExpired,
         SerialNumberAlreadyUsed,
+        SerialNumberAlreadyExists, // <-- Add this error
         NotOwner,
         TooManySerialNumbersPerBlock,
         InvalidBlockIndex,
@@ -111,7 +112,7 @@ pub mod pallet {
             // Generate deterministic serial number
             let sn_hash = Self::generate_serial_number(&who, &block_hash, block_index);
             // Check if this serial number already exists (shouldn't happen with proper indexing)
-            ensure!(!SNByHash::<T>::contains_key(sn_hash), Error::<T>::SerialNumberNotFound);
+            ensure!(!SNByHash::<T>::contains_key(sn_hash), Error::<T>::SerialNumberAlreadyExists);
             let sn_index = SNCount::<T>::get();
             // Store serial number details
             let details = SerialNumberDetails::<T> {

@@ -46,7 +46,7 @@ use serde::{Serialize, Deserialize};
 pub const POSCAN_ENGINE_ID: ConsensusEngineId = [b'p', b'o', b's', b'c'];
 pub const POSCAN_SEAL_V1_ID: ConsensusEngineId = POSCAN_ENGINE_ID;
 pub const POSCAN_SEAL_V2_ID: ConsensusEngineId = [b'p', b's', b'c', b'2'];
-pub const POSCAN_COIN_ID: u8 = 72;
+pub const POSCAN_COIN_ID: u8 = 72; // The addresses format is now set to Testnet (ss58Format: 72). Must be changed to 71 for Mainnet!  
 
 pub const POSCAN_ALGO_GRID2D: [u8; 16] = *b"grid2d-1.1      ";
 pub const POSCAN_ALGO_GRID2D_V2: [u8; 16] = *b"grid2d-1.2      ";
