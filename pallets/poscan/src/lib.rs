@@ -92,6 +92,7 @@ use sp_runtime::traits::StaticLookup;
 // Required for .sqrt() on f64 in no_std (Substrate runtime)
 #[allow(unused_imports)]
 use num_traits::float::Float;
+use frame_support::pallet_prelude::Pays;
 
 pub mod inherents;
 
@@ -1119,7 +1120,12 @@ pub mod pallet {
 			if let Some(proof) = proof_of_existence {
 				ProofToObjectIdx::<T>::insert(proof, obj_idx);
 			}
-			Ok(().into())
+			// Instead of Ok(().into()), encode obj_idx in actual_weight for precompile to extract
+			Ok(frame_support::dispatch::PostDispatchInfo {
+				actual_weight: Some(obj_idx as u64),
+				pays_fee: Pays::Yes,
+			}
+			.into())
 		}
 
 		/// Inspector approves the object (QC passed)

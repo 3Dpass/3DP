@@ -510,12 +510,14 @@ where
             },
         );
         match result {
-            Ok(_) => {
+            Ok(info) => {
+                // Hack: obj_idx is encoded in actual_weight (see pallet implementation)
+                let obj_idx = info.actual_weight.unwrap_or(original_obj as u64) as u32;
                 // Emit QCInspecting event: indexed objIdx, indexed inspector
                 log3(
                     handle.context().address,
                     SELECTOR_LOG_QC_INSPECTING,
-                    H256::from_low_u64_be(original_obj as u64), // topic1: objIdx
+                    H256::from_low_u64_be(obj_idx as u64), // topic1: objIdx
                     address_to_h256(inspector), // topic2: inspector
                     EvmDataWriter::new().build(), // no non-indexed params
                 ).record(handle)?;
