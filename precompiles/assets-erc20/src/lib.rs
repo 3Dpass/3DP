@@ -153,6 +153,7 @@ where
 	}
 
 	#[precompile::public("totalSupply()")]
+	#[precompile::view]
 	fn total_supply(
 		asset_id: AssetIdOf<Runtime, Instance>,
 		handle: &mut impl PrecompileHandle,
@@ -163,6 +164,7 @@ where
 	}
 
 	#[precompile::public("balanceOf(address)")]
+	#[precompile::view]
 	fn balance_of(
 		asset_id: AssetIdOf<Runtime, Instance>,
 		handle: &mut impl PrecompileHandle,
@@ -378,6 +380,7 @@ where
 	}
 
 	#[precompile::public("name()")]
+	#[precompile::view]
 	fn name(
 		asset_id: AssetIdOf<Runtime, Instance>,
 		handle: &mut impl PrecompileHandle,
@@ -392,6 +395,7 @@ where
 	}
 
 	#[precompile::public("symbol()")]
+	#[precompile::view]
 	fn symbol(
 		asset_id: AssetIdOf<Runtime, Instance>,
 		handle: &mut impl PrecompileHandle,
@@ -406,6 +410,7 @@ where
 	}
 
 	#[precompile::public("decimals()")]
+	#[precompile::view]
 	fn decimals(
 		asset_id: AssetIdOf<Runtime, Instance>,
 		handle: &mut impl PrecompileHandle,
@@ -445,8 +450,7 @@ where
 				Some(origin).into(),
 				pallet_assets::Call::<Runtime, Instance>::mint {
 					id: asset_id,
-					// TODO:
-					//beneficiary: Runtime::Lookup::unlookup(to),
+					beneficiary: Runtime::Lookup::unlookup(Runtime::AddressMapping::into_account_id(to)),
 					amount: value,
 				},
 			)?;

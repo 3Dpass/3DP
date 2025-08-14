@@ -156,7 +156,6 @@ use frame_support::{
 use frame_system::Config as SystemConfig;
 
 use poscan_api::PoscanApi;
-use sp_core::H256;
 
 pub use pallet::*;
 pub use weights::WeightInfo;
@@ -693,11 +692,11 @@ pub mod pallet {
 		pub fn mint(
 			origin: OriginFor<T>,
 			#[pallet::compact] id: T::AssetId,
-			// beneficiary: <T::Lookup as StaticLookup>::Source,
+			beneficiary: <T::Lookup as StaticLookup>::Source,
 			#[pallet::compact] amount: T::Balance,
 		) -> DispatchResult {
 			let origin = ensure_signed(origin)?;
-			// let beneficiary = T::Lookup::lookup(beneficiary)?;
+			let beneficiary = T::Lookup::lookup(beneficiary)?;
 
 			let asset = Asset::<T, I>::get(&id).ok_or(Error::<T, I>::AssetNotFound)?;
 
@@ -706,7 +705,7 @@ pub mod pallet {
 				let prop = T::Poscan::property(obj_details.obj_idx, obj_details.prop_idx).ok_or(Error::<T, I>::InvalidObjectProperty)?;
 				ensure!(asset.supply.saturating_add(amount).saturated_into::<u128>() <= prop.max_value, Error::<T, I>::MintUpperMaxSupply);
 			}
-			Self::do_mint(id, &origin, amount, Some(origin.clone()))?;
+			Self::do_mint(id, &beneficiary, amount, Some(origin.clone()))?;
 
 			Ok(())
 		}
@@ -1427,6 +1426,7 @@ pub mod pallet {
 			Account::<T, I>::contains_key(asset, who)
 		}
 	}
+
 }
 
 // PoscanApi implementation for Pallet<T, I>
@@ -1456,5 +1456,5 @@ impl<T: Config<I>, I: 'static> poscan_api::PoscanApi<T::AccountId, T::BlockNumbe
     fn get_rewards() -> Option<u128> { None }
     fn get_qc_timeout(_obj_idx: u32) -> Option<u32> { None }
 
-    fn get_object_idx_by_proof_of_existence(_proof: H256) -> Option<u32> { None }
+    fn get_object_idx_by_proof_of_existence(_proof: sp_core::H256) -> Option<u32> { None }
 }
