@@ -39,14 +39,14 @@ ExistenceReason<DepositBalanceOf<T, I>, <T as SystemConfig>::AccountId>;
 
 #[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
 pub struct ObjDetails<Balance> {
-	pub(super) obj_idx: ObjIdx,
-	pub(super) prop_idx: PropIdx,
-	pub(super) max_supply: Balance,
+	pub obj_idx: ObjIdx,
+	pub prop_idx: PropIdx,
+	pub max_supply: Balance,
 	// pub(super) decimals: Balance,
 }
 
 #[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
-pub(super) enum AssetStatus {
+pub enum AssetStatus {
 	/// The asset is active and able to be used.
 	Live,
 	/// Whether the asset is frozen for non-admin transfers.

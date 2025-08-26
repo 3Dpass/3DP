@@ -793,6 +793,180 @@ where
 		<Eip2612<Runtime, IsLocal, Instance>>::domain_separator(asset_id, handle)
 	}
 
+	// New query functions for asset data
+
+	#[precompile::public("isOwner(address)")]
+	#[precompile::view]
+	fn is_owner(
+		asset_id: AssetIdOf<Runtime, Instance>,
+		handle: &mut impl PrecompileHandle,
+		account: Address,
+	) -> EvmResult<bool> {
+		handle.record_cost(RuntimeHelper::<Runtime>::db_read_gas_cost())?;
+
+		let account: H160 = account.into();
+		let account_id: Runtime::AccountId = Runtime::AddressMapping::into_account_id(account);
+
+		// Get asset owner using public method
+		let owner = pallet_assets::Pallet::<Runtime, Instance>::owner(asset_id)
+			.ok_or(RevertReason::UnknownSelector)?;
+
+		Ok(owner == account_id)
+	}
+
+	#[precompile::public("isIssuer(address)")]
+	#[precompile::view]
+	fn is_issuer(
+		asset_id: AssetIdOf<Runtime, Instance>,
+		handle: &mut impl PrecompileHandle,
+		account: Address,
+	) -> EvmResult<bool> {
+		handle.record_cost(RuntimeHelper::<Runtime>::db_read_gas_cost())?;
+
+		let account: H160 = account.into();
+		let account_id: Runtime::AccountId = Runtime::AddressMapping::into_account_id(account);
+
+		// Get asset issuer using public method
+		let issuer = pallet_assets::Pallet::<Runtime, Instance>::issuer(asset_id)
+			.ok_or(RevertReason::UnknownSelector)?;
+
+		Ok(issuer == account_id)
+	}
+
+	#[precompile::public("isAdmin(address)")]
+	#[precompile::view]
+	fn is_admin(
+		asset_id: AssetIdOf<Runtime, Instance>,
+		handle: &mut impl PrecompileHandle,
+		account: Address,
+	) -> EvmResult<bool> {
+		handle.record_cost(RuntimeHelper::<Runtime>::db_read_gas_cost())?;
+
+		let account: H160 = account.into();
+		let account_id: Runtime::AccountId = Runtime::AddressMapping::into_account_id(account);
+
+		// Get asset admin using public method
+		let admin = pallet_assets::Pallet::<Runtime, Instance>::admin(asset_id)
+			.ok_or(RevertReason::UnknownSelector)?;
+
+		Ok(admin == account_id)
+	}
+
+	#[precompile::public("isFreezer(address)")]
+	#[precompile::view]
+	fn is_freezer(
+		asset_id: AssetIdOf<Runtime, Instance>,
+		handle: &mut impl PrecompileHandle,
+		account: Address,
+	) -> EvmResult<bool> {
+		handle.record_cost(RuntimeHelper::<Runtime>::db_read_gas_cost())?;
+
+		let account: H160 = account.into();
+		let account_id: Runtime::AccountId = Runtime::AddressMapping::into_account_id(account);
+
+		// Get asset freezer using public method
+		let freezer = pallet_assets::Pallet::<Runtime, Instance>::freezer(asset_id)
+			.ok_or(RevertReason::UnknownSelector)?;
+
+		Ok(freezer == account_id)
+	}
+
+	#[precompile::public("status()")]
+	#[precompile::view]
+	fn status(
+		asset_id: AssetIdOf<Runtime, Instance>,
+		handle: &mut impl PrecompileHandle,
+	) -> EvmResult<UnboundedBytes> {
+		handle.record_cost(RuntimeHelper::<Runtime>::db_read_gas_cost())?;
+
+		// Get asset status using public method
+		let asset_status = pallet_assets::Pallet::<Runtime, Instance>::status(asset_id)
+			.ok_or(RevertReason::UnknownSelector)?;
+
+		let status_str = match asset_status {
+			pallet_assets::AssetStatus::Live => "Live",
+			pallet_assets::AssetStatus::Frozen => "Frozen",
+			pallet_assets::AssetStatus::Destroying => "Destroying",
+		};
+
+		Ok(status_str.as_bytes().into())
+	}
+
+	#[precompile::public("reserved()")]
+	#[precompile::view]
+	fn reserved(
+		asset_id: AssetIdOf<Runtime, Instance>,
+		handle: &mut impl PrecompileHandle,
+	) -> EvmResult<U256> {
+		handle.record_cost(RuntimeHelper::<Runtime>::db_read_gas_cost())?;
+
+		// Get asset reserved amount using public method
+		let reserved_amount = pallet_assets::Pallet::<Runtime, Instance>::reserved(asset_id);
+
+		Ok(reserved_amount.into())
+	}
+
+	#[precompile::public("minBalance()")]
+	#[precompile::view]
+	fn min_balance(
+		asset_id: AssetIdOf<Runtime, Instance>,
+		handle: &mut impl PrecompileHandle,
+	) -> EvmResult<U256> {
+		handle.record_cost(RuntimeHelper::<Runtime>::db_read_gas_cost())?;
+
+		// Get asset minimum balance using public method
+		let min_balance = pallet_assets::Pallet::<Runtime, Instance>::min_balance(asset_id);
+
+		Ok(min_balance.into())
+	}
+
+	#[precompile::public("reservedOf(address)")]
+	#[precompile::view]
+	fn reserved_of(
+		asset_id: AssetIdOf<Runtime, Instance>,
+		handle: &mut impl PrecompileHandle,
+		account: Address,
+	) -> EvmResult<U256> {
+		handle.record_cost(RuntimeHelper::<Runtime>::db_read_gas_cost())?;
+
+		let account: H160 = account.into();
+		let account_id: Runtime::AccountId = Runtime::AddressMapping::into_account_id(account);
+
+		// Get reserved amount for the account using public method
+		let reserved_amount = pallet_assets::Pallet::<Runtime, Instance>::reserved_of(asset_id, &account_id);
+
+		Ok(reserved_amount.into())
+	}
+
+	#[precompile::public("objDetails()")]
+	#[precompile::view]
+	fn obj_details(
+		asset_id: AssetIdOf<Runtime, Instance>,
+		handle: &mut impl PrecompileHandle,
+	) -> EvmResult<(bool, u8, u8, U256)> {
+		handle.record_cost(RuntimeHelper::<Runtime>::db_read_gas_cost())?;
+
+		// Get object details using public method
+		match pallet_assets::Pallet::<Runtime, Instance>::obj_details(asset_id) {
+			Some(obj_details) => {
+				Ok((
+					true, // isValid
+					obj_details.obj_idx as u8,
+					obj_details.prop_idx as u8,
+					obj_details.max_supply.into(),
+				))
+			}
+			None => {
+				Ok((
+					false, // isValid
+					0,     // objIdx
+					0,     // propIdx
+					U256::zero(), // maxSupply
+				))
+			}
+		}
+	}
+
 	fn u256_to_amount(value: U256) -> MayRevert<BalanceOf<Runtime, Instance>> {
 		value
 			.try_into()
