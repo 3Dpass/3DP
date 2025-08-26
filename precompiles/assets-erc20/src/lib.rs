@@ -81,16 +81,16 @@ pub trait AccountIdAssetIdConversion<Account, AssetId> {
 /// The following distribution has been decided for the precompiles
 /// 0-1023: Ethereum Mainnet Precompiles
 /// 1024-2047 Precompiles that are not in Ethereum Mainnet but are neither Moonbeam specific
-/// 2048-4095 Moonbeam specific precompiles
+/// 2048-4095 3DPass specific precompiles
 /// Asset precompiles can only fall between
-/// 	0xFFFFFFFF00000000000000000000000000000000 - 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF
-/// The precompile for AssetId X, where X is a u128 (i.e.16 bytes), if 0XFFFFFFFF + Bytes(AssetId)
+/// 	0xFBFBFBFA00000000000000000000000000000000 - 0xFBFBFBFAFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF
+/// The precompile for AssetId X, where X is a u128 (i.e.16 bytes), if 0xFBFBFBFA + Bytes(AssetId)
 /// In order to route the address to Erc20AssetsPrecompile<R>, we first check whether the AssetId
 /// exists in pallet-assets
 /// We cannot do this right now, so instead we check whether the total supply is zero. If so, we
 /// do not route to the precompiles
 
-/// This means that every address that starts with 0xFFFFFFFF will go through an additional db read,
+/// This means that every address that starts with 0xFBFBFBFA will go through an additional db read,
 /// but the probability for this to happen is 2^-32 for random addresses
 pub struct Erc20AssetsPrecompileSet<Runtime, IsLocal, Instance: 'static = ()>(
 	PhantomData<(Runtime, IsLocal, Instance)>,
@@ -185,6 +185,7 @@ where
 	}
 
 	#[precompile::public("allowance(address,address)")]
+	#[precompile::view]
 	fn allowance(
 		asset_id: AssetIdOf<Runtime, Instance>,
 		handle: &mut impl PrecompileHandle,
