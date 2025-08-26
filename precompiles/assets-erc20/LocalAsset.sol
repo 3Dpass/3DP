@@ -65,4 +65,55 @@ interface LocalAsset {
     /// @dev Clear the name, symbol and decimals of your asset
     /// @custom:selector efb6d432
     function clearMetadata() external returns (bool);
+
+    // New query functions for asset data
+
+    /// @dev Check if an account is the owner of the asset
+    /// @custom:selector 8f4eb604
+    /// @param account address The account to check
+    /// @return bool True if the account is the owner
+    function isOwner(address account) external view returns (bool);
+
+    /// @dev Check if an account is the issuer of the asset
+    /// @custom:selector 8f4eb605
+    /// @param account address The account to check
+    /// @return bool True if the account is the issuer
+    function isIssuer(address account) external view returns (bool);
+
+    /// @dev Check if an account is the admin of the asset
+    /// @custom:selector 8f4eb606
+    /// @param account address The account to check
+    /// @return bool True if the account is the admin
+    function isAdmin(address account) external view returns (bool);
+
+    /// @dev Check if an account is the freezer of the asset
+    /// @custom:selector 8f4eb607
+    /// @param account address The account to check
+    /// @return bool True if the account is the freezer
+    function isFreezer(address account) external view returns (bool);
+
+    /// @dev Get the status of the asset
+    /// @custom:selector 8f4eb608
+    /// @return string The status of the asset ("Live", "Frozen", "Destroying")
+    function status() external view returns (string memory);
+
+    /// @dev Get the reserved amount for the asset
+    /// @custom:selector 8f4eb609
+    /// @return uint256 The reserved amount
+    function reserved() external view returns (uint256);
+
+    /// @dev Get the minimum balance required for the asset
+    /// @custom:selector 8f4eb60a
+    /// @return uint256 The minimum balance
+    function minBalance() external view returns (uint256);
+
+    /// @dev Get the reserved amount for a specific account
+    /// @custom:selector 8f4eb60b
+    /// @param account address The account to check
+    /// @return uint256 The reserved amount for the account
+    function reservedOf(address account) external view returns (uint256);
+
+    /// @dev Get the object details if the asset is backed by a poscan object
+    /// @custom:selector 8f4eb60c
+    function objDetails() external view returns (bool isValid, uint8 objIdx, uint8 propIdx, uint256 maxSupply);
 }
