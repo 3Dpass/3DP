@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 pragma solidity >=0.8.3;
 
-/// @author The Moonbeam Team
+/// @author The 3DPass Team
 /// @title Extension of the ERC20 interface that allows an owner
 /// @dev Contract to pilot the ERC20 contract.
 interface LocalAsset {
@@ -66,7 +66,7 @@ interface LocalAsset {
     /// @custom:selector efb6d432
     function clearMetadata() external returns (bool);
 
-    // New query functions for asset data
+    // Additional query functions for the asset data
 
     /// @dev Check if an account is the owner of the asset
     /// @custom:selector 8f4eb604
