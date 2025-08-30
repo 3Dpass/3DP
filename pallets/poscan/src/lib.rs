@@ -35,20 +35,29 @@ use frame_support::{
 		LockIdentifier,
 		WithdrawReasons,
 		LockableCurrency,
+		ReservableCurrency,
 		Currency,
 		ExistenceRequirement,
 	},
 	pallet_prelude::*,
 };
 
+// Import the same permission structure as used in rewards pallet
+// use frame_support::traits::EitherOfDiverse;
+// use frame_system::EnsureRoot;
+// use pallet_collective::EnsureProportionAtLeast;
+use frame_support::traits::BalanceStatus;
+
 use sp_runtime::SaturatedConversion;
 pub use sp_runtime::Percent;
-use sp_runtime::traits::{Saturating, Zero};
+use sp_runtime::traits::{Saturating, Zero, Hash};
+use serial_numbers_api::SerialNumbersApi;
 
 // use sp_core::crypto::AccountId32;
 use sp_core::H256;
 use sp_core::offchain::Duration;
 use sp_inherents::IsFatalError;
+use sp_runtime::traits::BlakeTwo256;
 
 use poscan_api::PoscanApi;
 use validator_set_api::ValidatorSetApi;
@@ -61,12 +70,10 @@ use sp_consensus_poscan::{
 	CompressWith,
 	Approval,
 	ObjData,
-	OldObjData,
 	ObjIdx,
 	POSCAN_ALGO_GRID2D_V3A,
 	MAX_OBJECT_SIZE,
 	MAX_PROPERTIES,
-	PROP_NAME_LEN,
 	DEFAULT_OBJECT_HASHES,
 	MAX_OBJECT_HASHES,
 	DEFAULT_MAX_ALGO_TIME,
@@ -76,7 +83,16 @@ use sp_consensus_poscan::{
 	Property,
 	PropClass,
 	PropValue,
+	CopyPermission,
+	DOLLARS,
 };
+
+use sp_runtime::traits::StaticLookup;
+
+// Required for .sqrt() on f64 in no_std (Substrate runtime)
+#[allow(unused_imports)]
+use num_traits::float::Float;
+use frame_support::pallet_prelude::Pays;
 
 pub mod inherents;
 
@@ -95,6 +111,9 @@ pub type BalanceOf<T> =
 const LOCK_ID: LockIdentifier = *b"poscan  ";
 
 pub const LOG_TARGET: &str = "runtime::poscan";
+
+// Add this constant near the top of the file, after the existing constants
+// Note: We use 2/3 consensus threshold from the old version instead of fixed minimum
 
 #[derive(Encode, sp_runtime::RuntimeDebug)]
 #[cfg_attr(feature = "std", derive(Decode, thiserror::Error))]
@@ -120,6 +139,42 @@ impl IsFatalError for InherentError {
 	}
 }
 
+// --- MIGRATION SUPPORT: OldObjectState for v2/v3 -> v4 migration ---
+#[derive(Encode, Decode, Clone, PartialEq)]
+pub enum OldObjectState<BlockNumber> {
+    Created(BlockNumber),
+    Estimating(BlockNumber),
+    Estimated(BlockNumber, u64),
+    NotApproved(BlockNumber),
+    Approved(BlockNumber),
+}
+
+#[derive(Encode, Decode, Clone, PartialEq)]
+pub struct OldApproval<AccountId, BlockNumber> {
+    pub account_id: AccountId,
+    pub when: BlockNumber,
+    pub proof: Option<H256>,
+}
+
+#[derive(Encode, Decode, Clone, PartialEq)]
+pub struct OldObjData<AccountId, BlockNumber> {
+    pub state: OldObjectState<BlockNumber>,
+    pub obj: BoundedVec<u8, ConstU32<MAX_OBJECT_SIZE>>,
+    pub compressed_with: Option<CompressWith>,
+    pub category: ObjectCategory,
+    pub is_private: bool,
+    pub hashes: BoundedVec<H256, ConstU32<MAX_OBJECT_HASHES>>,
+    pub when_created: BlockNumber,
+    pub when_approved: Option<BlockNumber>,
+    pub owner: AccountId,
+    pub estimators: BoundedVec<(AccountId, u64), ConstU32<MAX_ESTIMATORS>>,
+    pub est_outliers: BoundedVec<AccountId, ConstU32<MAX_ESTIMATORS>>,
+    pub approvers: BoundedVec<OldApproval<AccountId, BlockNumber>, ConstU32<MAX_ESTIMATORS>>,
+    pub num_approvals: u8,
+    pub est_rewards: u128,
+    pub author_rewards: u128,
+    pub prop: BoundedVec<PropValue, ConstU32<MAX_PROPERTIES>>,
+}
 
 #[frame_support::pallet]
 pub mod pallet {
@@ -158,14 +213,24 @@ pub mod pallet {
 		#[pallet::constant]
 		type AuthorPartDefault: Get<Percent>;
 
-		type Currency: LockableCurrency<Self::AccountId>;
+		#[pallet::constant]
+		type DynamicRewardsGrowthRate: Get<u32>;
+
+		type Currency: LockableCurrency<Self::AccountId> + ReservableCurrency<Self::AccountId>;
 
 		type ValidatorSet: ValidatorSetApi<Self::AccountId, Self::BlockNumber, BalanceOf::<Self>>;
 
 		// #[pallet::constant]MAX_OBJECT_SIZE Get<u32>;
+        /// Serial numbers API provider
+        type SerialNumbers: serial_numbers_api::SerialNumbersApi<Self::AccountId>;
+        		/// poscanAssets API provider
+        type PoscanAssets: poscan_api::PoscanApi<Self::AccountId, Self::BlockNumber>;
+        
+        /// Origin for council control functions
+        type CouncilOrigin: EnsureOrigin<Self::Origin>;
 	}
 
-	const STORAGE_VERSION: StorageVersion = StorageVersion::new(2);
+	const STORAGE_VERSION: StorageVersion = StorageVersion::new(4);
 
 	#[pallet::pallet]
 	#[pallet::generate_store(pub(super) trait Store)]
@@ -175,6 +240,10 @@ pub mod pallet {
 	#[pallet::storage]
 	#[pallet::getter(fn owners)]
 	pub type Owners<T: Config> = StorageMap<_, Twox64Concat, T::AccountId, BoundedVec<ObjIdx, ConstU32<100>>, ValueQuery>;
+
+	#[pallet::storage]
+	#[pallet::getter(fn objects_of_inspector)]
+	pub type ObjectsOfInspector<T: Config> = StorageMap<_, Twox64Concat, T::AccountId, BoundedVec<ObjIdx, ConstU32<100>>, ValueQuery>;
 
 	#[pallet::storage]
 	#[pallet::getter(fn obj_count)]
@@ -212,6 +281,22 @@ pub mod pallet {
 	#[pallet::getter(fn fee_per_byte)]
 	pub type FeePerByte<T> = StorageValue<_, u64, OptionQuery>;
 
+	#[pallet::storage]
+	#[pallet::getter(fn dynamic_rewards_growth_rate)]
+	pub type DynamicRewardsGrowthRate<T> = StorageValue<_, u32, OptionQuery>;
+
+	#[pallet::storage]
+	#[pallet::getter(fn pending_storage_fees)]
+	pub type PendingStorageFees<T> = StorageValue<_, BalanceOf<T>, ValueQuery>;
+
+	#[pallet::storage]
+	#[pallet::getter(fn private_object_permissions)]
+	pub type PrivateObjectPermissions<T: Config> = StorageMap<_, Twox64Concat, ObjIdx, BoundedVec<CopyPermission<T::AccountId, T::BlockNumber>, ConstU32<32>>, ValueQuery>;
+
+	#[pallet::storage]
+	#[pallet::getter(fn proof_to_object_idx)]
+	pub type ProofToObjectIdx<T: Config> = StorageMap<_, Twox64Concat, H256, ObjIdx, OptionQuery>;
+
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(super) fn deposit_event)]
 	pub enum Event<T: Config> {
@@ -221,6 +306,34 @@ pub mod pallet {
 		ObjApproved(ObjIdx),
 		/// Event emitted when an object has not been approved (expired).
 		ObjNotApproved(ObjIdx, NotApprovedReason),
+        /// Event emitted when an object enters QC inspection
+        QCInspecting(ObjIdx, T::AccountId),
+        /// Event emitted when an object passes QC
+        QCPassed(ObjIdx, T::AccountId),
+        /// Event emitted when an object is rejected by QC
+        QCRejected(ObjIdx, T::AccountId),
+        /// Event emitted when object ownership is transferred
+        ObjectOwnershipTransferred(ObjIdx, T::AccountId, T::AccountId),
+        /// Event emitted when object ownership is abdicated
+        ObjectOwnershipAbdicated(ObjIdx, T::AccountId),
+        /// Event emitted when verification fee is charged from fee payer
+        VerificationFeeCharged(ObjIdx, T::AccountId, BalanceOf<T>),
+        /// Event emitted when dynamic rewards growth rate is set
+        DynamicRewardsGrowthRateSet(u32),
+        /// Event emitted when inspector fee is paid
+        InspectorFeePaid(ObjIdx, T::AccountId, BalanceOf<T>),
+        /// Event emitted when object is estimated
+        ObjEstimated(ObjIdx),
+        /// Event emitted when unspent rewards are unlocked
+        UnspentRewardsUnlocked(ObjIdx, T::AccountId, BalanceOf<T>),
+        /// Event emitted when storage fees are distributed to validators
+        StorageFeesDistributed(BalanceOf<T>),
+        /// Event emitted when author part is set
+        AuthorPartSet(Percent),
+        /// Event emitted when rewards are set
+        RewardsSet(BalanceOf<T>),
+        /// Event emitted when QC inspection times out and inspector fee is unreserved
+        QCInspectionTimeout(ObjIdx, T::AccountId, BalanceOf<T>),
 	}
 
 	// Errors inform users that something went wrong.
@@ -252,6 +365,48 @@ pub mod pallet {
 		InvalidPropValue,
 		/// Share property must be multiple 10
 		InvalidSharePropValue,
+		/// Not permitted to create replica
+		NotPermitted,
+		/// License period expired
+		LicenseExpired,
+		/// Replica must match at least one hash
+		NotAReplica,
+		/// Original object not found
+		OriginalNotFound,
+		/// Too many permissions
+		TooManyPermissions,
+		/// Cannot create replica of not approved object
+		OriginalNotApproved,
+        /// Serial number does not exist
+        SerialNumberNotFound,
+        /// Serial number already used
+        SerialNumberAlreadyUsed,
+        /// Serial number expired
+        SerialNumberExpired,
+        /// Not the owner of the serial number
+        SerialNumberNotOwner,
+        /// Only inspector can perform this action
+        NotInspector,
+        /// Object not in QCInspecting state
+        NotQCInspecting,
+        /// Object has associated asset and cannot be transferred
+        ObjectHasAsset,
+        /// Object ownership has been abdicated and cannot be transferred
+        OwnershipAbdicated,
+        /// Fee payer has insufficient balance to pay verification fee
+        FeePayerInsufficientBalance,
+        /// Object is not in NotApproved state
+        ObjectNotNotApproved,
+        /// No unspent rewards to unlock
+        NoUnspentRewards,
+        /// Caller is not the fee payer
+        NotFeePayer,
+        /// QC timeout is too short (minimum 5 blocks)
+        QCTimeoutTooShort,
+        /// QC timeout is too long (maximum 100,000 blocks)
+        QCTimeoutTooLong,
+        /// Replica must be submitted as a self-proved object
+        ReplicaMustBeSelfProved,
 	}
 
 	#[pallet::hooks]
@@ -267,49 +422,102 @@ pub mod pallet {
 			poscan_algo::hashable_object::try_call_128();
 			poscan_algo::hashable_object::try_call_130();
 
+			let mut num_objects = 0u64;
 			for obj_idx in Objects::<T>::iter_keys() {
+				num_objects += 1;
 				Objects::<T>::mutate(obj_idx, |obj_data| {
 					match obj_data {
 						Some(ref mut obj_data) => {
 							match obj_data.state {
-								ObjectState::Created(when) |
-								ObjectState::Estimated(when, _) |
-								ObjectState::Estimating(when)
-								if {
-									let when_last_approved = obj_data.approvers
-										.last()
-										.map(|a| a.when)
-										.unwrap_or(when);
-									now > when_last_approved + T::ApproveTimeout::get().into()
-								} => {
-									log::debug!(target: LOG_TARGET, "on_initialize mark as NotApproved obj_idx={}", &obj_idx);
+								ObjectState::Created(_when) => {
+									obj_data.state = ObjectState::Estimating(now);
+									log::debug!(target: LOG_TARGET, "on_initialize: Created -> Estimating for obj_idx={}", &obj_idx);
+								},
+								ObjectState::Estimating(when) => {
+									// Calculate outliers first
+										obj_data.est_outliers = Self::outliers(&obj_data.estimators);
+									let n_est = obj_data.estimators.len() - obj_data.est_outliers.len();
+									let n_val = T::ValidatorSet::validators().len();
+									
+									// Check if consensus is reached (2/3 of total validators as per old version)
+									if n_est * 2 >= n_val {
+										// Use the old version's average calculation (as intended)
+										let t = obj_data.estimators
+											.iter()
+											.filter(|a| !obj_data.est_outliers.contains(&a.0))
+											.fold(0u64, |acc, (_, time)| acc + time);
+										
+										let average_time = if n_est > 0 {
+											t / (n_est as u64)
+										} else {
+											0u64
+										};
+										
+										obj_data.state = ObjectState::Estimated(now, average_time);
+										
+										// Distribute estimator rewards
+										Self::reward_estimators(obj_idx);
+										
+										Self::deposit_event(Event::ObjEstimated(obj_idx));
+										log::debug!(target: LOG_TARGET, "on_initialize: Estimating -> Estimated for obj_idx={} with {} valid estimators (consensus reached)", &obj_idx, n_est);
+									} else if now.saturating_sub(when) >= T::EstimatePeriod::get().into() {
+										// Check if estimation period has expired without reaching consensus
+										obj_data.state = ObjectState::NotApproved(now);
+										
+										// Even if expired, distribute rewards to estimators who participated
+										if obj_data.estimators.len() > 0 {
+											Self::reward_estimators(obj_idx);
+										}
+										
+										Self::deposit_event(Event::ObjNotApproved(obj_idx, NotApprovedReason::Expired));
+										log::debug!(target: LOG_TARGET, "on_initialize: Estimating -> NotApproved (expired) for obj_idx={} with {} valid estimators (consensus not reached)", &obj_idx, n_est);
+									}
+									// Otherwise, keep it in Estimating state
+								},
+								ObjectState::Estimated(when, _) => {
+									// Check if approval timeout has expired
+									if now.saturating_sub(when) >= T::ApproveTimeout::get().into() {
+										obj_data.state = ObjectState::NotApproved(now);
+										obj_data.est_outliers = Self::outliers(&obj_data.estimators);
+										Self::deposit_event(Event::ObjNotApproved(obj_idx, NotApprovedReason::Expired));
+										log::debug!(target: LOG_TARGET, "on_initialize: Estimated -> NotApproved (expired) for obj_idx={}", &obj_idx);
+									}
+									// Otherwise, keep it in Estimated state
+								},
+								ObjectState::QCInspecting(_, when) => {
+									// Check if QC inspection timeout has expired
+									// Use the custom QC timeout for this object
+									let qc_timeout = obj_data.qc_timeout;
+									if now.saturating_sub(when) >= qc_timeout.into() {
+										// Unreserve inspector fee back to the fee payer
+										let inspector_fee = obj_data.inspector_fee.saturated_into();
+										let _ = T::Currency::unreserve(&obj_data.fee_payer, inspector_fee);
+										
+										obj_data.state = ObjectState::NotApproved(now);
+										Self::deposit_event(Event::ObjNotApproved(obj_idx, NotApprovedReason::Expired));
+										Self::deposit_event(Event::QCInspectionTimeout(obj_idx, obj_data.fee_payer.clone(), inspector_fee));
+										log::debug!(target: LOG_TARGET, "on_initialize: QCInspecting -> NotApproved (timeout) for obj_idx={} with custom timeout={}, unreserved {:?} fee", &obj_idx, qc_timeout, inspector_fee);
+									}
+									// Otherwise, keep it in QCInspecting state
+								},
+								ObjectState::QCPassed(_, _when) => {
+									// If self-proved, transition to SelfProved (terminal), else to Created
+									if obj_data.is_self_proved {
+										obj_data.state = ObjectState::SelfProved(now);
+										log::debug!(target: LOG_TARGET, "on_initialize: QCPassed -> SelfProved for obj_idx={}", &obj_idx);
+									} else {
+										obj_data.state = ObjectState::Created(now);
+										log::debug!(target: LOG_TARGET, "on_initialize: QCPassed -> Created for obj_idx={}", &obj_idx);
+									}
+								},
+								ObjectState::SelfProved(_when) => {
+									// Do nothing: SelfProved objects remain in this state forever
+								},
+								ObjectState::QCRejected(_, _when) => {
 									obj_data.state = ObjectState::NotApproved(now);
 									obj_data.est_outliers = Self::outliers(&obj_data.estimators);
 									Self::deposit_event(Event::ObjNotApproved(obj_idx, NotApprovedReason::Expired));
-
-								},
-								ObjectState::Created(_) => {
-									obj_data.state = ObjectState::Estimating(now);
-									log::debug!(target: LOG_TARGET, "on_initialize ok for obj_idx={}", &obj_idx);
-								},
-								ObjectState::Estimating(block_num) => {
-									log::debug!(target: LOG_TARGET, "on_initialize: Estimating");
-									if now > block_num + T::EstimatePeriod::get().into() {
-										obj_data.est_outliers = Self::outliers(&obj_data.estimators);
-										let n_est = obj_data.estimators.len() - obj_data.est_outliers.len();
-										let n_val = T::ValidatorSet::validators().len();
-
-										if n_est * 2 >= n_val {
-											let t = obj_data.estimators
-												.iter()
-												.filter(|a| !obj_data.est_outliers.contains(&a.0))
-												.fold(0, |_, t| t.1
-												);
-											obj_data.state = ObjectState::Estimated(now, t / (n_est as u64));
-											log::debug!(target: LOG_TARGET, "on_initialize mark as estimated obj_idx={}", &obj_idx);
-											Self::reward_estimators(obj_idx);
-										}
-									}
+									log::debug!(target: LOG_TARGET, "on_initialize: QCRejected -> NotApproved for obj_idx={}", &obj_idx);
 								},
 								_ => {},
 							};
@@ -320,62 +528,114 @@ pub mod pallet {
 					}
 				});
 			}
-			// TODO:
-			0
+			
+			// Distribute pending storage fees to validators
+			Self::distribute_storage_fees_to_validators();
+
+			// Calculate weight
+			let num_validators = T::ValidatorSet::validators().len() as u64;
+			let db_weight = T::DbWeight::get();
+			let object_rw = db_weight.reads(num_objects) + db_weight.writes(num_objects);
+			let validator_writes = db_weight.writes(num_validators);
+			let pending_fees_rw = db_weight.reads(1) + db_weight.writes(1);
+			let base_weight = 10_000;
+			base_weight + object_rw + validator_writes + pending_fees_rw
 		}
 
 		fn on_runtime_upgrade() -> frame_support::weights::Weight {
-			let onchain_version =  Pallet::<T>::on_chain_storage_version();
+			let onchain_version = Pallet::<T>::on_chain_storage_version();
 			log::info!(target: LOG_TARGET, "on_runtime_upgrade: onchain_version={:?}", &onchain_version);
-			if onchain_version < 2 {
-				let prop_idx = <Pallet::<T>>::prop_count();
-				log::info!(target: LOG_TARGET, "on_runtime_upgrade: prop_idx={}", &prop_idx);
-				if prop_idx == 0 {
-					let name: BoundedVec<u8, ConstU32<PROP_NAME_LEN>> = "Non-Fungible".as_bytes()
-						.to_vec().try_into().unwrap();
-					Properties::<T>::insert(0, Property { name, class: PropClass::Relative, max_value: 1 });
+			let mut weight = Weight::zero();
 
-					let name: BoundedVec<u8, ConstU32<PROP_NAME_LEN>> = "Share".as_bytes()
-						.to_vec().try_into().unwrap();
-					Properties::<T>::insert(1, Property { name, class: PropClass::Relative, max_value: 100_000_000 });
-					<PropCount<T>>::put(2);
+			// Only run migration if onchain_version < 4
+			if onchain_version < 4 {
+				log::info!(target: LOG_TARGET, "on_runtime_upgrade: starting migration from v{:?} to v4", onchain_version);
+
+				// --- v2/v3 -> v4 migration: decode using OldObjData, map to new ObjData ---
+				let mut migrated_count = 0u32;
+				Objects::<T>::translate::<OldObjData<T::AccountId, T::BlockNumber>, _>(|_key, old_obj| {
+					migrated_count += 1;
+					// Map old 5-variant state to new 9-variant state explicitly
+					let new_state = match old_obj.state {
+						OldObjectState::Created(bn) => ObjectState::Created(bn),
+						OldObjectState::Estimating(bn) => ObjectState::Estimating(bn),
+						OldObjectState::Estimated(bn, t) => ObjectState::Estimated(bn, t),
+						OldObjectState::NotApproved(bn) => ObjectState::NotApproved(bn),
+						OldObjectState::Approved(bn) => ObjectState::Approved(bn),
+					};
+
+					// Convert OldApproval to Approval
+					let new_approvers = {
+						let mut v = BoundedVec::default();
+						for a in old_obj.approvers.into_iter() {
+							let _ = v.try_push(Approval {
+								account_id: a.account_id,
+								when: a.when,
+								proof: a.proof,
+							});
+						}
+						v
+					};
+
+					Some(ObjData::<T::AccountId, T::BlockNumber> {
+						state: new_state,
+						obj: old_obj.obj,
+						compressed_with: old_obj.compressed_with,
+						category: old_obj.category,
+						is_private: old_obj.is_private,
+						hashes: old_obj.hashes,
+						when_created: old_obj.when_created,
+						when_approved: old_obj.when_approved,
+						owner: old_obj.owner.clone(),
+						estimators: old_obj.estimators,
+						est_outliers: old_obj.est_outliers,
+						approvers: new_approvers,
+						num_approvals: old_obj.num_approvals,
+						est_rewards: old_obj.est_rewards,
+						author_rewards: old_obj.author_rewards,
+						prop: old_obj.prop,
+						// New fields in v4:
+						is_replica: false,
+						original_obj: None,
+						sn_hash: None,
+						inspector: None,
+						is_ownership_abdicated: false,
+						is_self_proved: false,
+						proof_of_existence: None,
+						ipfs_link: None,
+						fee_payer: old_obj.owner,
+						inspector_fee: 0u128,
+						qc_timeout: T::ApproveTimeout::get(),
+					})
+				});
+				log::info!(target: LOG_TARGET, "on_runtime_upgrade: migrated {} objects to v4", migrated_count);
+				weight = weight.saturating_add(1000u64);
+
+				// Initialize new storage fields with default values if needed
+				let author_part = AuthorPart::<T>::get().unwrap_or(T::AuthorPartDefault::get());
+				AuthorPart::<T>::put(author_part);
+				log::info!(target: LOG_TARGET, "on_runtime_upgrade: initialized AuthorPart to {:?}", author_part);
+
+				if DynamicRewardsGrowthRate::<T>::get().is_none() {
+					DynamicRewardsGrowthRate::<T>::put(100u32);
+					log::info!(target: LOG_TARGET, "on_runtime_upgrade: initialized DynamicRewardsGrowthRate to 100");
+				}
+
+				PendingStorageFees::<T>::put(BalanceOf::<T>::zero());
+				log::info!(target: LOG_TARGET, "on_runtime_upgrade: initialized PendingStorageFees to zero");
+
+				// Update storage version to v4
+				StorageVersion::new(4).put::<Pallet::<T>>();
+				log::info!(target: LOG_TARGET, "on_runtime_upgrade: successfully migrated to v4 with new storage fields and reward system");
+
+				// After all other migration logic, populate ProofToObjectIdx for all objects with proof_of_existence
+				for (obj_idx, obj_data) in Objects::<T>::iter() {
+					if let Some(proof) = obj_data.proof_of_existence {
+						ProofToObjectIdx::<T>::insert(proof, obj_idx);
+					}
 				}
 			}
-
-			if onchain_version == 2 {
-				Objects::<T>::translate::<OldObjData<T::AccountId, T::BlockNumber>, _>(|key, old_data| {
-					log::info!(target: LOG_TARGET, "on_runtime_upgrade: migrate object: {}", &key);
-
-					let mut properties = BoundedVec::default();
-						properties.try_push(PropValue { prop_idx: 0, max_value: 1 }).unwrap();
-
-				let old_obj: Vec<_> = old_data.obj.into();
-
-				Some(ObjData::<T::AccountId, T::BlockNumber> {
-					state: old_data.state,
-					obj: old_obj.try_into().unwrap(),
-					compressed_with: old_data.compressed_with,
-					category: old_data.category,
-					is_private: true,
-					hashes: old_data.hashes,
-					when_created: old_data.when_created,
-					when_approved: old_data.when_approved,
-					owner: old_data.owner,
-					estimators: old_data.estimators,
-					est_outliers: old_data.est_outliers,
-					approvers: old_data.approvers,
-					num_approvals: old_data.num_approvals,
-					est_rewards: old_data.est_rewards,
-					author_rewards: old_data.author_rewards,
-					prop: properties,
-				})
-			});
-				StorageVersion::new(2).put::<Pallet::<T>>();
-			}
-			else {
-				log::info!(target: LOG_TARGET, "on_runtime_upgrade: unused migration");
-			}
-			0
+			weight
 		}
 	}
 
@@ -393,44 +653,79 @@ pub mod pallet {
 			obj: BoundedVec<u8, ConstU32<MAX_OBJECT_SIZE>>,
 			num_approvals: u8,
 			hashes: Option<BoundedVec<H256, ConstU32<MAX_OBJECT_HASHES>>>,
-			properties: BoundedVec<PropValue, ConstU32<MAX_PROPERTIES>>
+			properties: BoundedVec<PropValue, ConstU32<MAX_PROPERTIES>>,
+			is_replica: bool,
+			original_obj: Option<ObjIdx>,
+            sn_hash: Option<u64>,
+            is_self_proved: bool,
+            mut proof_of_existence: Option<H256>,
+            ipfs_link: Option<BoundedVec<u8, ConstU32<512>>>,
 		) -> DispatchResultWithPostInfo {
 			let acc = ensure_signed(origin)?;
 			let obj_idx = <Pallet::<T>>::obj_count();
+
+			// For self-proved, auto-calculate proof_of_existence if not provided (do this first!)
+			if is_self_proved && proof_of_existence.is_none() {
+				proof_of_existence = Some(BlakeTwo256::hash(&obj).into());
+			}
 
 			if num_approvals == 0 {
 				return Err(Error::<T>::ZeroApprovalsRequested.into());
 			}
 
+			// Always define compressed_obj before use
 			let compress_with = CompressWith::Lzss;
 			let compressed_obj: BoundedVec<u8, ConstU32<MAX_OBJECT_SIZE>> =
 				compress_with.compress(obj.to_vec()).try_into().unwrap();
 
-			for (_idx, obj_data)
-				in Objects::<T>::iter().filter(
-					|obj| !matches!(obj.1.state, ObjectState::NotApproved(_))
-			) {
-				match obj_data.compressed_with {
-					None if obj_data.obj == obj => {
-						return Err(Error::<T>::ObjectExists.into());
-					},
-					Some(CompressWith::Lzss) if obj_data.obj == compressed_obj => {
-						return Err(Error::<T>::ObjectExists.into());
-					},
-					_ => {},
-				}
-			}
+			// Calculate object size (0 for self-proved)
+			let object_size = if is_self_proved { 0 } else { obj.len() };
 
-			let actual_rewords = Self::rewards(None).unwrap();
-			let lock_amount = actual_rewords.0 + actual_rewords.1;
+			// Calculate metadata size (all fields except the object)
+			use codec::Encode;
+			let metadata_tuple = (
+				&category,
+				&is_private,
+				&num_approvals,
+				&hashes,
+				&properties,
+				&is_replica,
+				&original_obj,
+				&sn_hash,
+				&is_self_proved,
+				&proof_of_existence,
+				&ipfs_link,
+			);
+			let metadata_size = metadata_tuple.encode().len();
+
+			let fee_per_byte = <Pallet::<T>>::fee_per_byte().unwrap_or(FEE_PER_BYTE);
+			let total_fee_u64 = fee_per_byte * (object_size + metadata_size) as u64;
+			let total_fee: BalanceOf<T> = total_fee_u64.saturated_into();
 			let free = <T as pallet::Config>::Currency::free_balance(&acc);
-			if free < lock_amount {
+			if free < total_fee {
 				return Err(Error::<T>::UnsufficientBalance.into());
 			}
+			<T as pallet::Config>::Currency::withdraw(&acc, total_fee, WithdrawReasons::RESERVE, ExistenceRequirement::KeepAlive)
+				.map_err(|_| Error::<T>::UnsufficientBalance)?;
+			PendingStorageFees::<T>::mutate(|pending_fees| {
+				*pending_fees = pending_fees.saturating_add(total_fee);
+			});
+			Self::deposit_event(Event::VerificationFeeCharged(obj_idx, acc.clone(), total_fee));
 
-			let tot_locked= AccountLock::<T>::get(&acc);
-			let new_locked = tot_locked.saturating_add(lock_amount);
-			Self::set_lock(&acc, new_locked);
+			// Set rewards correctly
+			let (est_rewards, author_rewards) = if is_self_proved {
+				(Zero::zero(), Zero::zero())
+			} else {
+				Self::rewards(None).unwrap()
+			};
+
+			// Only set the rewards lock if not self-proved
+			if !is_self_proved {
+				let tot_locked = AccountLock::<T>::get(&acc);
+				let rewards_locked: BalanceOf<T> = est_rewards.saturated_into::<BalanceOf<T>>().saturating_add(author_rewards.saturated_into());
+				let new_locked = tot_locked.saturating_add(rewards_locked);
+				Self::set_lock(&acc, new_locked);
+			}
 
 			let hashes = match hashes {
 				Some(hashes) => hashes,
@@ -446,8 +741,59 @@ pub mod pallet {
 				log::debug!(target: LOG_TARGET, "{:#?}", a);
 			}
 
-			if let Some(_) = Self::find_dup(None, &hashes) {
-				return Err(Error::<T>::DuplicatedHashes.into());
+			if is_replica {
+				let orig_idx = original_obj.ok_or(Error::<T>::OriginalNotFound)?;
+				let orig = Objects::<T>::get(orig_idx).ok_or(Error::<T>::OriginalNotFound)?;
+				// Only allow if original is Approved
+				match orig.state {
+					ObjectState::<T::BlockNumber, T::AccountId>::Approved(_) => {},
+					_ => return Err(Error::<T>::OriginalNotApproved.into()),
+				}
+				// At least one hash must match
+				let match_found = hashes.iter().any(|h| orig.hashes.contains(h));
+				if !match_found {
+					return Err(Error::<T>::NotAReplica.into());
+				}
+				// Permission logic for private originals
+				if orig.is_private {
+					let perms = PrivateObjectPermissions::<T>::get(orig_idx);
+					let now = <frame_system::Pallet<T>>::block_number();
+					let mut allowed = false;
+					for perm in perms.iter() {
+						if perm.who == acc && perm.until >= now && perm.max_copies > 0 {
+							allowed = true;
+							break;
+						}
+					}
+					if !allowed {
+						return Err(Error::<T>::NotPermitted.into());
+					}
+				}
+                // Serial number checks for replicas
+                if let Some(sn_idx) = sn_hash {
+                    // a. Serial number exists
+                    let _sn_vec = <T as frame_system::Config>::BlockNumber::from(0u32); // dummy block number for API
+                    let sn_details = T::SerialNumbers::get_serial_numbers(Some(sn_idx));
+                    let sn_details = sn_details.get(0).ok_or(Error::<T>::SerialNumberNotFound)?;
+                    // b. Serial number is not used
+                    if T::SerialNumbers::is_serial_number_used(sn_details.sn_hash) {
+                        return Err(Error::<T>::SerialNumberAlreadyUsed.into());
+                    }
+                    // c. Serial number is not expired
+                    if sn_details.is_expired {
+                        return Err(Error::<T>::SerialNumberExpired.into());
+                    }
+                    // d. Serial number owner matches object owner
+                    if sn_details.owner != acc {
+                        return Err(Error::<T>::SerialNumberNotOwner.into());
+                    }
+                }
+				// Do NOT check for duplicate hashes (replica is allowed)
+			} else {
+				// Normal: reject if duplicate
+				if let Some(_) = Self::find_dup(None, &hashes) {
+					return Err(Error::<T>::DuplicatedHashes.into());
+				}
 			}
 
 			let mut properties = properties.clone();
@@ -476,12 +822,29 @@ pub mod pallet {
 				}
 			}
 
+			// Restrict: Replica must only be allowed as Self-Proved
+			if is_replica && !is_self_proved {
+				return Err(Error::<T>::ReplicaMustBeSelfProved.into());
+			}
+
 			let block_num = <frame_system::Pallet<T>>::block_number();
-			let state =  ObjectState::Created(block_num);
+			let state = if is_self_proved {
+				ObjectState::<T::BlockNumber, T::AccountId>::SelfProved(block_num)
+			} else {
+				ObjectState::<T::BlockNumber, T::AccountId>::Created(block_num)
+			};
+			
+			let obj_to_store = if is_self_proved {
+				// For self-proved objects, don't store the actual object
+				BoundedVec::default()
+			} else {
+				compressed_obj.clone()
+			};
+			
 			let obj_data = ObjData::<T::AccountId, T::BlockNumber> {
 				state,
-				obj: compressed_obj,
-				compressed_with: Some(CompressWith::Lzss),
+				obj: obj_to_store,
+				compressed_with: if is_self_proved { None } else { Some(CompressWith::Lzss) },
 				category,
 				is_private,
 				hashes,
@@ -492,9 +855,20 @@ pub mod pallet {
 				est_outliers: BoundedVec::default(),
 				approvers: BoundedVec::default(),
 				num_approvals,
-				est_rewards: actual_rewords.0.saturated_into(),
-				author_rewards: actual_rewords.1.saturated_into(),
+				est_rewards: est_rewards.saturated_into::<u128>(),
+				author_rewards: author_rewards.saturated_into::<u128>(),
 				prop: properties,
+				is_replica,
+				original_obj,
+                sn_hash,
+                inspector: None,
+                is_ownership_abdicated: false,
+                is_self_proved,
+                proof_of_existence,
+                ipfs_link,
+                fee_payer: acc.clone(), // Initial submitter is the fee payer
+                				inspector_fee: 0u128, // No inspector fee for initial submission
+                qc_timeout: T::ApproveTimeout::get(), // Use default timeout for non-QC objects
 			};
 			<Objects<T>>::insert(obj_idx, obj_data);
 			<ObjCount<T>>::put(obj_idx + 1);
@@ -502,10 +876,345 @@ pub mod pallet {
 
 			// TODO:
 			Self::deposit_event(Event::ObjCreated(acc));
+			if let Some(proof) = proof_of_existence {
+				ProofToObjectIdx::<T>::insert(proof, obj_idx);
+			}
 			Ok(().into())
 		}
 
-		#[pallet::weight(1_000_000_000)]
+		/// Inspect and put file to poscan storage (QC flow)
+		#[pallet::weight(<Pallet::<T>>::fee_per_byte().unwrap_or(FEE_PER_BYTE) * obj.len() as u64)]
+		pub fn inspect_put_object(
+			origin: OriginFor<T>,
+			category: ObjectCategory,
+			is_private: bool,
+			obj: BoundedVec<u8, ConstU32<MAX_OBJECT_SIZE>>,
+			num_approvals: u8,
+			hashes: Option<BoundedVec<H256, ConstU32<MAX_OBJECT_HASHES>>>,
+			properties: BoundedVec<PropValue, ConstU32<MAX_PROPERTIES>>,
+			is_replica: bool,
+			original_obj: Option<ObjIdx>,
+            sn_hash: Option<u64>,
+            inspector: <T::Lookup as StaticLookup>::Source,
+            inspector_fee: BalanceOf<T>,
+            qc_timeout: u32,
+            is_self_proved: bool,
+            mut proof_of_existence: Option<H256>,
+            ipfs_link: Option<BoundedVec<u8, ConstU32<512>>>,
+		) -> DispatchResultWithPostInfo {
+			let acc = ensure_signed(origin)?;
+            let inspector = T::Lookup::lookup(inspector)?;
+            let inspector_clone = inspector.clone();
+			let obj_idx = <Pallet::<T>>::obj_count();
+
+			// For self-proved, auto-calculate proof_of_existence if not provided (do this first!)
+			if is_self_proved && proof_of_existence.is_none() {
+				proof_of_existence = Some(BlakeTwo256::hash(&obj).into());
+			}
+
+			if num_approvals == 0 {
+				return Err(Error::<T>::ZeroApprovalsRequested.into());
+			}
+
+			// Always define compressed_obj before use
+			let compress_with = CompressWith::Lzss;
+			let compressed_obj: BoundedVec<u8, ConstU32<MAX_OBJECT_SIZE>> =
+				compress_with.compress(obj.to_vec()).try_into().unwrap();
+
+			// Calculate object size (0 for self-proved)
+			let object_size = if is_self_proved { 0 } else { obj.len() };
+
+			// Calculate metadata size (all fields except the object)
+			use codec::Encode;
+			let metadata_tuple = (
+				&category,
+				&is_private,
+				&num_approvals,
+				&hashes,
+				&properties,
+				&is_replica,
+				&original_obj,
+				&sn_hash,
+				&inspector,
+				&inspector_fee,
+				&qc_timeout,
+				&is_self_proved,
+				&proof_of_existence,
+				&ipfs_link,
+			);
+			let metadata_size = metadata_tuple.encode().len();
+
+			let fee_per_byte = <Pallet::<T>>::fee_per_byte().unwrap_or(FEE_PER_BYTE);
+			let total_fee_u64 = fee_per_byte * (object_size + metadata_size) as u64;
+			let total_fee: BalanceOf<T> = total_fee_u64.saturated_into();
+			let free = <T as pallet::Config>::Currency::free_balance(&acc);
+			if free < total_fee + inspector_fee {
+				return Err(Error::<T>::UnsufficientBalance.into());
+			}
+			<T as pallet::Config>::Currency::withdraw(&acc, total_fee, WithdrawReasons::RESERVE, ExistenceRequirement::KeepAlive)
+				.map_err(|_| Error::<T>::UnsufficientBalance)?;
+			PendingStorageFees::<T>::mutate(|pending_fees| {
+				*pending_fees = pending_fees.saturating_add(total_fee);
+			});
+			Self::deposit_event(Event::VerificationFeeCharged(obj_idx, acc.clone(), total_fee));
+
+			// Set rewards correctly
+			let (est_rewards, author_rewards) = if is_self_proved {
+				(Zero::zero(), Zero::zero())
+			} else {
+				Self::rewards(None).unwrap()
+			};
+
+			// Only set the rewards lock if not self-proved
+			if !is_self_proved {
+				let tot_locked = AccountLock::<T>::get(&acc);
+				let rewards_locked: BalanceOf<T> = est_rewards.saturated_into::<BalanceOf<T>>().saturating_add(author_rewards.saturated_into());
+				let new_locked = tot_locked.saturating_add(rewards_locked);
+				Self::set_lock(&acc, new_locked);
+			}
+
+			// Reserve inspector fee
+			T::Currency::reserve(&acc, inspector_fee)?;
+
+			let hashes = match hashes {
+				Some(hashes) => hashes,
+				None => Self::calc_hashes(&category, None, &obj, DEFAULT_OBJECT_HASHES)?,
+			};
+
+			if hashes.len() == 0 {
+				return Err(Error::<T>::NoHashes.into());
+			}
+
+			log::debug!(target: LOG_TARGET, "inspect_put_object::hashes");
+			for a in hashes.iter() {
+				log::debug!(target: LOG_TARGET, "{:#?}", a);
+			}
+
+			if is_replica {
+				let orig_idx = original_obj.ok_or(Error::<T>::OriginalNotFound)?;
+				let orig = Objects::<T>::get(orig_idx).ok_or(Error::<T>::OriginalNotFound)?;
+				// Only allow if original is Approved
+				match orig.state {
+					ObjectState::<T::BlockNumber, T::AccountId>::Approved(_) => {},
+					_ => return Err(Error::<T>::OriginalNotApproved.into()),
+				}
+				// At least one hash must match
+				let match_found = hashes.iter().any(|h| orig.hashes.contains(h));
+				if !match_found {
+					return Err(Error::<T>::NotAReplica.into());
+				}
+				// Permission logic for private originals
+				if orig.is_private {
+					let perms = PrivateObjectPermissions::<T>::get(orig_idx);
+					let now = <frame_system::Pallet<T>>::block_number();
+					let mut allowed = false;
+					for perm in perms.iter() {
+						if perm.who == acc && perm.until >= now && perm.max_copies > 0 {
+							allowed = true;
+							break;
+						}
+					}
+					if !allowed {
+						return Err(Error::<T>::NotPermitted.into());
+					}
+				}
+                // Serial number checks for replicas
+                if let Some(sn_idx) = sn_hash {
+                    let sn_details = T::SerialNumbers::get_serial_numbers(Some(sn_idx));
+                    let sn_details = sn_details.get(0).ok_or(Error::<T>::SerialNumberNotFound)?;
+                    if T::SerialNumbers::is_serial_number_used(sn_details.sn_hash) {
+                        return Err(Error::<T>::SerialNumberAlreadyUsed.into());
+                    }
+                    if sn_details.is_expired {
+                        return Err(Error::<T>::SerialNumberExpired.into());
+                    }
+                    if sn_details.owner != acc {
+                        return Err(Error::<T>::SerialNumberNotOwner.into());
+                    }
+                }
+				// Do NOT check for duplicate hashes (replica is allowed)
+			} else {
+				// Normal: reject if duplicate
+				if let Some(_) = Self::find_dup(None, &hashes) {
+					return Err(Error::<T>::DuplicatedHashes.into());
+				}
+			}
+
+			let mut properties = properties.clone();
+			let share_prop = properties.iter()
+				.find(|PropValue {prop_idx, ..}| *prop_idx == 0);
+			if share_prop.is_none() {
+				properties.try_insert(0, PropValue {prop_idx: 0, max_value: 1} ).map_err(|_| Error::<T>::TooManyProperties)?;
+			}
+
+			for prop in properties.iter_mut() {
+				match Properties::<T>::get(&prop.prop_idx) {
+					Some(ref p) => {
+						if prop.max_value > p.max_value {
+							return Err(Error::<T>::InvalidPropValue.into())
+						}
+						if p.class == PropClass::Relative {
+							let mut r = prop.max_value.clone();
+							while r >= 10 { r /= 10; }
+							if r > 1 {
+								return Err(Error::<T>::InvalidSharePropValue.into())
+							}
+						}
+					}
+					None =>
+						return Err(Error::<T>::UnknownProperty.into()),
+				}
+			}
+
+			// Restrict: Replica must only be allowed as Self-Proved
+			if is_replica && !is_self_proved {
+				return Err(Error::<T>::ReplicaMustBeSelfProved.into());
+			}
+
+			let block_num = <frame_system::Pallet<T>>::block_number();
+            let state = ObjectState::<T::BlockNumber, T::AccountId>::QCInspecting(inspector.clone(), block_num);
+			
+			let obj_to_store = if is_self_proved {
+				// For self-proved objects, don't store the actual object
+				BoundedVec::default()
+			} else {
+				compressed_obj.clone()
+			};
+			
+			let obj_data = ObjData::<T::AccountId, T::BlockNumber> {
+				state,
+				obj: obj_to_store,
+				compressed_with: if is_self_proved { None } else { Some(CompressWith::Lzss) },
+				category,
+				is_private,
+				hashes,
+				when_created: block_num,
+				when_approved: None,
+				owner: acc.clone(),
+				estimators: BoundedVec::default(),
+				est_outliers: BoundedVec::default(),
+				approvers: BoundedVec::default(),
+				num_approvals,
+				est_rewards: est_rewards.saturated_into::<u128>(),
+				author_rewards: author_rewards.saturated_into::<u128>(),
+				prop: properties,
+				is_replica,
+				original_obj,
+                sn_hash,
+                inspector: Some(inspector),
+                is_ownership_abdicated: false,
+                is_self_proved,
+                proof_of_existence,
+                ipfs_link,
+                fee_payer: acc.clone(), // Initial submitter is the fee payer
+                				inspector_fee: inspector_fee.saturated_into(), // Inspector fee reserved for QC inspection
+                qc_timeout, // Custom QC timeout for this object
+			};
+			<Objects<T>>::insert(obj_idx, obj_data);
+			<ObjCount<T>>::put(obj_idx + 1);
+			let _ = <Owners<T>>::mutate(acc.clone(), |v| v.try_push(obj_idx));
+			let _ = <ObjectsOfInspector<T>>::mutate(inspector_clone.clone(), |v| v.try_push(obj_idx));
+
+			Self::deposit_event(Event::ObjCreated(acc));
+            Self::deposit_event(Event::QCInspecting(obj_idx, inspector_clone));
+			if let Some(proof) = proof_of_existence {
+				ProofToObjectIdx::<T>::insert(proof, obj_idx);
+			}
+			// Instead of Ok(().into()), encode obj_idx in actual_weight for precompile to extract
+			Ok(frame_support::dispatch::PostDispatchInfo {
+				actual_weight: Some(obj_idx as u64),
+				pays_fee: Pays::Yes,
+			}
+			.into())
+		}
+
+		/// Inspector approves the object (QC passed)
+		#[pallet::weight(1_000_000)]
+		pub fn qc_approve(
+			origin: OriginFor<T>,
+			obj_idx: ObjIdx,
+		) -> DispatchResultWithPostInfo {
+			let who = ensure_signed(origin)?;
+			let mut obj_data = Objects::<T>::get(obj_idx).ok_or(Error::<T>::ObjectNotFound)?;
+			
+			// Verify the inspector and transfer fee
+			match &obj_data.state {
+				ObjectState::<T::BlockNumber, T::AccountId>::QCInspecting(ref inspector, _) if *inspector == who => {
+					// Transfer inspector fee to the inspector
+					let _ = T::Currency::repatriate_reserved(
+						&obj_data.owner,
+						&who,
+						obj_data.inspector_fee.saturated_into(),
+						BalanceStatus::Free,
+					);
+					
+					let block_num = <frame_system::Pallet<T>>::block_number();
+					let inspector_fee = obj_data.inspector_fee.saturated_into();
+					obj_data.state = ObjectState::<T::BlockNumber, T::AccountId>::QCPassed(who.clone(), block_num);
+					Objects::<T>::insert(obj_idx, obj_data);
+					
+                    Self::deposit_event(Event::QCPassed(obj_idx, who.clone()));
+                    Self::deposit_event(Event::InspectorFeePaid(obj_idx, who, inspector_fee));
+					Ok(().into())
+				},
+				ObjectState::<T::BlockNumber, T::AccountId>::QCInspecting(_, _) => Err(Error::<T>::NotInspector.into()),
+				_ => Err(Error::<T>::NotQCInspecting.into()),
+			}
+		}
+
+		/// Inspector rejects the object (QC rejected)
+		#[pallet::weight(1_000_000)]
+		pub fn qc_reject(
+			origin: OriginFor<T>,
+			obj_idx: ObjIdx,
+		) -> DispatchResultWithPostInfo {
+			let who = ensure_signed(origin)?;
+			let mut obj_data = Objects::<T>::get(obj_idx).ok_or(Error::<T>::ObjectNotFound)?;
+			
+			// Verify the inspector and transfer fee
+			match &obj_data.state {
+				ObjectState::<T::BlockNumber, T::AccountId>::QCInspecting(ref inspector, _) if *inspector == who => {
+					// Transfer inspector fee to the inspector (even for rejection)
+					let _ = T::Currency::repatriate_reserved(
+						&obj_data.owner,
+						&who,
+						obj_data.inspector_fee.saturated_into(),
+						BalanceStatus::Free,
+					);
+					
+					let block_num = <frame_system::Pallet<T>>::block_number();
+					let inspector_fee = obj_data.inspector_fee.saturated_into();
+					obj_data.state = ObjectState::<T::BlockNumber, T::AccountId>::QCRejected(who.clone(), block_num);
+					Objects::<T>::insert(obj_idx, obj_data);
+					
+                    Self::deposit_event(Event::QCRejected(obj_idx, who.clone()));
+                    Self::deposit_event(Event::InspectorFeePaid(obj_idx, who, inspector_fee));
+					Ok(().into())
+				},
+				ObjectState::<T::BlockNumber, T::AccountId>::QCInspecting(_, _) => Err(Error::<T>::NotInspector.into()),
+				_ => Err(Error::<T>::NotQCInspecting.into()),
+			}
+		}
+
+		/// Set permissions for private object replicas
+		#[pallet::weight(1_000_000)]
+		pub fn set_private_object_permissions(
+			origin: OriginFor<T>,
+			obj_idx: ObjIdx,
+			permissions: BoundedVec<CopyPermission<T::AccountId, T::BlockNumber>, ConstU32<32>>,
+		) -> DispatchResultWithPostInfo {
+			let who = ensure_signed(origin)?;
+			let obj = Objects::<T>::get(obj_idx).ok_or(Error::<T>::ObjectNotFound)?;
+			ensure!(obj.owner == who, Error::<T>::NotOwner);
+			use sp_runtime::DispatchError;
+			PrivateObjectPermissions::<T>::try_mutate(obj_idx, |perms| -> Result<(), DispatchError> {
+				*perms = permissions;
+				Ok(())
+			})?;
+			Ok(().into())
+		}
+
+		#[pallet::weight(1_000_000)]
 		pub fn approve(
 			origin: OriginFor<T>,
 			author: T::AccountId,
@@ -517,7 +1226,7 @@ pub mod pallet {
 			Objects::<T>::mutate(&obj_idx, |obj| {
 				match obj {
 					Some(ref mut obj_data) => {
-						if let ObjectState::Estimated(..) = obj_data.state {
+						if let ObjectState::<T::BlockNumber, T::AccountId>::Estimated(..) = obj_data.state {
 							let current_block = <frame_system::Pallet<T>>::block_number();
 							let approval = Approval { account_id: author.clone(), when: current_block, proof};
 							if obj_data.approvers.try_push(approval).is_err() {
@@ -542,7 +1251,7 @@ pub mod pallet {
 							};
 							if obj_data.approvers.len() >= obj_data.num_approvals as usize {
 								if let Some(dup_idx) = Self::find_dup(Some(obj_idx), &obj_data.hashes) {
-									obj_data.state = ObjectState::NotApproved(current_block);
+									obj_data.state = ObjectState::<T::BlockNumber, T::AccountId>::NotApproved(current_block);
 									Self::deposit_event(Event::ObjNotApproved(
 										obj_idx,
 										NotApprovedReason::DuplicateFound(obj_idx, dup_idx))
@@ -551,7 +1260,7 @@ pub mod pallet {
 								}
 
 								obj_data.when_approved = Some(current_block);
-								obj_data.state = ObjectState::Approved(current_block);
+								obj_data.state = ObjectState::<T::BlockNumber, T::AccountId>::Approved(current_block);
 								Self::deposit_event(Event::ObjApproved(obj_idx));
 								log::debug!(target: LOG_TARGET, "approve applyed for obj_idx={}", &obj_idx);
 
@@ -604,6 +1313,147 @@ pub mod pallet {
 			<PropCount<T>>::put(prop_idx + 1);
 			Ok(().into())
 		}
+
+        /// Transfer object ownership to another account if allowed
+        #[pallet::weight(1_000_000)]
+        pub fn transfer_object_ownership(
+            origin: OriginFor<T>,
+            obj_idx: ObjIdx,
+            new_owner: <T::Lookup as StaticLookup>::Source,
+        ) -> DispatchResultWithPostInfo {
+            let who = ensure_signed(origin)?;
+            let new_owner = T::Lookup::lookup(new_owner)?;
+            Objects::<T>::try_mutate(obj_idx, |maybe_obj| {
+                let obj = maybe_obj.as_mut().ok_or(Error::<T>::ObjectNotFound)?;
+                ensure!(obj.owner == who, Error::<T>::NotOwner);
+                ensure!(!obj.is_ownership_abdicated, Error::<T>::OwnershipAbdicated);
+                // Asset association check (requires trait bound and runtime API)
+                if T::PoscanAssets::object_has_asset(obj_idx) {
+                    return Err::<(), DispatchError>(Error::<T>::ObjectHasAsset.into());
+                }
+                obj.owner = new_owner.clone();
+                Ok::<(), DispatchError>(())
+            })?;
+            Owners::<T>::mutate(&who, |v| v.retain(|&idx| idx != obj_idx));
+            Owners::<T>::mutate(&new_owner, |v| { let _ = v.try_push(obj_idx); });
+            Self::deposit_event(Event::ObjectOwnershipTransferred(obj_idx, who, new_owner));
+            Ok(().into())
+        }
+
+        /// Abdicate object ownership (irreversible)
+        #[pallet::weight(1_000_000)]
+        pub fn abdicate_the_obj_ownership(
+            origin: OriginFor<T>,
+            obj_idx: ObjIdx,
+        ) -> DispatchResultWithPostInfo {
+            let who = ensure_signed(origin)?;
+            let mut obj_data = Objects::<T>::get(obj_idx).ok_or(Error::<T>::ObjectNotFound)?;
+            ensure!(obj_data.owner == who, Error::<T>::NotOwner);
+            ensure!(!obj_data.is_ownership_abdicated, Error::<T>::OwnershipAbdicated);
+            ensure!(!T::PoscanAssets::object_has_asset(obj_idx), Error::<T>::ObjectHasAsset);
+            obj_data.is_ownership_abdicated = true;
+            Objects::<T>::insert(obj_idx, obj_data);
+            let _obj = Objects::<T>::get(obj_idx).ok_or(Error::<T>::ObjectNotFound)?;
+            Self::deposit_event(Event::ObjectOwnershipAbdicated(obj_idx, who));
+            Ok(().into())
+        }
+
+        /// Set dynamic rewards growth rate (Council only)
+        #[pallet::weight(10_000)]
+        pub fn set_dynamic_rewards_growth_rate(
+            origin: OriginFor<T>,
+            growth_rate: u32,
+        ) -> DispatchResultWithPostInfo {
+            T::CouncilOrigin::ensure_origin(origin)?;
+            
+            // Validate the growth rate (should be between 1 and 100)
+            ensure!(growth_rate >= 1 && growth_rate <= 100, Error::<T>::InvalidSharePropValue);
+            
+            // Store the new growth rate
+            DynamicRewardsGrowthRate::<T>::put(growth_rate);
+            
+            Self::deposit_event(Event::DynamicRewardsGrowthRateSet(growth_rate));
+            Ok(().into())
+        }
+
+        /// Set rewards (Council only)
+        #[pallet::weight(10_000)]
+        pub fn set_rewards(
+            origin: OriginFor<T>,
+            rewards: BalanceOf<T>,
+        ) -> DispatchResultWithPostInfo {
+            T::CouncilOrigin::ensure_origin(origin)?;
+            // Validate the rewards (should be at least 1 DOLLAR)
+            ensure!(rewards >= (1 * DOLLARS).saturated_into(), Error::<T>::InvalidSharePropValue);
+            // Store the new rewards
+            Rewards::<T>::put(rewards);
+            Self::deposit_event(Event::RewardsSet(rewards));
+            Ok(().into())
+        }
+
+		/// Unlock unspent rewards for a NotApproved object
+		#[pallet::weight(1_000_000)]
+		pub fn unlock_unspent_rewards(
+			origin: OriginFor<T>,
+			obj_idx: ObjIdx,
+		) -> DispatchResultWithPostInfo {
+			let who = ensure_signed(origin)?;
+
+			// Get the object data
+			let obj_data = Objects::<T>::get(&obj_idx)
+				.ok_or(Error::<T>::ObjectNotFound)?;
+
+			// Ensure the object is in NotApproved state
+			ensure!(
+				matches!(obj_data.state, ObjectState::<T::BlockNumber, T::AccountId>::NotApproved(_)),
+				Error::<T>::ObjectNotNotApproved
+			);
+
+			// Ensure the caller is the fee payer (who initially locked the funds)
+			ensure!(obj_data.fee_payer == who, Error::<T>::NotFeePayer);
+
+			// Calculate unspent rewards
+			// If the object went through QC inspection and was rejected without estimation,
+			// the user should get back both estimator and author rewards since no work was performed
+			let unspent_rewards = if obj_data.estimators.is_empty() {
+				// No estimators participated, so both est_rewards and author_rewards are unspent
+				obj_data.est_rewards.saturated_into::<BalanceOf<T>>().saturating_add(obj_data.author_rewards.saturated_into())
+			} else {
+				// Estimators participated, so only author_rewards are unspent
+				obj_data.author_rewards.saturated_into()
+			};
+
+			// Ensure there are unspent rewards to unlock
+			ensure!(unspent_rewards > BalanceOf::<T>::zero(), Error::<T>::NoUnspentRewards);
+
+			// Get current locked amount
+			let current_locked = AccountLock::<T>::get(&who);
+
+			// Calculate new locked amount (subtract unspent rewards)
+			let new_locked = current_locked.saturating_sub(unspent_rewards);
+
+			// Update the lock
+			Self::set_lock(&who, new_locked);
+
+			// Emit event
+			Self::deposit_event(Event::UnspentRewardsUnlocked(obj_idx, who.clone(), unspent_rewards));
+
+			log::debug!(target: LOG_TARGET, "unlock_unspent_rewards: unlocked {:?} for obj_idx={} owner={:?} (estimators_participated={})", 
+				unspent_rewards, obj_idx, who, !obj_data.estimators.is_empty());
+
+			Ok(().into())
+		}
+
+		#[pallet::weight(1_000_000)]
+		pub fn set_author_part(
+			origin: OriginFor<T>,
+			part: Percent,
+		) -> DispatchResultWithPostInfo {
+			T::CouncilOrigin::ensure_origin(origin)?;
+			AuthorPart::<T>::put(part);
+			// Optionally emit an event (add to Event enum if needed)
+            Ok(().into())
+        }
 	}
 
 	#[pallet::inherent]
@@ -708,7 +1558,7 @@ impl<T: Config> Pallet<T> {
 
 		let mut v: Vec<(u32, ObjData<T::AccountId, T::BlockNumber>)> = Vec::new();
 		for (idx, obj_data) in Objects::<T>::iter() {
-			if let ObjectState::Created(_) = obj_data.state {
+			if let ObjectState::<T::BlockNumber, T::AccountId>::Created(_) = obj_data.state {
 				v.push((idx, obj_data));
 			}
 		}
@@ -724,13 +1574,14 @@ impl<T: Config> Pallet<T> {
 		log::debug!(target: LOG_TARGET, "Select estimated");
 
 		let mut v: Vec<(u32, ObjData<T::AccountId, T::BlockNumber>)> = Vec::new();
+		let current_block = <frame_system::Pallet<T>>::block_number();
 		for (idx, obj_data) in Objects::<T>::iter() {
-			if let ObjectState::Estimated(_, diff) = obj_data.state {
-				if diff < Self::max_algo_time().millis() {
+			if let ObjectState::Estimated(when, diff) = obj_data.state {
+				if diff < Self::max_algo_time().millis()
+					&& current_block.saturating_sub(when) < T::ApproveTimeout::get().into() {
 					v.push((idx, obj_data));
-				}
-				else {
-					log::info!(target: LOG_TARGET, "Estimation of object {} is too big", &idx);
+				} else {
+					log::info!(target: LOG_TARGET, "Estimation of object {} is not eligible (diff={}, when={:?}, current_block={:?})", &idx, diff, when, current_block);
 				}
 			}
 		}
@@ -744,7 +1595,7 @@ impl<T: Config> Pallet<T> {
 		Objects::<T>::mutate(obj_idx, |obj_data| {
 			match obj_data {
 				Some(obj_data) => {
-					if let ObjectState::Estimating(..) = obj_data.state {
+					if let ObjectState::<T::BlockNumber, T::AccountId>::Estimating(..) = obj_data.state {
 						let mut a: Vec<_> = obj_data.estimators.to_vec();
 						a.push((acc.clone(), dt));
 						obj_data.estimators = a.try_into().unwrap();
@@ -812,9 +1663,10 @@ impl<T: Config> Pallet<T> {
 		}
 		else {
 			let author_part = AuthorPart::<T>::get().unwrap_or(T::AuthorPartDefault::get());
-			let rewards = Rewards::<T>::get().unwrap_or(T::RewardsDefault::get().saturated_into());
-			let author_rewards = author_part * rewards;
-			let est_rewards = rewards.saturating_sub(author_rewards);
+			let base_rewards = Rewards::<T>::get().unwrap_or(T::RewardsDefault::get().saturated_into());
+			let dynamic_rewards = Self::calculate_dynamic_rewards(base_rewards);
+			let author_rewards = author_part * dynamic_rewards;
+			let est_rewards = dynamic_rewards.saturating_sub(author_rewards);
 			Some((est_rewards, author_rewards))
 		}
 	}
@@ -850,7 +1702,7 @@ impl<T: Config> Pallet<T> {
 					continue
 				}
 			}
-			if matches!(obj.state, ObjectState::Approved(_)) {
+			if matches!(obj.state, ObjectState::<T::BlockNumber, T::AccountId>::Approved(_)) {
 				let min_len = core::cmp::min(hashes.len(), obj.hashes.len());
 				if hashes.iter().eq(obj.hashes[0..min_len].iter()) {
 					return Some(idx)
@@ -955,38 +1807,185 @@ impl<T: Config> Pallet<T> {
 			.try_into()
 			.unwrap()
 	}
+
+	/// Returns a list of object indexes that are replicas of the given object index
+	pub fn replicas_of(original_idx: ObjIdx) -> Vec<ObjIdx> {
+		Objects::<T>::iter()
+			.filter_map(|(idx, obj)| {
+				if obj.is_replica {
+					if let Some(orig) = obj.original_obj {
+						if orig == original_idx {
+							return Some(idx);
+						}
+					}
+				}
+				None
+			})
+			.collect()
+	}
+
+	/// Count objects in the queue (waiting for processing)
+	fn count_objects_in_queue() -> u32 {
+		let mut count = 0u32;
+		for (_, obj_data) in Objects::<T>::iter() {
+			match obj_data.state {
+				ObjectState::<T::BlockNumber, T::AccountId>::Created(_) |
+				ObjectState::<T::BlockNumber, T::AccountId>::Estimating(_) |
+				ObjectState::<T::BlockNumber, T::AccountId>::QCInspecting(_, _) => {
+					count += 1;
+				},
+				_ => {}
+			}
+		}
+		count
+	}
+
+	/// Calculate dynamic rewards based on queue size using exponential formula
+	fn calculate_dynamic_rewards(base_rewards: BalanceOf<T>) -> BalanceOf<T> {
+		let queue_size = Self::count_objects_in_queue();
+		
+		// If no objects in queue, return base rewards
+		if queue_size == 0 {
+			return base_rewards;
+		}
+		
+		// Get the growth rate from storage or use default from configuration
+		let growth_rate = DynamicRewardsGrowthRate::<T>::get().unwrap_or(T::DynamicRewardsGrowthRate::get()) as f64;
+		
+		// Exponential formula: base_rewards * (1 + queue_size^0.5 / growth_rate)
+		// Higher growth_rate = slower growth, lower growth_rate = faster growth
+		let queue_factor = (queue_size as f64).sqrt() / growth_rate as f64;
+		let multiplier = 1.0 + queue_factor;
+		
+		// Convert to fixed-point arithmetic for precision
+		let base_u128: u128 = base_rewards.saturated_into();
+		let multiplier_u128 = (multiplier * 1_000_000.0) as u128; // 6 decimal places precision
+		let result = (base_u128 * multiplier_u128) / 1_000_000;
+		
+		log::debug!(target: LOG_TARGET, "Dynamic rewards: queue_size={}, base_rewards={}, growth_rate={}, multiplier={}, result={}", 
+			queue_size, base_u128, growth_rate, multiplier, result);
+		
+		result.saturated_into()
+	}
+
+	/// Distribute pending storage fees to validators
+	fn distribute_storage_fees_to_validators() {
+		let pending_fees = PendingStorageFees::<T>::get();
+		if pending_fees.is_zero() {
+			return;
+		}
+
+		let validators = T::ValidatorSet::validators();
+		if validators.is_empty() {
+			log::warn!(target: LOG_TARGET, "No validators available for storage fee distribution");
+			return;
+		}
+
+		let fee_per_validator = pending_fees / validators.len().saturated_into();
+		let mut total_distributed = BalanceOf::<T>::zero();
+
+		for validator in validators.iter() {
+			// Transfer fee to validator
+			let _res = T::Currency::deposit_creating(validator, fee_per_validator);
+			total_distributed = total_distributed.saturating_add(fee_per_validator);
+		}
+
+		// Clear pending fees
+		PendingStorageFees::<T>::put(BalanceOf::<T>::zero());
+
+		// Emit event for fee distribution
+		Self::deposit_event(Event::StorageFeesDistributed(total_distributed));
+
+		log::info!(target: LOG_TARGET, "Distributed {:?} storage fees to {} validators ({:?} per validator)", 
+			total_distributed, validators.len(), fee_per_validator);
+	}
 }
 
 
 impl<T: Config> PoscanApi<T::AccountId, T::BlockNumber> for Pallet<T> {
-	fn get_poscan_object(i: u32) -> Option<sp_consensus_poscan::ObjData<T::AccountId, T::BlockNumber>> {
-		match Objects::<T>::get(i) {
-			Some(mut obj_data) => {
-				if let Some(compressor) = obj_data.compressed_with {
-					let resp_obj = obj_data.clone();
-					obj_data.obj = compressor.decompress(&resp_obj.obj).try_into().unwrap();
-					obj_data.compressed_with = None;
-					Some(obj_data)
-				}
-				else {
-					Some(obj_data)
+    fn get_poscan_object(i: u32) -> Option<sp_consensus_poscan::ObjData<T::AccountId, T::BlockNumber>> {
+        match Objects::<T>::get(i) {
+            Some(mut obj_data) => {
+                if let Some(compressor) = obj_data.compressed_with {
+                    let resp_obj = obj_data.clone();
+                    obj_data.obj = compressor.decompress(&resp_obj.obj).try_into().unwrap();
+                    obj_data.compressed_with = None;
+                    Some(obj_data)
+                }
+                else {
+                    Some(obj_data)
+                }
+            },
+            None => None,
+        }
+    }
+    fn is_owner_of(account_id: &T::AccountId, obj_idx: u32) -> bool {
+        let own_objects = Owners::<T>::get(&account_id);
+        own_objects.contains(&obj_idx)
+    }
+    fn property(obj_idx: u32, prop_idx: u32) -> Option<PropValue> {
+        Objects::<T>::get(&obj_idx)
+            .map(
+                    |obj_data|
+                        obj_data.prop.iter()
+                            .find(|p| p.prop_idx == prop_idx)
+                            .cloned()
+            )
+            .flatten()
+    }
+    fn replicas_of(original_idx: u32) -> Vec<u32> {
+        Self::replicas_of(original_idx)
+    }
+    fn object_has_asset(_obj_idx: u32) -> bool {
+        false // stub for trait compliance
+	}
+	fn get_dynamic_rewards_growth_rate() -> Option<u32> {
+		DynamicRewardsGrowthRate::<T>::get()
+	}
+	fn get_author_part() -> Option<u8> {
+		AuthorPart::<T>::get().map(|part| part.deconstruct())
+	}
+	fn get_unspent_rewards(obj_idx: u32) -> Option<u128> {
+		let obj_data = Objects::<T>::get(&obj_idx)?;
+		
+		// Only return unspent rewards for NotApproved objects
+		match obj_data.state {
+			ObjectState::<T::BlockNumber, T::AccountId>::NotApproved(_) => {
+				// If no estimators participated, return both est_rewards and author_rewards
+				// If estimators participated, return only author_rewards
+				if obj_data.estimators.is_empty() {
+					Some(obj_data.est_rewards.saturated_into::<u128>().saturating_add(obj_data.author_rewards.saturated_into()))
+				} else {
+					Some(obj_data.author_rewards)
 				}
 			},
-			None => None,
+			_ => None,
 		}
 	}
-	fn is_owner_of(account_id: &T::AccountId, obj_idx: u32) -> bool {
-		let own_objects = Owners::<T>::get(&account_id);
-		own_objects.contains(&obj_idx)
+	fn get_fee_payer(obj_idx: u32) -> Option<T::AccountId> {
+		let obj_data = Objects::<T>::get(&obj_idx)?;
+		Some(obj_data.fee_payer)
 	}
-	fn property(obj_idx: u32, prop_idx: u32) -> Option<PropValue> {
-		Objects::<T>::get(&obj_idx)
-			.map(
-					|obj_data|
-						obj_data.prop.iter()
-							.find(|p| p.prop_idx == prop_idx)
-							.cloned()
-			)
-			.flatten()
+	fn get_pending_storage_fees() -> Option<u128> {
+		Some(PendingStorageFees::<T>::get().saturated_into())
 	}
+	fn get_rewards() -> Option<u128> {
+		Rewards::<T>::get().map(|r| r.saturated_into())
+	}
+	fn get_qc_timeout(obj_idx: u32) -> Option<u32> {
+		let obj_data = Objects::<T>::get(&obj_idx)?;
+		Some(obj_data.qc_timeout)
+	}
+
+    /// Fetch object's (replica) index by its proof of existence hash
+    fn get_object_idx_by_proof_of_existence(proof: H256) -> Option<u32> {
+        for (obj_idx, obj_data) in Objects::<T>::iter() {
+            if let Some(obj_proof) = obj_data.proof_of_existence {
+                if obj_proof == proof {
+                    return Some(obj_idx);
+                }
+            }
+        }
+        None
+    }
 }

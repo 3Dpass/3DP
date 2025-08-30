@@ -65,6 +65,51 @@ impl<T: Config<I>, I: 'static> Pallet<T, I> {
 		Asset::<T, I>::get(id).map(|x| x.supply)
 	}
 
+	/// Get the owner of an asset `id`.
+	pub fn owner(id: T::AssetId) -> Option<T::AccountId> {
+		Asset::<T, I>::get(id).map(|x| x.owner)
+	}
+
+	/// Get the issuer of an asset `id`.
+	pub fn issuer(id: T::AssetId) -> Option<T::AccountId> {
+		Asset::<T, I>::get(id).map(|x| x.issuer)
+	}
+
+	/// Get the admin of an asset `id`.
+	pub fn admin(id: T::AssetId) -> Option<T::AccountId> {
+		Asset::<T, I>::get(id).map(|x| x.admin)
+	}
+
+	/// Get the freezer of an asset `id`.
+	pub fn freezer(id: T::AssetId) -> Option<T::AccountId> {
+		Asset::<T, I>::get(id).map(|x| x.freezer)
+	}
+
+	/// Get the status of an asset `id`.
+	pub fn status(id: T::AssetId) -> Option<AssetStatus> {
+		Asset::<T, I>::get(id).map(|x| x.status)
+	}
+
+	/// Get the reserved amount of an asset `id`.
+	pub fn reserved(id: T::AssetId) -> T::Balance {
+		Asset::<T, I>::get(id).map(|x| x.reserved).unwrap_or_default()
+	}
+
+	/// Get the minimum balance of an asset `id`.
+	pub fn min_balance(id: T::AssetId) -> T::Balance {
+		Asset::<T, I>::get(id).map(|x| x.min_balance).unwrap_or_default()
+	}
+
+	/// Get the reserved amount for a specific account and asset.
+	pub fn reserved_of(id: T::AssetId, who: &T::AccountId) -> T::Balance {
+		AccountReserved::<T, I>::get(id, who).unwrap_or_default()
+	}
+
+	/// Get the object details of an asset `id`.
+	pub fn obj_details(id: T::AssetId) -> Option<ObjDetails<T::Balance>> {
+		Asset::<T, I>::get(id).and_then(|x| x.obj_details)
+	}
+
 	pub(super) fn new_account(
 		who: &T::AccountId,
 		d: &mut AssetDetails<T::Balance, T::AccountId, DepositBalanceOf<T, I>>,

@@ -1,0 +1,795 @@
+// Copyright 2025 3Dpass
+// SPDX-License-Identifier: MIT
+
+#![cfg_attr(not(feature = "std"), no_std)]
+
+extern crate alloc;
+use alloc::vec;
+use precompile_utils::prelude::*;
+use sp_core::{H160, H256, U256};
+use sp_std::{marker::PhantomData, vec::Vec};
+use sp_arithmetic::traits::SaturatedConversion;
+use sp_runtime::traits::StaticLookup;
+
+// No alias, use precompile_utils::data::String directly
+use pallet_evm::AddressMapping;
+use precompile_utils::data::UnboundedString;
+use precompile_utils::data::Address;
+
+use sp_consensus_poscan::{ObjectState, ObjectCategory};
+use frame_support::pallet_prelude::ConstU32;
+use alloc::string::String;
+use precompile_utils::substrate::RuntimeHelper;
+use poscan_api::PoscanApi;
+
+// Event selectors for modern event emission
+pub const SELECTOR_LOG_OBJECT_SUBMITTED: [u8; 32] = keccak256!("ObjectSubmitted(address,uint32)");
+pub const SELECTOR_LOG_PERMISSIONS_SET: [u8; 32] = keccak256!("PermissionsSet(uint32,address)");
+pub const SELECTOR_LOG_OWNERSHIP_TRANSFERRED: [u8; 32] = keccak256!("ObjectOwnershipTransferred(uint32,address,address)");
+pub const SELECTOR_LOG_QC_INSPECTION_TIMEOUT: [u8; 32] = keccak256!("QCInspectionTimeout(uint32,address,uint256)");
+
+// Add missing event selectors
+pub const SELECTOR_LOG_QC_INSPECTING: [u8; 32] = keccak256!("QCInspecting(uint32,address)");
+pub const SELECTOR_LOG_QC_PASSED: [u8; 32] = keccak256!("QCPassed(uint32,address)");
+pub const SELECTOR_LOG_QC_REJECTED: [u8; 32] = keccak256!("QCRejected(uint32,address)");
+pub const SELECTOR_LOG_INSPECTOR_FEE_PAID: [u8; 32] = keccak256!("InspectorFeePaid(uint32,address,uint256)");
+pub const SELECTOR_LOG_UNSPENT_REWARDS_UNLOCKED: [u8; 32] = keccak256!("UnspentRewardsUnlocked(uint32,address,uint256)");
+
+// Function selectors for reference
+pub const SELECTOR_GET_OBJECT: [u8; 4] = [0xA1, 0xB2, 0xC0, 0x01];
+
+/// Convert AccountId32 to H160 address by truncating to first 20 bytes
+/// This follows the conventional pattern used in EnsureAddressTruncated
+#[allow(dead_code)]
+fn account_id_to_address<Runtime: pallet_poscan::Config>(account_id: &<Runtime as frame_system::Config>::AccountId) -> Address
+where
+    <Runtime as frame_system::Config>::AccountId: AsRef<[u8; 32]>,
+{
+    let bytes = account_id.as_ref();
+    Address(H160::from_slice(&bytes[0..20]))
+}
+
+// Helper to convert Address (H160) to H256 (left-padded)
+fn address_to_h256(addr: Address) -> H256 {
+    let mut padded = [0u8; 32];
+    padded[12..].copy_from_slice(addr.0.as_bytes());
+    H256::from(padded)
+}
+
+#[derive(Debug, Clone)]
+pub struct PoScanPrecompile<Runtime>(PhantomData<Runtime>);
+
+#[precompile_utils::precompile]
+impl<Runtime> PoScanPrecompile<Runtime>
+where
+    Runtime: pallet_evm::Config + pallet_poscan::Config,
+    <Runtime as frame_system::Config>::Call: frame_support::dispatch::Dispatchable<PostInfo = frame_support::dispatch::PostDispatchInfo>
+        + frame_support::dispatch::GetDispatchInfo,
+    <<Runtime as frame_system::Config>::Call as frame_support::dispatch::Dispatchable>::Origin: From<Option<Runtime::AccountId>>,
+    <Runtime as frame_system::Config>::Call: From<pallet_poscan::Call<Runtime>>,
+    <Runtime as frame_system::Config>::AccountId: AsRef<[u8; 32]>,
+{
+    /// Solidity-friendly getter for PoScan object data
+    /// @custom:selector 0xa1b2c001
+    #[precompile::public("getObject(uint32)")]
+    fn get_object(
+        _handle: &mut impl PrecompileHandle,
+        obj_idx: u32,
+    ) -> EvmResult<(
+        bool, // isValid
+        u8, // state discriminant
+        u64, // state block (or 0)
+        u8, // category discriminant
+        u64, // whenCreated
+        u64, // whenApproved (0 if None)
+        bool, // isPrivate
+        Vec<H256>, // hashes
+        u8, // numApprovals
+        Vec<(u32, u128)>, // prop: (propIdx, maxValue)
+        bool, // is_replica
+        u32, // original_obj
+        u64, // sn_hash
+        bool, // is_ownership_abdicated
+        bool, // is_self_proved
+        H256, // proof_of_existence
+        Vec<u8>, // ipfs_link
+        u32, // qc_timeout
+    )> {
+        use pallet_poscan::Pallet as PoScanPallet;
+        let obj_opt = PoScanPallet::<Runtime>::objects(obj_idx);
+        if let Some(obj) = obj_opt {
+            let (state_discriminant, state_block) = match &obj.state {
+                ObjectState::Created(bn) => (0u8, (*bn).saturated_into()),
+                ObjectState::Estimating(bn) => (1u8, (*bn).saturated_into()),
+                ObjectState::Estimated(bn, _) => (2u8, (*bn).saturated_into()),
+                ObjectState::NotApproved(bn) => (3u8, (*bn).saturated_into()),
+                ObjectState::Approved(bn) => (4u8, (*bn).saturated_into()),
+                ObjectState::QCInspecting(_, bn) => (5u8, (*bn).saturated_into()),
+                ObjectState::QCPassed(_, bn) => (6u8, (*bn).saturated_into()),
+                ObjectState::QCRejected(_, bn) => (7u8, (*bn).saturated_into()),
+                ObjectState::SelfProved(bn) => (8u8, (*bn).saturated_into()),
+            };
+            let category_discriminant = match &obj.category {
+                ObjectCategory::Objects3D(_) => 0u8,
+                ObjectCategory::Drawings2D => 1u8,
+                ObjectCategory::Music => 2u8,
+                ObjectCategory::Biometrics => 3u8,
+                ObjectCategory::Movements => 4u8,
+                ObjectCategory::Texts => 5u8,
+            };
+            let when_created = obj.when_created.saturated_into();
+            let when_approved = obj.when_approved.map(|b| b.saturated_into()).unwrap_or(0u64);
+            let is_private = obj.is_private;
+            let hashes = obj.hashes.to_vec();
+            let num_approvals = obj.num_approvals;
+            let prop = obj.prop.iter().map(|p| (p.prop_idx, p.max_value)).collect();
+            let is_replica = obj.is_replica;
+            let original_obj = obj.original_obj.unwrap_or(0);
+            let sn_hash = obj.sn_hash.unwrap_or(0);
+            let is_ownership_abdicated = obj.is_ownership_abdicated;
+            let is_self_proved = obj.is_self_proved;
+            let proof_of_existence = obj.proof_of_existence.unwrap_or(H256::zero());
+            let ipfs_link = obj.ipfs_link.map(|link| link.to_vec()).unwrap_or(vec![]);
+            let qc_timeout = obj.qc_timeout;
+            Ok((true, state_discriminant, state_block, category_discriminant, when_created, when_approved, is_private, hashes, num_approvals, prop, is_replica, original_obj, sn_hash, is_ownership_abdicated, is_self_proved, proof_of_existence, ipfs_link, qc_timeout))
+        } else {
+            Ok((false, 0, 0, 0, 0, 0, false, vec![], 0, vec![], false, 0, 0, false, false, H256::zero(), vec![], 0))
+        }
+    }
+
+    /// Solidity-friendly getter for all object indices owned by an address
+    /// @custom:selector 0x7e2c4b2a
+    #[precompile::public("getObjectsOf(address)")]
+    fn get_objects_of(
+        _handle: &mut impl PrecompileHandle,
+        owner: Address,
+    ) -> EvmResult<Vec<u32>> {
+        use pallet_poscan::Pallet as PoScanPallet;
+        // Map H160 to runtime AccountId
+        let account_id = <Runtime as pallet_evm::Config>::AddressMapping::into_account_id(owner.into());
+        let objects = PoScanPallet::<Runtime>::owners(account_id);
+        Ok(objects.into())
+    }
+
+    /// Solidity-friendly getter for all object indices assigned to an inspector
+    /// @custom:selector 0x7e2c4b2b
+    #[precompile::public("getObjectsOfInspector(address)")]
+    fn get_objects_of_inspector(
+        _handle: &mut impl PrecompileHandle,
+        inspector: Address,
+    ) -> EvmResult<Vec<u32>> {
+        use pallet_poscan::Pallet as PoScanPallet;
+        // Map H160 to runtime AccountId
+        let account_id = <Runtime as pallet_evm::Config>::AddressMapping::into_account_id(inspector.into());
+        let objects = PoScanPallet::<Runtime>::objects_of_inspector(account_id);
+        Ok(objects.into())
+    }
+
+    /// Solidity-friendly getter for total number of objects
+    /// @custom:selector 0x2f7b5f32
+    #[precompile::public("getObjectCount()")]
+    fn get_object_count(
+        _handle: &mut impl PrecompileHandle,
+    ) -> EvmResult<u32> {
+        use pallet_poscan::Pallet as PoScanPallet;
+        let count = PoScanPallet::<Runtime>::obj_count();
+        Ok(count)
+    }
+
+    /// Solidity-friendly getter for all available properties for object tokenization
+    /// @custom:selector 0x6e2b7b1a
+    #[precompile::public("getProperties()")]
+    fn get_properties(
+        _handle: &mut impl PrecompileHandle,
+    ) -> EvmResult<Vec<(bool, u32, UnboundedString, u8, u128)>> {
+        use pallet_poscan::Pallet as PoScanPallet;
+        use sp_consensus_poscan::PropClass;
+        let prop_count = PoScanPallet::<Runtime>::prop_count();
+        let mut out = Vec::new();
+        for prop_idx in 0..prop_count {
+            if let Some(prop) = PoScanPallet::<Runtime>::properties(prop_idx) {
+                let name = UnboundedString::from(prop.name.as_slice());
+                let class = match prop.class {
+                    PropClass::Relative => 0u8,
+                    PropClass::Absolute => 1u8,
+                };
+                out.push((true, prop_idx, name, class, prop.max_value));
+            } else {
+                out.push((false, prop_idx, UnboundedString::from(""), 0u8, 0u128));
+            }
+        }
+        Ok(out)
+    }
+
+    /// Solidity-friendly getter for the storage fee per byte
+    /// @custom:selector 0x4e2b7b1b
+    #[precompile::public("getFeePerByte()")]
+    fn get_fee_per_byte(
+        _handle: &mut impl PrecompileHandle,
+    ) -> EvmResult<(bool, u64)> {
+        use pallet_poscan::Pallet as PoScanPallet;
+        match PoScanPallet::<Runtime>::fee_per_byte() {
+            Some(fee) => Ok((true, fee)),
+            None => Ok((false, 0)),
+        }
+    }
+
+    /// Solidity-friendly getter for the account lock value for a given address
+    /// @custom:selector 0x8e2b7b1c
+    #[precompile::public("getAccountLock(address)")]
+    fn get_account_lock(
+        _handle: &mut impl PrecompileHandle,
+        owner: Address,
+    ) -> EvmResult<u128> {
+        use pallet_poscan::Pallet as PoScanPallet;
+        // Map H160 to runtime AccountId
+        let account_id = <Runtime as pallet_evm::Config>::AddressMapping::into_account_id(owner.into());
+        let lock = PoScanPallet::<Runtime>::locks(account_id);
+        Ok(lock.saturated_into())
+    }
+
+    /// Solidity-friendly getter for council-controlled rewards
+    /// @custom:selector 0x8e2b7b1d
+    #[precompile::public("getRewards()")]
+    fn get_rewards(
+        _handle: &mut impl PrecompileHandle,
+    ) -> EvmResult<(bool, u128)> {
+        use pallet_poscan::Pallet as PoScanPallet;
+        match <PoScanPallet::<Runtime> as PoscanApi<_, _>>::get_rewards() {
+            Some(rewards) => Ok((true, rewards)),
+            None => Ok((false, 0)),
+        }
+    }
+
+    /// Solidity-friendly getter for dynamic rewards growth rate
+    /// @custom:selector 0x8e2b7b1e
+    #[precompile::public("getDynamicRewardsGrowthRate()")]
+    fn get_dynamic_rewards_growth_rate(
+        _handle: &mut impl PrecompileHandle,
+    ) -> EvmResult<(bool, u32)> {
+        use pallet_poscan::Pallet as PoScanPallet;
+        match PoScanPallet::<Runtime>::dynamic_rewards_growth_rate() {
+            Some(rate) => Ok((true, rate)),
+            None => Ok((false, 0)),
+        }
+    }
+
+    /// Solidity-friendly getter for author share percentage
+    /// @custom:selector 0x8e2b7b1f
+    #[precompile::public("getAuthorPart()")]
+    fn get_author_part(
+        _handle: &mut impl PrecompileHandle,
+    ) -> EvmResult<(bool, u8)> {
+        use pallet_poscan::Pallet as PoScanPallet;
+        match <PoScanPallet::<Runtime> as PoscanApi<_, _>>::get_author_part() {
+            Some(part) => Ok((true, part)),
+            None => Ok((false, 0)),
+        }
+    }
+
+    /// Solidity-friendly getter for unspent rewards of a NotApproved object
+    /// @custom:selector 0x4e2b7b1e
+    #[precompile::public("getUnspentRewards(uint32)")]
+    fn get_unspent_rewards(
+        _handle: &mut impl PrecompileHandle,
+        obj_idx: u32,
+    ) -> EvmResult<(bool, u128)> {
+        use pallet_poscan::Pallet as PoScanPallet;
+        match <PoScanPallet::<Runtime> as PoscanApi<_, _>>::get_unspent_rewards(obj_idx) {
+            Some(amount) => Ok((true, amount)),
+            None => Ok((false, 0)),
+        }
+    }
+
+    /// Solidity-friendly getter for pending storage fees
+    /// @custom:selector 0x4e2b7b1f
+    #[precompile::public("getPendingStorageFees()")]
+    fn get_pending_storage_fees(
+        _handle: &mut impl PrecompileHandle,
+    ) -> EvmResult<(bool, u128)> {
+        use pallet_poscan::Pallet as PoScanPallet;
+        match <PoScanPallet::<Runtime> as PoscanApi<_, _>>::get_pending_storage_fees() {
+            Some(amount) => Ok((true, amount)),
+            None => Ok((false, 0)),
+        }
+    }
+
+    /// Get QC timeout for an object
+    /// @custom:selector 0x0c53c51g
+    #[precompile::public("getQCTimeout(uint32)")]
+    fn get_qc_timeout(
+        _handle: &mut impl PrecompileHandle,
+        obj_idx: u32,
+    ) -> EvmResult<(bool, u32)> {
+        use pallet_poscan::Pallet as PoScanPallet;
+        match <PoScanPallet::<Runtime> as PoscanApi<_, _>>::get_qc_timeout(obj_idx) {
+            Some(timeout) => Ok((true, timeout)),
+            None => Ok((false, 0)),
+        }
+    }
+
+    /// Solidity-friendly getter for object index by proof of existence hash
+    /// @custom:selector 0x9e2c4b2c
+    #[precompile::public("getObjectIdxByProofOfExistence(bytes32)")]
+    fn get_object_idx_by_proof_of_existence(
+        _handle: &mut impl PrecompileHandle,
+        proof: H256,
+    ) -> EvmResult<(bool, u32)> {
+        use pallet_poscan::Pallet as PoScanPallet;
+        let idx = PoScanPallet::<Runtime>::get_object_idx_by_proof_of_existence(proof);
+        match idx {
+            Some(i) => Ok((true, i)),
+            None => Ok((false, 0)),
+        }
+    }
+
+
+    /// Submit a new object to the PoScan pallet (with sn_hash)
+    /// @custom:selector 0x0c53c51c
+    /// @dev Replicas must be submitted as self-proved objects. Submitting a replica as a regular object will revert.
+    #[precompile::public("putObject(uint8,uint8,bool,bytes,uint8,bytes32[],(uint32,uint128)[],bool,uint32,uint64,bool,bytes32,string)")]
+    fn put_object(
+        handle: &mut impl PrecompileHandle,
+        category: u8,
+        algo3d: u8,
+        is_private: bool,
+        obj: Vec<u8>,
+        num_approvals: u8,
+        hashes: Vec<H256>,
+        properties: Vec<(u32, u128)>,
+        is_replica: bool,
+        original_obj: u32,
+        sn_hash: u64,
+        is_self_proved: bool,
+        proof_of_existence: H256,
+        ipfs_link: Vec<u8>,
+    ) -> EvmResult<bool> {
+        // Early check for replica restriction
+        if is_replica && !is_self_proved {
+            return Err(revert("Replica must be submitted as a self-proved object"));
+        }
+        use sp_consensus_poscan::{ObjectCategory, Algo3D, PropValue};
+        use frame_support::BoundedVec;
+        let category = match category {
+            0 => ObjectCategory::Objects3D(match algo3d {
+                0 => Algo3D::Grid2dLow,
+                1 => Algo3D::Grid2dHigh,
+                _ => return Err(revert("Invalid Algo3D")),
+            }),
+            1 => ObjectCategory::Drawings2D,
+            2 => ObjectCategory::Music,
+            3 => ObjectCategory::Biometrics,
+            4 => ObjectCategory::Movements,
+            5 => ObjectCategory::Texts,
+            _ => return Err(revert("Invalid category")),
+        };
+        if obj.len() > 1_048_576 {
+            return Err(revert("Object file too large (max 1MB)"));
+        }
+        if obj.len() > 0 {
+            let obj_str = String::from_utf8_lossy(&obj);
+            if !obj_str.lines().any(|line| {
+                let trimmed = line.trim();
+                trimmed.starts_with("v ") || trimmed.starts_with("vt ") || trimmed.starts_with("vn ") || trimmed.starts_with("f ") || trimmed.starts_with("g ") || trimmed.starts_with("o ") || trimmed.starts_with("#")
+            }) {
+                return Err(revert("Invalid OBJ file format"));
+            }
+        }
+        let obj: sp_runtime::BoundedVec<u8, ConstU32<{ sp_consensus_poscan::MAX_OBJECT_SIZE }>> = sp_runtime::BoundedVec::try_from(obj).map_err(|_| revert("obj too large"))?;
+        let hashes = if hashes.is_empty() {
+            None
+        } else {
+            Some(BoundedVec::try_from(hashes).map_err(|_| revert("too many hashes"))?)
+        };
+        let properties = BoundedVec::try_from(
+            properties.into_iter().map(|(prop_idx, max_value)| PropValue { prop_idx, max_value }).collect::<Vec<_>>()
+        ).map_err(|_| revert("too many properties"))?;
+        let who: Runtime::AccountId = <Runtime as pallet_evm::Config>::AddressMapping::into_account_id(handle.context().caller);
+        let result = RuntimeHelper::<Runtime>::try_dispatch(
+            handle,
+            Some(who.clone()).into(),
+            pallet_poscan::Call::<Runtime>::put_object {
+                category,
+                is_private,
+                obj,
+                num_approvals,
+                hashes,
+                properties,
+                is_replica,
+                original_obj: if is_replica { Some(original_obj) } else { None },
+                sn_hash: if is_replica { Some(sn_hash) } else { None },
+                is_self_proved,
+                proof_of_existence: if is_self_proved { Some(proof_of_existence) } else { None },
+                ipfs_link: if is_self_proved { Some(BoundedVec::try_from(ipfs_link).map_err(|_| revert("ipfs_link too long"))?) } else { None },
+            },
+        );
+        match result {
+            Ok(_) => {
+                handle.record_log_costs_manual(3, 32)?;
+                log3(
+                    handle.context().address,
+                    SELECTOR_LOG_OBJECT_SUBMITTED,
+                    handle.context().caller,
+                    handle.context().caller,
+                    EvmDataWriter::new()
+                        .write(Address(handle.context().caller))
+                        .write(U256::from(0u32))
+                        .build(),
+                )
+                .record(handle)?;
+                Ok(true)
+            },
+            Err(e) => Err(e.into()),
+        }
+    }
+
+    /// Inspect and put file to poscan storage (QC flow)
+    /// @custom:selector 0x0c53c51f
+    /// @dev Replicas must be submitted as self-proved objects. Submitting a replica as a regular object will revert.
+    #[precompile::public("inspectPutObject(uint8,uint8,bool,bytes,uint8,bytes32[],(uint32,uint128)[],bool,uint32,uint64,address,uint256,uint32,bool,bytes32,string)")]
+    fn inspect_put_object(
+        handle: &mut impl PrecompileHandle,
+        category: u8,
+        algo3d: u8,
+        is_private: bool,
+        obj: Vec<u8>,
+        num_approvals: u8,
+        hashes: Vec<H256>,
+        properties: Vec<(u32, u128)>,
+        is_replica: bool,
+        original_obj: u32,
+        sn_hash: u64,
+        inspector: Address,
+        inspector_fee: U256,
+        qc_timeout: u32,
+        is_self_proved: bool,
+        proof_of_existence: H256,
+        ipfs_link: Vec<u8>,
+    ) -> EvmResult<bool> {
+        // Early check for replica restriction
+        if is_replica && !is_self_proved {
+            return Err(revert("Replica must be submitted as a self-proved object"));
+        }
+        use sp_consensus_poscan::{ObjectCategory, Algo3D, PropValue};
+        use frame_support::BoundedVec;
+        let category = match category {
+            0 => ObjectCategory::Objects3D(match algo3d {
+                0 => Algo3D::Grid2dLow,
+                1 => Algo3D::Grid2dHigh,
+                _ => return Err(revert("Invalid Algo3D")),
+            }),
+            1 => ObjectCategory::Drawings2D,
+            2 => ObjectCategory::Music,
+            3 => ObjectCategory::Biometrics,
+            4 => ObjectCategory::Movements,
+            5 => ObjectCategory::Texts,
+            _ => return Err(revert("Invalid category")),
+        };
+        if obj.len() > 1_048_576 {
+            return Err(revert("Object file too large (max 1MB)"));
+        }
+        if obj.len() > 0 {
+            let obj_str = String::from_utf8_lossy(&obj);
+            if !obj_str.lines().any(|line| {
+                let trimmed = line.trim();
+                trimmed.starts_with("v ") || trimmed.starts_with("vt ") || trimmed.starts_with("vn ") || trimmed.starts_with("f ") || trimmed.starts_with("g ") || trimmed.starts_with("o ") || trimmed.starts_with("#")
+            }) {
+                return Err(revert("Invalid OBJ file format"));
+            }
+        }
+        let obj_bounded = sp_runtime::BoundedVec::try_from(obj).map_err(|_| revert("object too long"))?;
+        let hashes = if hashes.is_empty() {
+            None
+        } else {
+            Some(BoundedVec::try_from(hashes).map_err(|_| revert("too many hashes"))?)
+        };
+        let properties = BoundedVec::try_from(
+            properties.into_iter().map(|(prop_idx, max_value)| PropValue { prop_idx, max_value }).collect::<Vec<_>>()
+        ).map_err(|_| revert("too many properties"))?;
+        let who: Runtime::AccountId = <Runtime as pallet_evm::Config>::AddressMapping::into_account_id(handle.context().caller);
+        let inspector_id: Runtime::AccountId = <Runtime as pallet_evm::Config>::AddressMapping::into_account_id(inspector.into());
+        let result = RuntimeHelper::<Runtime>::try_dispatch(
+            handle,
+            Some(who.clone()).into(),
+            pallet_poscan::Call::<Runtime>::inspect_put_object {
+                category,
+                is_private,
+                obj: obj_bounded,
+                num_approvals,
+                hashes,
+                properties,
+                is_replica,
+                original_obj: if is_replica { Some(original_obj) } else { None },
+                sn_hash: if is_replica { Some(sn_hash) } else { None },
+                inspector: <Runtime as frame_system::Config>::Lookup::unlookup(inspector_id),
+                inspector_fee: inspector_fee.as_u128().saturated_into(),
+                qc_timeout,
+                is_self_proved,
+                proof_of_existence: if is_self_proved { Some(proof_of_existence) } else { None },
+                ipfs_link: if is_self_proved { Some(BoundedVec::try_from(ipfs_link).map_err(|_| revert("ipfs_link too long"))?) } else { None },
+            },
+        );
+        match result {
+            Ok(info) => {
+                // Hack: obj_idx is encoded in actual_weight (see pallet implementation)
+                let obj_idx = info.actual_weight.unwrap_or(original_obj as u64) as u32;
+                // Emit QCInspecting event: indexed objIdx, indexed inspector
+                log3(
+                    handle.context().address,
+                    SELECTOR_LOG_QC_INSPECTING,
+                    H256::from_low_u64_be(obj_idx as u64), // topic1: objIdx
+                    address_to_h256(inspector), // topic2: inspector
+                    EvmDataWriter::new().build(), // no non-indexed params
+                ).record(handle)?;
+                Ok(true)
+            },
+            Err(e) => Err(e.into()),
+        }
+    }
+
+    /// Set permissions for private object replicas
+    /// @custom:selector 0x0c53c51d
+    #[precompile::public("setPrivateObjectPermissions(uint32,(address,uint32,uint64)[])")]
+    fn set_private_object_permissions(
+        handle: &mut impl PrecompileHandle,
+        obj_idx: u32,
+        permissions: Vec<(Address, u32, u64)>,
+    ) -> EvmResult<bool> {
+        use sp_consensus_poscan::CopyPermission;
+        use frame_support::BoundedVec;
+        let who: Runtime::AccountId = <Runtime as pallet_evm::Config>::AddressMapping::into_account_id(handle.context().caller);
+        let perms = permissions.into_iter().map(|(addr, max_copies, until)| {
+            CopyPermission {
+                who: <Runtime as pallet_evm::Config>::AddressMapping::into_account_id(addr.into()),
+                max_copies,
+                until: until.saturated_into(),
+            }
+        }).collect::<Vec<_>>();
+        let perms = BoundedVec::try_from(perms).map_err(|_| revert("too many permissions"))?;
+        let result = RuntimeHelper::<Runtime>::try_dispatch(
+            handle,
+            Some(who.clone()).into(),
+            pallet_poscan::Call::<Runtime>::set_private_object_permissions {
+                obj_idx,
+                permissions: perms,
+            },
+        );
+        match result {
+            Ok(_) => {
+                // Record gas cost for event emission
+                handle.record_log_costs_manual(3, 32)?;
+                
+                // Emit PermissionsSet event
+                log3(
+                    handle.context().address,
+                    SELECTOR_LOG_PERMISSIONS_SET,
+                    handle.context().caller,
+                    handle.context().caller,
+                    EvmDataWriter::new()
+                        .write(U256::from(obj_idx))
+                        .write(Address(handle.context().caller))
+                        .build(),
+                )
+                .record(handle)?;
+                
+                Ok(true)
+            },
+            Err(e) => Err(e.into()),
+        }
+    }
+
+    /// Get a list of replica indexes for a given object index
+    /// @custom:selector 0x0c53c51e
+    #[precompile::public("getReplicasOf(uint32)")]
+    fn get_replicas_of(
+        _handle: &mut impl PrecompileHandle,
+        original_obj: u32,
+    ) -> EvmResult<Vec<u32>> {
+        use pallet_poscan::Pallet as PoScanPallet;
+        let replicas = PoScanPallet::<Runtime>::replicas_of(original_obj);
+        Ok(replicas)
+    }
+
+    /// QC Approve (inspector only)
+    /// @custom:selector 0x0c53c520
+    #[precompile::public("qcApprove(uint32)")]
+    fn qc_approve(
+        handle: &mut impl PrecompileHandle,
+        obj_idx: u32,
+    ) -> EvmResult<bool> {
+        let who: Runtime::AccountId = <Runtime as pallet_evm::Config>::AddressMapping::into_account_id(handle.context().caller);
+        let result = RuntimeHelper::<Runtime>::try_dispatch(
+            handle,
+            Some(who.clone()).into(),
+            pallet_poscan::Call::<Runtime>::qc_approve { obj_idx },
+        );
+        match result {
+            Ok(_) => {
+                // Emit QCPassed event: indexed objIdx, indexed inspector
+                log3(
+                    handle.context().address,
+                    SELECTOR_LOG_QC_PASSED,
+                    H256::from_low_u64_be(obj_idx as u64),
+                    address_to_h256(Address(handle.context().caller)),
+                    EvmDataWriter::new().build(),
+                ).record(handle)?;
+                // Emit InspectorFeePaid event: indexed objIdx, indexed inspector, fee (0 placeholder)
+                log3(
+                    handle.context().address,
+                    SELECTOR_LOG_INSPECTOR_FEE_PAID,
+                    H256::from_low_u64_be(obj_idx as u64),
+                    address_to_h256(Address(handle.context().caller)),
+                    EvmDataWriter::new().write(U256::from(0u32)).build(),
+                ).record(handle)?;
+                Ok(true)
+            },
+            Err(e) => Err(e.into()),
+        }
+    }
+    /// QC Reject (inspector only)
+    /// @custom:selector 0x0c53c521
+    #[precompile::public("qcReject(uint32)")]
+    fn qc_reject(
+        handle: &mut impl PrecompileHandle,
+        obj_idx: u32,
+    ) -> EvmResult<bool> {
+        let who: Runtime::AccountId = <Runtime as pallet_evm::Config>::AddressMapping::into_account_id(handle.context().caller);
+        let result = RuntimeHelper::<Runtime>::try_dispatch(
+            handle,
+            Some(who.clone()).into(),
+            pallet_poscan::Call::<Runtime>::qc_reject { obj_idx },
+        );
+        match result {
+            Ok(_) => {
+                // Emit QCRejected event: indexed objIdx, indexed inspector
+                log3(
+                    handle.context().address,
+                    SELECTOR_LOG_QC_REJECTED,
+                    H256::from_low_u64_be(obj_idx as u64),
+                    address_to_h256(Address(handle.context().caller)),
+                    EvmDataWriter::new().build(),
+                ).record(handle)?;
+                // Emit InspectorFeePaid event: indexed objIdx, indexed inspector, fee (0 placeholder)
+                log3(
+                    handle.context().address,
+                    SELECTOR_LOG_INSPECTOR_FEE_PAID,
+                    H256::from_low_u64_be(obj_idx as u64),
+                    address_to_h256(Address(handle.context().caller)),
+                    EvmDataWriter::new().write(U256::from(0u32)).build(),
+                ).record(handle)?;
+                Ok(true)
+            },
+            Err(e) => Err(e.into()),
+        }
+    }
+
+    /// Transfer object ownership
+    /// @custom:selector 0x0c53c522
+    #[precompile::public("transferObjectOwnership(uint32,address)")]
+    fn transfer_object_ownership(
+        handle: &mut impl PrecompileHandle,
+        obj_idx: u32,
+        new_owner: Address,
+    ) -> EvmResult<bool> {
+        use pallet_poscan::Call as PoScanCall;
+        let origin = handle.context().caller;
+        let runtime_new_owner = <Runtime as pallet_evm::Config>::AddressMapping::into_account_id(new_owner.into());
+        let call = PoScanCall::<Runtime>::transfer_object_ownership {
+            obj_idx,
+            new_owner: <Runtime as frame_system::Config>::Lookup::unlookup(runtime_new_owner),
+        };
+        let account_id = <Runtime as pallet_evm::Config>::AddressMapping::into_account_id(origin);
+        let result = RuntimeHelper::<Runtime>::try_dispatch(handle, Some(account_id).into(), call);
+        match result {
+            Ok(_) => {
+                // Record gas cost for event emission
+                handle.record_log_costs_manual(3, 32)?;
+                
+                // Emit ObjectOwnershipTransferred event
+                log3(
+                    handle.context().address,
+                    SELECTOR_LOG_OWNERSHIP_TRANSFERRED,
+                    handle.context().caller,
+                    handle.context().caller,
+                    EvmDataWriter::new()
+                        .write(U256::from(obj_idx))
+                        .write(Address(handle.context().caller)) // old owner (H160)
+                        .write(new_owner) // new owner (H160) - used as-is from EVM
+                        .build(),
+                )
+                .record(handle)?;
+                
+                Ok(true)
+            },
+            Err(e) => Err(e.into()),
+        }
+    }
+
+    /// Abdicate object ownership
+    /// @custom:selector 0x0c53c523
+    #[precompile::public("abdicateTheObjOwnership(uint32)")]
+    fn abdicate_the_obj_ownership(
+        handle: &mut impl PrecompileHandle,
+        obj_idx: u32,
+    ) -> EvmResult<bool> {
+        use pallet_poscan::Call as PoScanCall;
+        let origin = handle.context().caller;
+        let call = PoScanCall::<Runtime>::abdicate_the_obj_ownership { obj_idx };
+        let account_id = <Runtime as pallet_evm::Config>::AddressMapping::into_account_id(origin);
+        let result = RuntimeHelper::<Runtime>::try_dispatch(handle, Some(account_id).into(), call);
+        Ok(result.is_ok())
+    }
+
+    /// Unlock unspent rewards for a NotApproved object (fee payer only)
+    /// @custom:selector 0x0c53c525
+    #[precompile::public("unlockUnspentRewards(uint32)")]
+    fn unlock_unspent_rewards(
+        handle: &mut impl PrecompileHandle,
+        obj_idx: u32,
+    ) -> EvmResult<bool> {
+        use pallet_poscan::Call as PoScanCall;
+        let origin = handle.context().caller;
+        let call = PoScanCall::<Runtime>::unlock_unspent_rewards { obj_idx };
+        let account_id = <Runtime as pallet_evm::Config>::AddressMapping::into_account_id(origin);
+        let result = RuntimeHelper::<Runtime>::try_dispatch(handle, Some(account_id).into(), call);
+        match result {
+            Ok(_) => {
+                // Record gas cost for event emission
+                handle.record_log_costs_manual(3, 32)?;
+                // Emit UnspentRewardsUnlocked event: indexed objIdx, indexed feePayer, amount (0 placeholder)
+                log3(
+                    handle.context().address,
+                    SELECTOR_LOG_UNSPENT_REWARDS_UNLOCKED,
+                    H256::from_low_u64_be(obj_idx as u64),
+                    address_to_h256(Address(handle.context().caller)),
+                    EvmDataWriter::new().write(U256::from(0u32)).build(),
+                ).record(handle)?;
+                Ok(true)
+            },
+            Err(e) => Err(e.into()),
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// This test ensures that the Rust macro attribute signature matches the Solidity interface signature.
+    /// Selector checks should be done in Solidity or with solc/ethers.js, not in Rust.
+    #[test]
+    fn test_macro_attribute_matches_solidity_signature() {
+        // List of (function_name, rust_macro_attribute, solidity_signature)
+        let test_cases = vec![
+            ("getObject", "getObject(uint32)", "getObject(uint32)"),
+            ("getObjectsOf", "getObjectsOf(address)", "getObjectsOf(address)"),
+            ("getObjectsOfInspector", "getObjectsOfInspector(address)", "getObjectsOfInspector(address)"),
+            ("getObjectCount", "getObjectCount()", "getObjectCount()"),
+            ("getProperties", "getProperties()", "getProperties()"),
+            ("getFeePerByte", "getFeePerByte()", "getFeePerByte()"),
+            ("getAccountLock", "getAccountLock(address)", "getAccountLock(address)"),
+            ("getRewards", "getRewards()", "getRewards()"),
+            ("getDynamicRewardsGrowthRate", "getDynamicRewardsGrowthRate()", "getDynamicRewardsGrowthRate()"),
+            ("getEstimatorsShare", "getEstimatorsShare()", "getEstimatorsShare()"),
+            ("getAuthorPart", "getAuthorPart()", "getAuthorPart()"),
+            ("getUnspentRewards", "getUnspentRewards(uint32)", "getUnspentRewards(uint32)"),
+            ("putObject", "putObject(uint8,uint8,bool,bytes,uint8,bytes32[],(uint32,uint128)[],bool,uint32,uint64,bool,bytes32,string)", "putObject(uint8,uint8,bool,bytes,uint8,bytes32[],(uint32,uint128)[],bool,uint32,uint64,bool,bytes32,string)"),
+            ("setPrivateObjectPermissions", "setPrivateObjectPermissions(uint32,(address,uint32,uint64)[])", "setPrivateObjectPermissions(uint32,(address,uint32,uint64)[])"),
+            ("getReplicasOf", "getReplicasOf(uint32)", "getReplicasOf(uint32)"),
+            ("inspectPutObject", "inspectPutObject(uint8,uint8,bool,bytes,uint8,bytes32[],(uint32,uint128)[],bool,uint32,uint64,address,uint256,uint32,bool,bytes32,string)", "inspectPutObject(uint8,uint8,bool,bytes,uint8,bytes32[],(uint32,uint128)[],bool,uint32,uint64,address,uint256,uint32,bool,bytes32,string)"),
+            ("qcApprove", "qcApprove(uint32)", "qcApprove(uint32)"),
+            ("qcReject", "qcReject(uint32)", "qcReject(uint32)"),
+            ("transferObjectOwnership", "transferObjectOwnership(uint32,address)", "transferObjectOwnership(uint32,address)"),
+            ("abdicateTheObjOwnership", "abdicateTheObjOwnership(uint32)", "abdicateTheObjOwnership(uint32)"),
+            ("unlockUnspentRewards", "unlockUnspentRewards(uint32)", "unlockUnspentRewards(uint32)"),
+        ];
+        
+        for (function_name, rust_macro, solidity_sig) in test_cases {
+            assert_eq!(
+                rust_macro, solidity_sig,
+                "Signature mismatch for {}: Rust macro '{}', Solidity '{}'",
+                function_name, rust_macro, solidity_sig
+            );
+        }
+    }
+} 

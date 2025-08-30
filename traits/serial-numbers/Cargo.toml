@@ -1,10 +1,10 @@
 [package]
-name = "poscan-api"
-version = "3.0.0"
+name = "serial-numbers-api"
+version = "0.1.0"
 edition = "2021"
 authors = ['Substrate DevHub <https://github.com/substrate-developer-hub>']
 repository = 'https://github.com/substrate-developer-hub/recipes'
-description = "A trait that supplies a set of accounts for use in a Substrate runtime"
+description = "A trait that supplies serial numbers API for use in a Substrate runtime"
 license = "GPL-3.0-or-later"
 
 [dependencies]
@@ -12,9 +12,8 @@ codec = { package = "parity-scale-codec", version = "3.1", default-features = fa
 sp-std = { default-features = false, git = "https://github.com/paritytech/substrate", rev = "b0777b4c7f7" }
 sp-runtime = { default-features = false, git = "https://github.com/paritytech/substrate", rev = "b0777b4c7f7" }
 frame-system = { default-features = false, git = "https://github.com/paritytech/substrate", rev = "b0777b4c7f7" }
-sp-core = { default-features = false, git = "https://github.com/paritytech/substrate", rev = "b0777b4c7f7" }
-
-sp-consensus-poscan = { default-features = false, path = "../../primitives/consensus/poscan" }
+scale-info = { version = "2.1.1", default-features = false, features = ["derive"] }
+sp-api = { default-features = false, git = "https://github.com/paritytech/substrate", rev = "b0777b4c7f7" }
 
 [features]
 default = ['std']
@@ -22,6 +21,6 @@ std = [
     "sp-std/std",
     "sp-runtime/std",
     "frame-system/std",
-    "sp-consensus-poscan/std",
+    "scale-info/std",
+    "sp-api/std",
 ]
-

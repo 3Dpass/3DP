@@ -692,11 +692,11 @@ pub mod pallet {
 		pub fn mint(
 			origin: OriginFor<T>,
 			#[pallet::compact] id: T::AssetId,
-			// beneficiary: <T::Lookup as StaticLookup>::Source,
+			beneficiary: <T::Lookup as StaticLookup>::Source,
 			#[pallet::compact] amount: T::Balance,
 		) -> DispatchResult {
 			let origin = ensure_signed(origin)?;
-			// let beneficiary = T::Lookup::lookup(beneficiary)?;
+			let beneficiary = T::Lookup::lookup(beneficiary)?;
 
 			let asset = Asset::<T, I>::get(&id).ok_or(Error::<T, I>::AssetNotFound)?;
 
@@ -705,7 +705,7 @@ pub mod pallet {
 				let prop = T::Poscan::property(obj_details.obj_idx, obj_details.prop_idx).ok_or(Error::<T, I>::InvalidObjectProperty)?;
 				ensure!(asset.supply.saturating_add(amount).saturated_into::<u128>() <= prop.max_value, Error::<T, I>::MintUpperMaxSupply);
 			}
-			Self::do_mint(id, &origin, amount, Some(origin.clone()))?;
+			Self::do_mint(id, &beneficiary, amount, Some(origin.clone()))?;
 
 			Ok(())
 		}
@@ -1427,5 +1427,34 @@ pub mod pallet {
 		}
 	}
 
-	
+}
+
+// PoscanApi implementation for Pallet<T, I>
+impl<T: Config<I>, I: 'static> poscan_api::PoscanApi<T::AccountId, T::BlockNumber> for Pallet<T, I> {
+    fn get_poscan_object(_i: u32) -> Option<sp_consensus_poscan::ObjData<T::AccountId, T::BlockNumber>> {
+        None
+    }
+    fn is_owner_of(_account_id: &T::AccountId, _obj_idx: u32) -> bool {
+        false
+    }
+    fn property(_obj_idx: u32, _prop_idx: u32) -> Option<sp_consensus_poscan::PropValue> {
+        None
+    }
+    fn replicas_of(_original_idx: u32) -> Vec<u32> {
+        Vec::new()
+    }
+    fn object_has_asset(obj_idx: u32) -> bool {
+        Asset::<T, I>::iter().any(|(_id, details)| {
+            details.obj_details.as_ref().map_or(false, |od| od.obj_idx == obj_idx)
+        })
+    }
+    fn get_dynamic_rewards_growth_rate() -> Option<u32> { None }
+    fn get_author_part() -> Option<u8> { None }
+    fn get_unspent_rewards(_obj_idx: u32) -> Option<u128> { None }
+    fn get_fee_payer(_obj_idx: u32) -> Option<T::AccountId> { None }
+    fn get_pending_storage_fees() -> Option<u128> { None }
+    fn get_rewards() -> Option<u128> { None }
+    fn get_qc_timeout(_obj_idx: u32) -> Option<u32> { None }
+
+    fn get_object_idx_by_proof_of_existence(_proof: sp_core::H256) -> Option<u32> { None }
 }

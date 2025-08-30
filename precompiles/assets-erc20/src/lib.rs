@@ -81,16 +81,16 @@ pub trait AccountIdAssetIdConversion<Account, AssetId> {
 /// The following distribution has been decided for the precompiles
 /// 0-1023: Ethereum Mainnet Precompiles
 /// 1024-2047 Precompiles that are not in Ethereum Mainnet but are neither Moonbeam specific
-/// 2048-4095 Moonbeam specific precompiles
+/// 2048-4095 3DPass specific precompiles
 /// Asset precompiles can only fall between
-/// 	0xFFFFFFFF00000000000000000000000000000000 - 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF
-/// The precompile for AssetId X, where X is a u128 (i.e.16 bytes), if 0XFFFFFFFF + Bytes(AssetId)
+/// 	0xFBFBFBFA00000000000000000000000000000000 - 0xFBFBFBFAFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF
+/// The precompile for AssetId X, where X is a u128 (i.e.16 bytes), if 0xFBFBFBFA + Bytes(AssetId)
 /// In order to route the address to Erc20AssetsPrecompile<R>, we first check whether the AssetId
 /// exists in pallet-assets
 /// We cannot do this right now, so instead we check whether the total supply is zero. If so, we
 /// do not route to the precompiles
 
-/// This means that every address that starts with 0xFFFFFFFF will go through an additional db read,
+/// This means that every address that starts with 0xFBFBFBFA will go through an additional db read,
 /// but the probability for this to happen is 2^-32 for random addresses
 pub struct Erc20AssetsPrecompileSet<Runtime, IsLocal, Instance: 'static = ()>(
 	PhantomData<(Runtime, IsLocal, Instance)>,
@@ -153,6 +153,7 @@ where
 	}
 
 	#[precompile::public("totalSupply()")]
+	#[precompile::view]
 	fn total_supply(
 		asset_id: AssetIdOf<Runtime, Instance>,
 		handle: &mut impl PrecompileHandle,
@@ -163,6 +164,7 @@ where
 	}
 
 	#[precompile::public("balanceOf(address)")]
+	#[precompile::view]
 	fn balance_of(
 		asset_id: AssetIdOf<Runtime, Instance>,
 		handle: &mut impl PrecompileHandle,
@@ -183,6 +185,7 @@ where
 	}
 
 	#[precompile::public("allowance(address,address)")]
+	#[precompile::view]
 	fn allowance(
 		asset_id: AssetIdOf<Runtime, Instance>,
 		handle: &mut impl PrecompileHandle,
@@ -378,6 +381,7 @@ where
 	}
 
 	#[precompile::public("name()")]
+	#[precompile::view]
 	fn name(
 		asset_id: AssetIdOf<Runtime, Instance>,
 		handle: &mut impl PrecompileHandle,
@@ -392,6 +396,7 @@ where
 	}
 
 	#[precompile::public("symbol()")]
+	#[precompile::view]
 	fn symbol(
 		asset_id: AssetIdOf<Runtime, Instance>,
 		handle: &mut impl PrecompileHandle,
@@ -406,6 +411,7 @@ where
 	}
 
 	#[precompile::public("decimals()")]
+	#[precompile::view]
 	fn decimals(
 		asset_id: AssetIdOf<Runtime, Instance>,
 		handle: &mut impl PrecompileHandle,
@@ -445,8 +451,7 @@ where
 				Some(origin).into(),
 				pallet_assets::Call::<Runtime, Instance>::mint {
 					id: asset_id,
-					// TODO:
-					//beneficiary: Runtime::Lookup::unlookup(to),
+					beneficiary: Runtime::Lookup::unlookup(Runtime::AddressMapping::into_account_id(to)),
 					amount: value,
 				},
 			)?;
@@ -786,6 +791,180 @@ where
 		handle: &mut impl PrecompileHandle,
 	) -> EvmResult<H256> {
 		<Eip2612<Runtime, IsLocal, Instance>>::domain_separator(asset_id, handle)
+	}
+
+	// New query functions for asset data
+
+	#[precompile::public("isOwner(address)")]
+	#[precompile::view]
+	fn is_owner(
+		asset_id: AssetIdOf<Runtime, Instance>,
+		handle: &mut impl PrecompileHandle,
+		account: Address,
+	) -> EvmResult<bool> {
+		handle.record_cost(RuntimeHelper::<Runtime>::db_read_gas_cost())?;
+
+		let account: H160 = account.into();
+		let account_id: Runtime::AccountId = Runtime::AddressMapping::into_account_id(account);
+
+		// Get asset owner using public method
+		let owner = pallet_assets::Pallet::<Runtime, Instance>::owner(asset_id)
+			.ok_or(RevertReason::UnknownSelector)?;
+
+		Ok(owner == account_id)
+	}
+
+	#[precompile::public("isIssuer(address)")]
+	#[precompile::view]
+	fn is_issuer(
+		asset_id: AssetIdOf<Runtime, Instance>,
+		handle: &mut impl PrecompileHandle,
+		account: Address,
+	) -> EvmResult<bool> {
+		handle.record_cost(RuntimeHelper::<Runtime>::db_read_gas_cost())?;
+
+		let account: H160 = account.into();
+		let account_id: Runtime::AccountId = Runtime::AddressMapping::into_account_id(account);
+
+		// Get asset issuer using public method
+		let issuer = pallet_assets::Pallet::<Runtime, Instance>::issuer(asset_id)
+			.ok_or(RevertReason::UnknownSelector)?;
+
+		Ok(issuer == account_id)
+	}
+
+	#[precompile::public("isAdmin(address)")]
+	#[precompile::view]
+	fn is_admin(
+		asset_id: AssetIdOf<Runtime, Instance>,
+		handle: &mut impl PrecompileHandle,
+		account: Address,
+	) -> EvmResult<bool> {
+		handle.record_cost(RuntimeHelper::<Runtime>::db_read_gas_cost())?;
+
+		let account: H160 = account.into();
+		let account_id: Runtime::AccountId = Runtime::AddressMapping::into_account_id(account);
+
+		// Get asset admin using public method
+		let admin = pallet_assets::Pallet::<Runtime, Instance>::admin(asset_id)
+			.ok_or(RevertReason::UnknownSelector)?;
+
+		Ok(admin == account_id)
+	}
+
+	#[precompile::public("isFreezer(address)")]
+	#[precompile::view]
+	fn is_freezer(
+		asset_id: AssetIdOf<Runtime, Instance>,
+		handle: &mut impl PrecompileHandle,
+		account: Address,
+	) -> EvmResult<bool> {
+		handle.record_cost(RuntimeHelper::<Runtime>::db_read_gas_cost())?;
+
+		let account: H160 = account.into();
+		let account_id: Runtime::AccountId = Runtime::AddressMapping::into_account_id(account);
+
+		// Get asset freezer using public method
+		let freezer = pallet_assets::Pallet::<Runtime, Instance>::freezer(asset_id)
+			.ok_or(RevertReason::UnknownSelector)?;
+
+		Ok(freezer == account_id)
+	}
+
+	#[precompile::public("status()")]
+	#[precompile::view]
+	fn status(
+		asset_id: AssetIdOf<Runtime, Instance>,
+		handle: &mut impl PrecompileHandle,
+	) -> EvmResult<UnboundedBytes> {
+		handle.record_cost(RuntimeHelper::<Runtime>::db_read_gas_cost())?;
+
+		// Get asset status using public method
+		let asset_status = pallet_assets::Pallet::<Runtime, Instance>::status(asset_id)
+			.ok_or(RevertReason::UnknownSelector)?;
+
+		let status_str = match asset_status {
+			pallet_assets::AssetStatus::Live => "Live",
+			pallet_assets::AssetStatus::Frozen => "Frozen",
+			pallet_assets::AssetStatus::Destroying => "Destroying",
+		};
+
+		Ok(status_str.as_bytes().into())
+	}
+
+	#[precompile::public("reserved()")]
+	#[precompile::view]
+	fn reserved(
+		asset_id: AssetIdOf<Runtime, Instance>,
+		handle: &mut impl PrecompileHandle,
+	) -> EvmResult<U256> {
+		handle.record_cost(RuntimeHelper::<Runtime>::db_read_gas_cost())?;
+
+		// Get asset reserved amount using public method
+		let reserved_amount = pallet_assets::Pallet::<Runtime, Instance>::reserved(asset_id);
+
+		Ok(reserved_amount.into())
+	}
+
+	#[precompile::public("minBalance()")]
+	#[precompile::view]
+	fn min_balance(
+		asset_id: AssetIdOf<Runtime, Instance>,
+		handle: &mut impl PrecompileHandle,
+	) -> EvmResult<U256> {
+		handle.record_cost(RuntimeHelper::<Runtime>::db_read_gas_cost())?;
+
+		// Get asset minimum balance using public method
+		let min_balance = pallet_assets::Pallet::<Runtime, Instance>::min_balance(asset_id);
+
+		Ok(min_balance.into())
+	}
+
+	#[precompile::public("reservedOf(address)")]
+	#[precompile::view]
+	fn reserved_of(
+		asset_id: AssetIdOf<Runtime, Instance>,
+		handle: &mut impl PrecompileHandle,
+		account: Address,
+	) -> EvmResult<U256> {
+		handle.record_cost(RuntimeHelper::<Runtime>::db_read_gas_cost())?;
+
+		let account: H160 = account.into();
+		let account_id: Runtime::AccountId = Runtime::AddressMapping::into_account_id(account);
+
+		// Get reserved amount for the account using public method
+		let reserved_amount = pallet_assets::Pallet::<Runtime, Instance>::reserved_of(asset_id, &account_id);
+
+		Ok(reserved_amount.into())
+	}
+
+	#[precompile::public("objDetails()")]
+	#[precompile::view]
+	fn obj_details(
+		asset_id: AssetIdOf<Runtime, Instance>,
+		handle: &mut impl PrecompileHandle,
+	) -> EvmResult<(bool, u8, u8, U256)> {
+		handle.record_cost(RuntimeHelper::<Runtime>::db_read_gas_cost())?;
+
+		// Get object details using public method
+		match pallet_assets::Pallet::<Runtime, Instance>::obj_details(asset_id) {
+			Some(obj_details) => {
+				Ok((
+					true, // isValid
+					obj_details.obj_idx as u8,
+					obj_details.prop_idx as u8,
+					obj_details.max_supply.into(),
+				))
+			}
+			None => {
+				Ok((
+					false, // isValid
+					0,     // objIdx
+					0,     // propIdx
+					U256::zero(), // maxSupply
+				))
+			}
+		}
 	}
 
 	fn u256_to_amount(value: U256) -> MayRevert<BalanceOf<Runtime, Instance>> {

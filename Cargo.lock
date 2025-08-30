@@ -5252,6 +5252,31 @@ dependencies = [
 ]
 
 [[package]]
+name = "pallet-evm-precompileset-assets-conversion"
+version = "0.1.0"
+dependencies = [
+ "fp-evm",
+ "frame-support",
+ "frame-system",
+ "hex",
+ "log",
+ "num_enum",
+ "pallet-asset-conversion",
+ "pallet-balances",
+ "pallet-evm",
+ "pallet-timestamp",
+ "parity-scale-codec",
+ "paste",
+ "precompile-utils",
+ "scale-info",
+ "slices",
+ "sp-core",
+ "sp-io",
+ "sp-runtime",
+ "sp-std",
+]
+
+[[package]]
 name = "pallet-evm-precompileset-assets-erc20"
 version = "0.1.0"
 dependencies = [
@@ -5263,6 +5288,84 @@ dependencies = [
  "pallet-balances",
  "pallet-evm",
  "pallet-poscan-assets",
+ "pallet-timestamp",
+ "parity-scale-codec",
+ "paste",
+ "precompile-utils",
+ "scale-info",
+ "slices",
+ "sp-core",
+ "sp-io",
+ "sp-runtime",
+ "sp-std",
+]
+
+[[package]]
+name = "pallet-evm-precompileset-identity"
+version = "0.1.0"
+dependencies = [
+ "fp-evm",
+ "frame-support",
+ "frame-system",
+ "hex",
+ "log",
+ "num_enum",
+ "pallet-balances",
+ "pallet-evm",
+ "pallet-identity",
+ "pallet-timestamp",
+ "parity-scale-codec",
+ "paste",
+ "precompile-utils",
+ "scale-info",
+ "slices",
+ "sp-core",
+ "sp-io",
+ "sp-runtime",
+ "sp-std",
+ "tiny-keccak",
+]
+
+[[package]]
+name = "pallet-evm-precompileset-poscan"
+version = "0.1.0"
+dependencies = [
+ "fp-evm",
+ "frame-support",
+ "frame-system",
+ "log",
+ "num_enum",
+ "pallet-balances",
+ "pallet-evm",
+ "pallet-poscan",
+ "pallet-timestamp",
+ "parity-scale-codec",
+ "paste",
+ "poscan-api",
+ "precompile-utils",
+ "scale-info",
+ "slices",
+ "sp-arithmetic",
+ "sp-consensus-poscan",
+ "sp-core",
+ "sp-io",
+ "sp-runtime",
+ "sp-std",
+]
+
+[[package]]
+name = "pallet-evm-precompileset-serial-numbers"
+version = "0.1.0"
+dependencies = [
+ "fp-evm",
+ "frame-support",
+ "frame-system",
+ "hex",
+ "log",
+ "num_enum",
+ "pallet-balances",
+ "pallet-evm",
+ "pallet-serial-numbers",
  "pallet-timestamp",
  "parity-scale-codec",
  "paste",
@@ -5459,10 +5562,13 @@ dependencies = [
  "frame-support",
  "frame-system",
  "log",
+ "num-traits",
+ "pallet-collective",
  "parity-scale-codec",
  "poscan-algo",
  "poscan-api",
  "scale-info",
+ "serial-numbers-api",
  "sp-consensus-poscan",
  "sp-core",
  "sp-inherents",
@@ -5659,6 +5765,22 @@ dependencies = [
  "frame-system",
  "parity-scale-codec",
  "scale-info",
+ "sp-io",
+ "sp-runtime",
+ "sp-std",
+]
+
+[[package]]
+name = "pallet-serial-numbers"
+version = "0.1.0"
+dependencies = [
+ "frame-support",
+ "frame-system",
+ "log",
+ "pallet-balances",
+ "parity-scale-codec",
+ "scale-info",
+ "sp-core",
  "sp-io",
  "sp-runtime",
  "sp-std",
@@ -6233,6 +6355,7 @@ dependencies = [
  "frame-system",
  "parity-scale-codec",
  "sp-consensus-poscan",
+ "sp-core",
  "sp-runtime",
  "sp-std",
 ]
@@ -6384,7 +6507,11 @@ dependencies = [
  "pallet-evm-precompile-proxy",
  "pallet-evm-precompile-sha3fips",
  "pallet-evm-precompile-simple",
+ "pallet-evm-precompileset-assets-conversion",
  "pallet-evm-precompileset-assets-erc20",
+ "pallet-evm-precompileset-identity",
+ "pallet-evm-precompileset-poscan",
+ "pallet-evm-precompileset-serial-numbers",
  "pallet-grandpa",
  "pallet-hotfix-sufficients",
  "pallet-identity",
@@ -6406,6 +6533,7 @@ dependencies = [
  "pallet-rewards",
  "pallet-scheduler",
  "pallet-scored-pool",
+ "pallet-serial-numbers",
  "pallet-session",
  "pallet-sudo",
  "pallet-timestamp",
@@ -6423,6 +6551,7 @@ dependencies = [
  "precompile-utils",
  "scale-info",
  "serde",
+ "serial-numbers-api",
  "smallvec",
  "sp-api",
  "sp-application-crypto",
@@ -8267,6 +8396,18 @@ dependencies = [
  "itoa 1.0.3",
  "ryu",
  "serde",
+]
+
+[[package]]
+name = "serial-numbers-api"
+version = "0.1.0"
+dependencies = [
+ "frame-system",
+ "parity-scale-codec",
+ "scale-info",
+ "sp-api",
+ "sp-runtime",
+ "sp-std",
 ]
 
 [[package]]

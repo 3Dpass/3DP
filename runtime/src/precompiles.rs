@@ -16,7 +16,7 @@
 // along with 3Dpass.  If not, see <http://www.gnu.org/licenses/>.
 
 
-use frame_support::instances::Instance1;
+use frame_support::instances::{Instance1, Instance2};
 
 use frame_support::parameter_types;
 use pallet_evm_precompile_balances_erc20::{Erc20BalancesPrecompile, Erc20Metadata};
@@ -29,7 +29,11 @@ use pallet_evm_precompile_proxy::ProxyPrecompile;
 use pallet_evm_precompile_sha3fips::Sha3FIPS256;
 use pallet_evm_precompile_simple::{ECRecover, ECRecoverPublicKey, Identity, Ripemd160, Sha256};
 use pallet_evm_precompileset_assets_erc20::{Erc20AssetsPrecompileSet, IsLocal};
+use pallet_evm_precompileset_assets_conversion::AssetsConversionPrecompile;
 use precompile_utils::precompile_set::*;
+use pallet_evm_precompileset_poscan::PoScanPrecompile;
+use pallet_evm_precompileset_identity::IdentityPrecompile;
+use pallet_evm_precompileset_serial_numbers::SerialNumbersPrecompile;
 
 /// ERC20 metadata for the native token.
 pub struct NativeErc20Metadata;
@@ -58,21 +62,26 @@ impl Erc20Metadata for NativeErc20Metadata {
 }
 
 /// The asset precompile address prefix. Addresses that match against this prefix will be routed
-/// to Erc20AssetsPrecompileSet being marked as local
+/// to Erc20AssetsPrecompileSet being marked as local, corresponds to `0xFBFBFBFA`
 pub const LOCAL_ASSET_PRECOMPILE_ADDRESS_PREFIX: &[u8] = &[251u8, 251u8, 251u8, 250u8];
+
+/// The asset precompile address prefix. Addresses that match against this prefix will be routed
+/// to Erc20AssetsPrecompileSet being marked as local, corresponds to `0xFBFBFBFB`
+pub const LIQUIDITY_POOL_ASSET_PRECOMPILE_ADDRESS_PREFIX: &[u8] = &[251u8, 251u8, 251u8, 251u8];
 
 parameter_types! {
 	pub LocalAssetPrefix: &'static [u8] = LOCAL_ASSET_PRECOMPILE_ADDRESS_PREFIX;
+	pub LiquidityPoolAssetPrefix: &'static [u8] = LIQUIDITY_POOL_ASSET_PRECOMPILE_ADDRESS_PREFIX;
 }
 
-/// The PrecompileSet installed in the Moonbase runtime.
+/// The PrecompileSet installed in the 3dpass - Ledger of Things (LoT) runtime.
 /// We include the nine Istanbul precompiles
 /// (https://github.com/ethereum/go-ethereum/blob/3c46f557/core/vm/contracts.go#L69)
 /// as well as a special precompile for dispatching Substrate extrinsics
 /// The following distribution has been decided for the precompiles
 /// 0-1023: Ethereum Mainnet Precompiles
-/// 1024-2047 Precompiles that are not in Ethereum Mainnet but are neither Moonbeam specific
-/// 2048-4095 Moonbeam specific precompiles
+/// 1024-2047 Precompiles that are not in Ethereum Mainnet but are neither LoT specific
+/// 2048-4095 LoT specific precompiles
 pub type FrontierPrecompiles<R> = PrecompileSetBuilder<
 	R,
 	(
@@ -97,12 +106,20 @@ pub type FrontierPrecompiles<R> = PrecompileSetBuilder<
 				PrecompileAt<AddressU64<2056>, BatchPrecompile<R>, LimitRecursionTo<2>>,
 				PrecompileAt<AddressU64<2058>, CallPermitPrecompile<R>>,
 				PrecompileAt<AddressU64<2059>, ProxyPrecompile<R>>,
+				PrecompileAt<AddressU64<2306>, AssetsConversionPrecompile<R>>,
+				PrecompileAt<AddressU64<2307>, PoScanPrecompile<R>>,
+				PrecompileAt<AddressU64<2308>, IdentityPrecompile<R>>,
+				PrecompileAt<AddressU64<2309>, SerialNumbersPrecompile<R>>,
 			),
 		>,
 		// Prefixed precompile sets (XC20)
 		PrecompileSetStartingWith<
 			LocalAssetPrefix,
 			Erc20AssetsPrecompileSet<R, IsLocal, Instance1>,
+		>,
+		PrecompileSetStartingWith<
+			LiquidityPoolAssetPrefix,
+			Erc20AssetsPrecompileSet<R, IsLocal, Instance2>,
 		>,
 	),
 >;

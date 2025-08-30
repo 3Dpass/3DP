@@ -1,0 +1,32 @@
+[package]
+name = "pallet-serial-numbers"
+version = "0.1.0"
+edition = "2021"
+authors = ["Your Name <your@email.com>"]
+description = "A custom pallet for creating and managing serial numbers."
+
+[dependencies]
+log = { default-features = false, version = '0.4.17'}
+codec = { package = "parity-scale-codec", version = "3.1", default-features = false }
+scale-info = { version = "2.0", default-features = false, features = ["derive"] }
+sp-std = { default-features = false, git = "https://github.com/paritytech/substrate", rev = "b0777b4c7f7" }
+sp-runtime = { default-features = false, git = "https://github.com/paritytech/substrate", rev = "b0777b4c7f7" }
+frame-support = { default-features = false, git = "https://github.com/paritytech/substrate", rev = "b0777b4c7f7" }
+frame-system = { default-features = false, git = "https://github.com/paritytech/substrate", rev = "b0777b4c7f7" }
+sp-io = { default-features = false, git = "https://github.com/paritytech/substrate", rev = "b0777b4c7f7" }
+
+[dev-dependencies]
+sp-core = { default-features = false, git = "https://github.com/paritytech/substrate", rev = "b0777b4c7f7" }
+sp-io = { default-features = false, git = "https://github.com/paritytech/substrate", rev = "b0777b4c7f7" }
+pallet-balances = { default-features = false, git = "https://github.com/paritytech/substrate", rev = "b0777b4c7f7" }
+
+[features]
+default = ["std"]
+std = [
+    "codec/std",
+    "scale-info/std",
+    "sp-std/std",
+    "sp-runtime/std",
+    "frame-support/std",
+    "frame-system/std",
+]

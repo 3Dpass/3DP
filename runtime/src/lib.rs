@@ -93,6 +93,7 @@ use sp_consensus_poscan::{
 
 use mining_pool_stat_api::{MiningPoolStatApi, CheckMemberError};
 use poscan_api::PoscanApi;
+use serial_numbers_api;
 
 mod precompiles;
 use precompiles::FrontierPrecompiles;
@@ -169,7 +170,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	//   `spec_version`, and `authoring_version` are the same between Wasm and native.
 	// This value is set to 100 to notify Polkadot-JS App (https://polkadot.js.org/apps) to use
 	//   the compatible custom types.
-	spec_version: 130,
+	spec_version: 131,
 	impl_version: 1,
 	apis: RUNTIME_API_VERSIONS,
 	transaction_version: 1,
@@ -1434,7 +1435,8 @@ impl pallet_asset_conversion::Config for Runtime {
 parameter_types! {
 	pub const RewardsDefault: u128 = 500 * DOLLARS;
 	pub const AuthorPartDefault: Percent = Percent::from_percent(30);
-
+	pub const EstimatorsShareDefault: Percent = Percent::from_percent(70);
+	pub const DynamicRewardsGrowthRate: u32 = 10; // Controls exponential growth rate (higher = slower growth)
 }
 
 impl pallet_poscan::Config for Runtime {
@@ -1448,7 +1450,11 @@ impl pallet_poscan::Config for Runtime {
 	// type MaxObjectSize = ConstU32<100_000>;
 	type RewardsDefault = RewardsDefault;
 	type AuthorPartDefault = AuthorPartDefault;
+	type DynamicRewardsGrowthRate = DynamicRewardsGrowthRate;
 	type Currency = Balances;
+	type SerialNumbers = Runtime;
+	type PoscanAssets = pallet_poscan_assets::Pallet<Runtime, Instance1>;
+	type CouncilOrigin = EnsureRootOrHalfCouncil;
 }
 
 parameter_types! {
@@ -1722,6 +1728,12 @@ impl frame_support::traits::OnRuntimeUpgrade for SessionUpgrade {
 	}
 }
 
+// Add SerialNumbers config impl here, before construct_runtime!
+impl pallet_serial_numbers::Config for Runtime {
+    type Event = Event;
+    type MaxSerialNumbersPerBlock = ConstU32<10000>; // Allow up to 10,000 SNs per block per owner
+}
+
 // Create the runtime by composing the FRAME pallets that were previously configured.
 construct_runtime!(
 	pub enum Runtime where
@@ -1784,6 +1796,7 @@ construct_runtime!(
 		BaseFee: pallet_base_fee,
 		HotfixSufficients: pallet_hotfix_sufficients,
 		Proxy: pallet_proxy,
+		SerialNumbers: pallet_serial_numbers::{Pallet, Call, Storage, Event<T>},
 	}
 );
 
@@ -2286,6 +2299,30 @@ impl_runtime_apis! {
 		fn get_obj_hashes_wasm(ver: &[u8; 16], data: &Vec<u8>, pre: &H256, depth: u32, patch_rot: bool) -> Vec<H256> {
 			algo::get_obj_hashes_wasm(ver, &data[..], pre, depth as usize, patch_rot)
 		}
+		fn replicas_of(original_idx: u32) -> Vec<u32> {
+			<PoScan as PoscanApi<AccountId, BlockNumber>>::replicas_of(original_idx)
+		}
+		fn get_dynamic_rewards_growth_rate() -> Option<u32> {
+			<PoScan as PoscanApi<AccountId, BlockNumber>>::get_dynamic_rewards_growth_rate()
+		}
+		fn get_author_part() -> Option<u8> {
+			<PoScan as PoscanApi<AccountId, BlockNumber>>::get_author_part()
+		}
+		fn get_unspent_rewards(obj_idx: u32) -> Option<u128> {
+			<PoScan as PoscanApi<AccountId, BlockNumber>>::get_unspent_rewards(obj_idx)
+		}
+		fn get_fee_payer(obj_idx: u32) -> Option<AccountId> {
+			<PoScan as PoscanApi<AccountId, BlockNumber>>::get_fee_payer(obj_idx)
+		}
+		fn get_pending_storage_fees() -> Option<u128> {
+			<PoScan as PoscanApi<AccountId, BlockNumber>>::get_pending_storage_fees()
+		}
+		fn get_rewards() -> Option<u128> {
+			<PoScan as PoscanApi<AccountId, BlockNumber>>::get_rewards()
+		}
+		fn get_object_idx_by_proof_of_existence(proof: H256) -> Option<u32> {
+			<PoScan as PoscanApi<AccountId, BlockNumber>>::get_object_idx_by_proof_of_existence(proof)
+		}
 	}
 
 	#[cfg(feature = "try-runtime")]
@@ -2301,6 +2338,61 @@ impl_runtime_apis! {
 		fn execute_block_no_check(block: Block) -> Weight {
 			Executive::execute_block_no_check(block)
 		}
+	}
+}
+
+impl serial_numbers_api::SerialNumbersApi<AccountId> for Runtime {
+	fn verify_serial_number(sn_hash: [u8; 16], block: u32) -> bool {
+		SerialNumbers::verify_serial_number(sn_hash, block)
+	}
+
+	fn verify_serial_number_stateless(
+		sn_hash: [u8; 16], 
+		owner: &AccountId, 
+		block: u32, 
+		block_index: u32
+	) -> bool {
+		SerialNumbers::verify_serial_number_stateless(sn_hash, owner, block, block_index)
+	}
+
+	fn generate_serial_numbers_for_block(
+		owner: &AccountId, 
+		block: u32, 
+		count: u32
+	) -> Vec<[u8; 16]> {
+		SerialNumbers::generate_serial_numbers_for_block(owner, block, count)
+	}
+
+	fn get_serial_numbers(sn_index: Option<u64>) -> Vec<serial_numbers_api::SerialNumberDetails<AccountId, u32>> {
+		SerialNumbers::get_serial_numbers(sn_index)
+			.into_iter()
+			.map(|details| serial_numbers_api::SerialNumberDetails {
+				sn_index: details.sn_index,
+				sn_hash: details.sn_hash,
+				initial_owner: details.initial_owner,
+				owner: details.owner,
+				created: details.created,
+				block_index: details.block_index,
+				expired: details.expired.map(|b| b.saturated_into()),
+				is_expired: details.is_expired,
+			})
+			.collect()
+	}
+
+	fn get_sn_owners(owner: AccountId) -> Vec<u64> {
+		SerialNumbers::get_sn_owners(owner)
+	}
+
+	fn is_serial_number_used(sn_hash: [u8; 16]) -> bool {
+		SerialNumbers::is_serial_number_used(sn_hash)
+	}
+
+	fn sn_count() -> u64 {
+		SerialNumbers::sn_count()
+	}
+
+	fn transfer_ownership(_sn_index: u64, _new_owner: AccountId) -> bool {
+		false
 	}
 }
 

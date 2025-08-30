@@ -78,6 +78,8 @@ pallet-atomic-swap = { path = "../pallets/atomic-swap", default-features = false
 pallet-mining-pool = { path = "../pallets/mining-pool", default-features = false }
 mining-pool-stat-api = { path = "../traits/mining-pool", default-features = false }
 poscan-api = { path = "../traits/poscan", default-features = false }
+serial-numbers-api = { path = "../traits/serial-numbers", default-features = false }
+pallet-serial-numbers = { path = "../pallets/serial-numbers", default-features = false }
 difficulty = { package = "pallet-difficulty", path = "../pallets/difficulty", default-features = false }
 rewards = { package = "pallet-rewards", path = "../pallets/rewards", default-features = false }
 pallet-referenda = { default-features = false, path = "../pallets/referenda" }
@@ -106,6 +108,8 @@ pallet-evm-precompileset-assets-erc20 = { path = "../precompiles/assets-erc20", 
 pallet-evm-precompile-call-permit = { path = "../precompiles/call-permit", default-features = false }
 pallet-evm-precompile-batch = { path = "../precompiles/batch", default-features = false }
 pallet-evm-precompile-proxy = { path = "../precompiles/proxy", default-features = false }
+pallet-evm-precompileset-identity = { path = "../precompiles/identity", default-features = false }
+pallet-evm-precompileset-serial-numbers = { path = "../precompiles/serial-numbers", default-features = false }
 
 precompile-utils = { path = "../precompiles/utils", default-features = false }
 
@@ -131,6 +135,9 @@ pallet-poscan = { path = "../pallets/poscan", default-features = false }
 pallet-poscan-assets = { path = "../pallets/poscan-assets", default-features = false }
 
 p3d = { version="0.7.0", git="https://github.com/3Dpass/p3d", rev="5eed8192" }
+
+pallet-evm-precompileset-assets-conversion = { path = "../precompiles/assets-conversion", default-features = false }
+pallet-evm-precompileset-poscan = { path = "../precompiles/poscan", default-features = false }
 
 [build-dependencies]
 substrate-wasm-builder = { version = "10"} # { git = "https://github.com/paritytech/substrate", rev = "b0777b4c7f7", package = "substrate-wasm-builder" }
@@ -209,10 +216,12 @@ std = [
 	"pallet-mining-pool/std",
 	"pallet-poscan/std",
 	"pallet-poscan-assets/std",
+	"pallet-serial-numbers/std",
 	"difficulty/std",
 	"rewards/std",
 	# "lockdrop/std",
 	"poscan-api/std",
+	"serial-numbers-api/std",
 
 	"pallet-evm-precompile-balances-erc20/std",
 	"pallet-evm-precompileset-assets-erc20/std",
@@ -221,6 +230,8 @@ std = [
 	"precompile-utils/std",
 	"pallet-evm-precompile-call-permit/std",
 	"pallet-evm-precompile-batch/std",
+	"pallet-evm-precompileset-identity/std",
+	"pallet-evm-precompileset-serial-numbers/std",
 
 	"fp-rpc/std",
 	"fp-self-contained/std",

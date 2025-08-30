@@ -46,7 +46,7 @@ use serde::{Serialize, Deserialize};
 pub const POSCAN_ENGINE_ID: ConsensusEngineId = [b'p', b'o', b's', b'c'];
 pub const POSCAN_SEAL_V1_ID: ConsensusEngineId = POSCAN_ENGINE_ID;
 pub const POSCAN_SEAL_V2_ID: ConsensusEngineId = [b'p', b's', b'c', b'2'];
-pub const POSCAN_COIN_ID: u8 = 71;
+pub const POSCAN_COIN_ID: u8 = 72; // The addresses format is now set to Testnet (ss58Format: 72). Must be changed to 71 for Mainnet!  
 
 pub const POSCAN_ALGO_GRID2D: [u8; 16] = *b"grid2d-1.1      ";
 pub const POSCAN_ALGO_GRID2D_V2: [u8; 16] = *b"grid2d-1.2      ";
@@ -195,6 +195,14 @@ sp_api::decl_runtime_apis! {
 		fn get_poscan_object(i: u32) -> Option<ObjData<AccountId, BlockNum>>;
 		fn check_object(alg_id: &[u8;16], obj: &Vec<u8>, hashes: &Vec<H256>) -> bool;
 		fn get_obj_hashes_wasm(ver: &[u8; 16], data: &Vec<u8>, pre: &H256, depth: u32, patch_rot: bool) -> Vec<H256>;
+		fn replicas_of(original_idx: u32) -> Vec<u32>;
+		fn get_dynamic_rewards_growth_rate() -> Option<u32>;
+		fn get_author_part() -> Option<u8>;
+		fn get_unspent_rewards(obj_idx: u32) -> Option<u128>;
+		fn get_fee_payer(obj_idx: u32) -> Option<AccountId>;
+		fn get_pending_storage_fees() -> Option<u128>;
+		fn get_rewards() -> Option<u128>;
+        fn get_object_idx_by_proof_of_existence(proof: H256) -> Option<u32>;
 	}
 }
 
@@ -248,15 +256,24 @@ pub enum ObjectCategory
 
 #[derive(Clone, PartialEq, Encode, Decode, TypeInfo, MaxEncodedLen, RuntimeDebug)]
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
-pub enum ObjectState<Block>
+pub enum ObjectState<Block, Account>
 	where
 		Block: Encode + Decode + TypeInfo + Member,
+		Account: Encode + Decode + TypeInfo + Member,
 {
 	Created(Block),
+    /// Object is under preliminary QC inspection by inspector
+    QCInspecting(Account, Block),
+    /// Object has passed QC inspection
+    QCPassed(Account, Block),
+    /// Object has been rejected by QC
+    QCRejected(Account, Block),
 	Estimating(Block),
 	Estimated(Block, u64),
 	NotApproved(Block),
 	Approved(Block),
+	/// Object is self-proved (replica with proof of existence)
+	SelfProved(Block),
 }
 
 #[derive(Clone, PartialEq, Encode, Decode, TypeInfo, MaxEncodedLen, RuntimeDebug)]
@@ -321,6 +338,18 @@ pub struct Property {
 	pub max_value: u128,
 }
 
+#[derive(Clone, PartialEq, Encode, Decode, TypeInfo, MaxEncodedLen, Debug)]
+#[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
+pub struct CopyPermission<Account, Block>
+where
+    Account: Encode + Decode + TypeInfo + Member,
+    Block: Encode + Decode + TypeInfo + Member,
+{
+    pub who: Account,
+    pub max_copies: u32,
+    pub until: Block,
+}
+
 #[derive(Clone, PartialEq, Encode, Decode, TypeInfo, MaxEncodedLen)]
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
 pub struct ObjData<Account, Block>
@@ -328,7 +357,7 @@ pub struct ObjData<Account, Block>
 		Account: Encode + Decode + TypeInfo + Member,
 		Block: Encode + Decode + TypeInfo + Member,
 {
-	pub state: ObjectState<Block>,
+	pub state: ObjectState<Block, Account>,
 	pub obj: BoundedVec<u8, ConstU32<MAX_OBJECT_SIZE>>,
 	pub compressed_with: Option<CompressWith>,
 	pub category: ObjectCategory,
@@ -344,6 +373,22 @@ pub struct ObjData<Account, Block>
 	pub est_rewards: u128,
 	pub author_rewards: u128,
 	pub prop: BoundedVec<PropValue, ConstU32<MAX_PROPERTIES>>,
+	// New fields for replica logic
+	pub is_replica: bool,
+	pub original_obj: Option<ObjIdx>,
+    pub sn_hash: Option<u64>,
+    pub inspector: Option<Account>,
+    pub is_ownership_abdicated: bool,
+	// New fields for self-proved objects
+	pub is_self_proved: bool,
+	pub proof_of_existence: Option<H256>,
+	pub ipfs_link: Option<BoundedVec<u8, ConstU32<512>>>, // IPFS link as string
+	// Fee payer (initial submitter who will be charged for verification)
+	pub fee_payer: Account,
+	// Inspector fee reserved for QC inspection
+	pub inspector_fee: u128,
+	// Custom QC timeout in blocks (5-100,000)
+	pub qc_timeout: u32,
 }
 
 #[derive(Clone, PartialEq, Encode, Decode, TypeInfo, MaxEncodedLen)]
@@ -353,7 +398,7 @@ pub struct OldObjData<Account, Block>
 		Account: Encode + Decode + TypeInfo + Member,
 		Block: Encode + Decode + TypeInfo + Member,
 {
-	pub state: ObjectState<Block>,
+	pub state: ObjectState<Block, Account>,
 	pub obj: BoundedVec<u8, ConstU32<MAX_OBJECT_SIZE_OLD>>,
 	pub compressed_with: Option<CompressWith>,
 	pub category: ObjectCategory,

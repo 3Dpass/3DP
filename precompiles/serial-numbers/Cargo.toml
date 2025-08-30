@@ -1,0 +1,51 @@
+[package]
+name = "pallet-evm-precompileset-serial-numbers"
+authors = [ "3Dpass" ]
+description = "A Precompile to expose SerialNumbers pallet data via a custom Solidity-friendly interface."
+edition = "2021"
+version = "0.1.0"
+
+[dependencies]
+log = "0.4"
+num_enum = { version = "0.5.3", default-features = false }
+paste = "1.0.6"
+slices = "0.2.0"
+precompile-utils = { path = "../utils", default-features = false }
+codec = { package = "parity-scale-codec", version = "3.0.0", default-features = false, features = [ "max-encoded-len", "derive" ] }
+frame-support = { git = "https://github.com/paritytech/substrate", rev = "b0777b4c7f7", default-features = false  }
+frame-system = { git = "https://github.com/paritytech/substrate", rev = "b0777b4c7f7", default-features = false  }
+pallet-balances = { git = "https://github.com/paritytech/substrate", rev = "b0777b4c7f7", default-features = false  }
+pallet-timestamp = { git = "https://github.com/paritytech/substrate", rev = "b0777b4c7f7", default-features = false  }
+scale-info = { version = "2.0", default-features = false, features = [ "derive" ] }
+sp-core = { git = "https://github.com/paritytech/substrate", rev = "b0777b4c7f7", default-features = false  }
+sp-io = { git = "https://github.com/paritytech/substrate", rev = "b0777b4c7f7", default-features = false  }
+sp-runtime = { git = "https://github.com/paritytech/substrate", rev = "b0777b4c7f7", default-features = false  }
+sp-std = { git = "https://github.com/paritytech/substrate", rev = "b0777b4c7f7", default-features = false  }
+fp-evm = { version = "3.0.0-dev", path = "../../primitives/evm", default-features = false }
+pallet-evm = { path = "../../pallets/evm", default-features = false, features = [ "forbid-evm-reentrancy" ] }
+pallet-serial-numbers = { path = "../../pallets/serial-numbers", default-features = false }
+
+[features]
+default = [ "std" ]
+std = [
+	"codec/std",
+	"fp-evm/std",
+	"frame-support/std",
+	"frame-system/std",
+	"pallet-serial-numbers/std",
+	"pallet-balances/std",
+	"pallet-evm/std",
+	"pallet-timestamp/std",
+	"precompile-utils/std",
+	"sp-core/std",
+	"sp-io/std",
+	"sp-runtime/std",
+	"sp-std/std",
+]
+
+[lib]
+name = "pallet_evm_precompileset_serial_numbers"
+crate-type = ["rlib"] 
+
+[dev-dependencies]
+hex = "0.4" 
