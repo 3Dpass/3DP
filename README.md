@@ -229,8 +229,6 @@ target/release/poscan-consensus --base-path /tmp/bob --chain local --bob --port 
 ```
 # Integration
 
-# Integration
-
 - NODE - the Node is based on [Substrate](https://substrate.io/) framework and implemented as two-piece design the `Rust native` part and the `Runtime` component ([WASM](https://webassembly.org/)-based), which is upgradable online and allows for multiple useful modules to operate (see more [forkless upgrade](https://3dpass.org/proof-of-scan#forkless-upgrade)).
 - RPC (remote procedure call) - the capabilities that allow blockchain users to interact with the network. The NODE provides HTTP and [WebSocket](https://github.com/3Dpass/3DP/wiki/Set-up-WSS-for-Remote-Connections) RPC servers.
 - CORE Networking - the [`libp2p`](https://libp2p.io/) is used as as networking stack for the Nodes to communicate with each other.
