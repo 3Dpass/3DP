@@ -21,7 +21,7 @@ The scope of potential 3Dpass applications goes way beyond 3D object recognition
 
 ### Download the latest release
 ```sh
-wget https://github.com/3Dpass/3DP/releases/download/v31/poscan-consensus-linux-x86_64.tar.gz
+wget https://github.com/3Dpass/3DP/releases/download/v32/poscan-consensus-linux-x86_64.tar.gz
 tar xzf poscan-consensus-linux-x86_64.tar.gz
 ```
 
@@ -50,7 +50,7 @@ cargo build --release
 
 ### Embedded Docs
 
-Once the project has been built, the following command can be used to explore all parameters and
+Once the project is built, the following command can be used to explore all parameters and
 subcommands:
 
 ```sh
@@ -139,7 +139,7 @@ Validators represent a set of the most reliable Nodes (authorities) eligible to 
 Open the wallet page: https://wallet.3dpass.org/. In order to connect your Node to the wallet in local you need to set up your local API endpoint as `ws://127.0.0.1:9944` in the Settings.
 Follow this [guidelines](https://3dpass.org/mainnet#wallet) for more details.
 
-## EVM and cross-platform options
+## EVM and cross-platform compatibility
 The Node is equipped with EVM compatibility layer comprised of the [EVM pallet](/pallets/evm) (Solidity code executor) as well as eth blockchain emulator with full client on top of the Substrate based master chain.
 
 ### Connect to Metamask and Remix in Local
@@ -148,7 +148,7 @@ The Node is equipped with EVM compatibility layer comprised of the [EVM pallet](
    - Name: `3dpass - The Ledger of Things`
    - Mainnet chain id: `1333`
    - Local RPC endpoint: `https://127.0.0.1:9978`
-- Open [Remix](https://remix.ethereum.org) and connect it through the Metamask to be able to deploy and run Solidity smart contracts
+- Open [Remix](https://remix.ethereum.org) and select the Metamask as an injected provider.
 
 ### EVM accounts
 There is a cross-platform mapping in place between the Substrate (H256) and EVM (H160) accounts, which allows for cross
@@ -158,18 +158,22 @@ And every account must have its `H256` version.
 - H256 -> H160 (derived by cutting the tail 20 bytes)
   - e.g. `0xc6006fea43ccce14f9432f8e6b9403113c935cc17160cd438af2e7a02624124c` -> `0xc6006fea43ccce14f9432f8e6b9403113c935cc1`
 - H160 (private key) -> H256 address (mapped, **irreversible**)
-  - e.g. `0xc6006fea43ccce14f9432f8e6b9403113c935cc1` -> `0xceb75620b9f3bc3a039b8e78efed58fa3c7422d18c97f1fd44abf3f2499d0760` (prefix 71: d1GvktUdvKdghY7LB2zW2XDp1Wzio9ZPGGFcyaYhp2Nasy5LS)
+  - e.g. `0xc6006fea43ccce14f9432f8e6b9403113c935cc1` -> `0xceb75620b9f3bc3a039b8e78efed58fa3c7422d18c97f1fd44abf3f2499d0760` (ss58Format 71: `d1GvktUdvKdghY7LB2zW2XDp1Wzio9ZPGGFcyaYhp2Nasy5LS`)
 
-Use this [converter](https://hoonsubin.github.io/evm-substrate-address-converter/) to create a cross-platform alias for either Substrate or EVM account (mainnet address prefix:`71`).
+Use this [converter](https://converter.3dpass.org/) to create a cross-platform alias for either Substrate or EVM account.
 
-### Custom precompiles
-Although the EVM exploits the [standard ethereum precompiles](https://github.com/3Dpass/3DP/tree/test/pallets/evm/precompile), there is a buch of
-[custom precompiles](/precompiles/), of which each one serves as a cross-platform `EVM -> Substrate` interface, so that native substrate functions can be called from Solidity.
+### Custom EVM precompiles
+Although the EVM exploits the [standard ethereum precompiles](/pallets/evm/precompile), there is a buch of
+[custom precompiles](/precompiles/), of which each one serves as a cross-platform `EVM <-> Substrate` interface, so that native substrate functions can be called from Solidity.
 
-- Interaction with native token (P3D): [balances-erc20](/precompiles/balances-erc20) precompile, Contract address: `0x0000000000000000000000000000000000000802`
-- Interaction with Local assets 3DPRC2 - [assets-erc20](https://github.com/3Dpass/3DP/tree/test/precompiles/assets-erc20) precompile,
-Contract address format: `0xFBFBFBFA + <assetid in hex>`, where the `assetid` is the asset index in [poscanAssets]() runtime module.
+- `0x0000000000000000000000000000000000000802` - Interaction with native token (P3D): [balances-erc20](/precompiles/balances-erc20) precompile.
+- Interaction with Local assets - [assets-erc20](/precompiles/assets-erc20) precompile,
+Contract address format: `0xFBFBFBFA + <assetid in hex>`, where the `assetid` is the asset index in [poscanAssets](/pallets/poscan-assets) runtime module.
   e.g. You have created an asset with the `assetid 222`. The hex value of `222` is `DE`  . So, the `H160` address to run the contract at is going to be as follows: `0xFBFBFBFA000000000000000000000000000000DE`.
+- `0x0000000000000000000000000000000000000903` - [poscan](/precompiles/poscan) - Interaction with the [poscan mudule](/pallets/poscan) (3DPRC2 standard, the objects authenticaton protocol )
+- `0x0000000000000000000000000000000000000904` - [Identity](https://github.com/3Dpass/3DP/tree/main/precompiles/identity) precompile
+- `0x0000000000000000000000000000000000000905` - [serial-numbers](/precompiles/serial-numbers) precompile
+- `0x0000000000000000000000000000000000000902` - [assets-conversion](/precompiles/assets-conversion) precompile - interaction with DEX from Solidity
 
 ## Assets
 The [poScan](/pallets/poscan/) module serves as a mean of users' [objects authenication](https://3dpass.org/features#3dprc-2) within The Ledger of Things.
@@ -177,7 +181,7 @@ The [poScan](/pallets/poscan/) module serves as a mean of users' [objects authen
 Additionally, the Node is equipped with the [poscanAssets](/pallets/poscan-assets/) module, which allows for Real World Objects (RWA) tokenization. Either [3DPRC2](https://3dpass.org/assets#3dprc-2) tokens or conventional [fungible tokens](https://3dpass.org/assets#conventional-assets) and NFTs can be issued.
 
 ## Assets conversion (DEX)
-The [assetConversion](/pallets/asset-conversion) module is a custom version of a decentralized exchange based on Uniswap v2 protocol rules and integrated into The Ledger of Things runtime. Explore the module [API](https://github.com/3Dpass/3DP/wiki/DEX-module-API) and its [Web UI](https://github.com/3Dpass/3DP/tree/main/pallets/asset-conversion).
+The [assetConversion](/pallets/asset-conversion) module is a custom version of a decentralized exchange based on Uniswap V2 protocol rules and integrated into The Ledger of Things runtime. Explore the module [API](https://github.com/3Dpass/3DP/wiki/DEX-module-API) and its [Web UI](https://github.com/3Dpass/3DP/tree/main/pallets/asset-conversion).
 
 ## "Ink" smart contracts
 The Node supports native Substrate Smart contract trait using [ink](https://use.ink/), a Rust-based embedded domain specific language (eDSL) for writing [WebAssembly](https://webassembly.org/) smart contracts. Learn [how ink can be compared to Solidity](https://use.ink/ink-vs-solidity/). Follow these [guidelines](https://3dpass.org/assets#smart-contracts) to run your smart contract on LoT.
