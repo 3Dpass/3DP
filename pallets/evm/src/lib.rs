@@ -68,7 +68,7 @@ use frame_support::{
 	dispatch::DispatchResultWithPostInfo,
 	traits::{
 		tokens::fungible::Inspect, Currency, ExistenceRequirement, FindAuthor, Get, Imbalance,
-		OnUnbalanced, SignedImbalance, WithdrawReasons,
+		OnUnbalanced, SignedImbalance, WithdrawReasons, fungibles::{self, Transfer},
 	},
 	weights::{Pays, PostDispatchInfo, Weight},
 };
@@ -79,6 +79,7 @@ use sp_runtime::{
 	AccountId32, DispatchErrorWithPostInfo,
 };
 use sp_std::{cmp::min, vec::Vec};
+
 
 pub use evm::{
 	Config as EvmConfig, Context, ExitError, ExitFatal, ExitReason, ExitRevert, ExitSucceed,
@@ -151,6 +152,10 @@ pub mod pallet {
 		/// Find author for the current block.
 		type FindAuthor: FindAuthor<H160>;
 
+		/// Assets pallet for asset transfers.
+		type AssetsPallet: fungibles::Inspect<Self::AccountId> + fungibles::Mutate<Self::AccountId> + fungibles::Transfer<Self::AccountId>;
+
+
 		/// EVM config used in the module.
 		fn config() -> &'static EvmConfig {
 			&LONDON_CONFIG
@@ -175,6 +180,39 @@ pub mod pallet {
 				value,
 				ExistenceRequirement::AllowDeath,
 			)?;
+
+			Ok(())
+		}
+
+		/// Withdraw assets from EVM-mapped account to a pre-existing Substrate account.
+		/// This solves the irreversible address mapping issue for assets.
+		#[pallet::weight(0)]
+		pub fn withdraw_assets(
+			origin: OriginFor<T>,
+			address: H160,
+			asset_id: <T::AssetsPallet as fungibles::Inspect<T::AccountId>>::AssetId,
+			value: <T::AssetsPallet as fungibles::Inspect<T::AccountId>>::Balance,
+		) -> DispatchResult {
+			let destination = T::WithdrawOrigin::ensure_address_origin(&address, origin)?;
+			let address_account_id = T::AddressMapping::into_account_id(address);
+
+			// Use the fungibles trait implementation from poscan-assets
+			// This directly transfers assets within the runtime
+			T::AssetsPallet::transfer(
+				asset_id,
+				&address_account_id,
+				&destination,
+				value,
+				false, // keep_alive
+			)?;
+
+			// Emit success event
+			Self::deposit_event(Event::AssetsWithdrawn {
+				evm_address: address,
+				asset_id,
+				amount: value,
+				destination,
+			});
 
 			Ok(())
 		}
@@ -411,6 +449,13 @@ pub mod pallet {
 		Executed { address: H160 },
 		/// A contract has been executed with errors. States are reverted with only gas fees applied.
 		ExecutedFailed { address: H160 },
+		/// Assets withdrawn from EVM-mapped account to Substrate account.
+		AssetsWithdrawn {
+			evm_address: H160,
+			asset_id: <T::AssetsPallet as fungibles::Inspect<T::AccountId>>::AssetId,
+			amount: <T::AssetsPallet as fungibles::Inspect<T::AccountId>>::Balance,
+			destination: T::AccountId,
+		},
 	}
 
 	#[pallet::error]

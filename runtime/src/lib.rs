@@ -170,7 +170,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	//   `spec_version`, and `authoring_version` are the same between Wasm and native.
 	// This value is set to 100 to notify Polkadot-JS App (https://polkadot.js.org/apps) to use
 	//   the compatible custom types.
-	spec_version: 131,
+	spec_version: 132,
 	impl_version: 1,
 	apis: RUNTIME_API_VERSIONS,
 	transaction_version: 1,
@@ -1548,6 +1548,7 @@ impl pallet_evm::Config for Runtime {
 	type Runner = pallet_evm::runner::stack::Runner<Self>;
 	type OnChargeTransaction = ();
 	type FindAuthor = FindAuthorTruncated;
+	type AssetsPallet = PoscanAssets;
 }
 
 impl pallet_ethereum::Config for Runtime {
@@ -1912,6 +1913,7 @@ impl fp_self_contained::SelfContainedCall for Call {
 		}
 	}
 }
+
 
 impl_runtime_apis! {
 	impl sp_api::Core<Block> for Runtime {
@@ -2340,6 +2342,7 @@ impl_runtime_apis! {
 		}
 	}
 }
+
 
 impl serial_numbers_api::SerialNumbersApi<AccountId> for Runtime {
 	fn verify_serial_number(sn_hash: [u8; 16], block: u32) -> bool {
