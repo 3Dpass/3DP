@@ -101,7 +101,7 @@ jobs:
           tar czvf ../../../../../poscan_runtime-wasm32-unknown-unknown.tar.gz poscan_runtime.compact.compressed.wasm
 
       - name: Upload build artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: poscan-consensus-${{ matrix.name }}
           path: poscan-consensus-${{ matrix.name }}.tar.gz
@@ -109,7 +109,7 @@ jobs:
 
       - name: Upload WASM artifacts
         if: matrix.name == 'linux-x86_64'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: poscan-runtime-wasm
           path: poscan_runtime-wasm32-unknown-unknown.tar.gz
