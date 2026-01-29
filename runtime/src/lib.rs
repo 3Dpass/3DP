@@ -1709,6 +1709,20 @@ impl OnRuntimeUpgrade for Migrations {
 	}
 }
 
+/// Clears the Sudo pallet's Key storage so no account has sudo rights after this upgrade.
+/// Run once via runtime upgrade (current sudo key calls Sudo::sudo(System::set_code(...))).
+pub struct RemoveSudoKey;
+impl OnRuntimeUpgrade for RemoveSudoKey {
+	fn on_runtime_upgrade() -> Weight {
+		// Sudo Key storage: Twox128("Sudo") ++ Twox128("Key") (FRAME convention)
+		let mut key = sp_io::hashing::twox_128(b"Sudo").to_vec();
+		key.extend_from_slice(&sp_io::hashing::twox_128(b"Key"));
+		frame_support::storage::unhashed::kill(&key);
+		log::info!(target: "runtime::sudo", "Sudo key cleared; chain is now sudo-free.");
+		0
+	}
+}
+
 const LOG_TARGET: &'static str = "runtime::runtime";
 
 pub struct SessionUpgrade;
@@ -1857,7 +1871,7 @@ pub type Executive = frame_executive::Executive<
 	frame_system::ChainContext<Runtime>,
 	Runtime,
 	AllPalletsWithSystem,
-	(Migrations, SessionUpgrade),
+	(Migrations, SessionUpgrade, RemoveSudoKey),
 >;
 
 impl fp_self_contained::SelfContainedCall for Call {
