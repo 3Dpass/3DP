@@ -85,6 +85,7 @@ rewards = { package = "pallet-rewards", path = "../pallets/rewards", default-fea
 pallet-referenda = { default-features = false, path = "../pallets/referenda" }
 pallet-asset-rate = { default-features = false, path = "../pallets/asset-rate" }
 pallet-identity = { default-features = false, path =  "../pallets/identity" }
+pallet-tc-candidates = { path = "../pallets/tc-candidates", default-features = false }
 
 # Frontier
 fp-rpc = { path = "../primitives/rpc", default-features = false }
@@ -217,6 +218,7 @@ std = [
 	"pallet-poscan/std",
 	"pallet-poscan-assets/std",
 	"pallet-serial-numbers/std",
+	"pallet-tc-candidates/std",
 	"difficulty/std",
 	"rewards/std",
 	# "lockdrop/std",

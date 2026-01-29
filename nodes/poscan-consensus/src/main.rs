@@ -13,6 +13,7 @@ mod command;
 mod rpc;
 mod mining_rpc;
 mod poscan_rpc;
+mod tc_candidates_rpc;
 mod pool_rpc;
 mod pool;
 

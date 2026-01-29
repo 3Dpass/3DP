@@ -56,6 +56,7 @@ use sp_consensus_poscan::{MiningPoolApi, PoscanApi};
 use crate::pool::MiningPool;
 use crate::pool_rpc::{MiningPoolRpc, PoscanPoolRpcApiServer};
 use crate::poscan_rpc::{PoscanRpc, PoscanRpcApiServer};
+use crate::tc_candidates_rpc::{TcCandidatesRpc, TcCandidatesRpcApiServer};
 
 use sc_network::NetworkService;
 use sp_runtime::traits::BlakeTwo256;
@@ -164,7 +165,7 @@ pub fn create_full<C, P, B, A>(
 	deps: FullDeps<C, P, B, A>,
 ) -> Result<RpcModule<()>, Box<dyn std::error::Error + Send + Sync>>
 where
-	C: ProvideRuntimeApi<Block> + StorageProvider<Block, B> + AuxStore,
+	C: ProvideRuntimeApi<Block> + StorageProvider<Block, B> + AuxStore + sc_client_api::ProofProvider<Block>,
 	C: BlockchainEvents<Block>,
 	C: BlockBackend<Block>,
 	C: HeaderBackend<Block> + HeaderMetadata<Block, Error = BlockChainError> + 'static,
@@ -244,6 +245,7 @@ where
 	}
 
 	module.merge(PoscanRpc::<C, Block>::new(client.clone()).into_rpc())?;
+	module.merge(TcCandidatesRpc::<C, Block, B>::new(client.clone()).into_rpc())?;
 
 	// Add a silly RPC that returns constant values
 	// io.extend_with(crate::mining_rpc::PoscanMiningRpc::to_delegate(

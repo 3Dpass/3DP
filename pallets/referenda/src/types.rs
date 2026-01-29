@@ -229,6 +229,16 @@ impl<
 		ScheduleAddress: Eq + PartialEq + Debug + Encode + Decode + TypeInfo + Clone,
 	> ReferendumInfo<TrackId, Origin, Moment, Hash, Balance, Tally, AccountId, ScheduleAddress>
 {
+	/// If this is `Ongoing`, return `Some((proposer, proposal_hash))`; otherwise `None`.
+	pub fn ongoing_proposer_and_hash(&self) -> Option<(AccountId, Hash)> {
+		match self {
+			ReferendumInfo::Ongoing(status) => {
+				Some((status.submission_deposit.who.clone(), status.proposal_hash.clone()))
+			},
+			_ => None,
+		}
+	}
+
 	/// Take the Decision Deposit from `self`, if there is one. Returns an `Err` if `self` is not
 	/// in a valid state for the Decision Deposit to be refunded.
 	pub fn take_decision_deposit(&mut self) -> Result<Option<Deposit<AccountId, Balance>>, ()> {

@@ -5822,6 +5822,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "pallet-tc-candidates"
+version = "0.1.0"
+dependencies = [
+ "frame-support",
+ "frame-system",
+ "parity-scale-codec",
+ "scale-info",
+ "sp-core",
+ "sp-io",
+ "sp-runtime",
+ "sp-state-machine",
+ "sp-std",
+]
+
+[[package]]
 name = "pallet-timestamp"
 version = "4.0.0-dev"
 source = "git+https://github.com/paritytech/substrate?rev=b0777b4c7f7#b0777b4c7f7d8d3c635319d0153953d0a22aa58e"
@@ -6536,6 +6551,7 @@ dependencies = [
  "pallet-serial-numbers",
  "pallet-session",
  "pallet-sudo",
+ "pallet-tc-candidates",
  "pallet-timestamp",
  "pallet-transaction-payment",
  "pallet-transaction-payment-rpc-runtime-api",

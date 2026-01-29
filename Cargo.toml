@@ -6,6 +6,7 @@ members = [
     "precompiles/poscan",
     "precompiles/identity",
     "pallets/serial-numbers",
+    "pallets/tc-candidates",
     "precompiles/serial-numbers",
 ]
 resolver = "2"

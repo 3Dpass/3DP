@@ -43,9 +43,10 @@ use pallet_evm_precompileset_assets_erc20::AccountIdAssetIdConversion;
 use frame_support::{
 	construct_runtime, parameter_types, ord_parameter_types,
 	traits::{
-		AsEnsureOriginWithArg, ChangeMembers, ConstU128, ConstU16, ConstU32, ConstU64, Currency,
-		EitherOfDiverse, EqualPrivilegeOnly, InitializeMembers, KeyOwnerProofSystem,
+		AsEnsureOriginWithArg, ChangeMembers, Contains, ConstU128, ConstU16, ConstU32, ConstU64,
+		Currency, EitherOfDiverse, EqualPrivilegeOnly, InitializeMembers, KeyOwnerProofSystem,
 		LockIdentifier, OnRuntimeUpgrade, OnUnbalanced, U128CurrencyToVote, InstanceFilter,
+		PreimageProvider,
 	},
 	weights::{
 		constants::{BlockExecutionWeight, ExtrinsicBaseWeight, RocksDbWeight, WEIGHT_PER_SECOND},
@@ -239,9 +240,30 @@ parameter_types! {
 
 // Configure FRAME pallets to include in runtime.
 
+/// Base call filter: allow all calls except TC membership changes unless the account(s) are in
+/// TcCandidates::EnactedSetCodeProposers.
+pub struct TcCandidatesCallFilter;
+impl Contains<Call> for TcCandidatesCallFilter {
+	fn contains(call: &Call) -> bool {
+		use pallet_collective::Call as CollectiveCall;
+		use pallet_membership::Call as MembershipCall;
+		match call {
+			Call::Membership(MembershipCall::add_member { who }) =>
+				pallet_tc_candidates::Pallet::<Runtime>::is_candidate(who),
+			Call::Membership(MembershipCall::swap_member { add, .. }) =>
+				pallet_tc_candidates::Pallet::<Runtime>::is_candidate(add),
+			Call::Membership(MembershipCall::reset_members { members }) =>
+				members.iter().all(|m| pallet_tc_candidates::Pallet::<Runtime>::is_candidate(m)),
+			Call::TechnicalCommittee(CollectiveCall::set_members { new_members, .. }) =>
+				new_members.iter().all(|m| pallet_tc_candidates::Pallet::<Runtime>::is_candidate(m)),
+			_ => true,
+		}
+	}
+}
+
 impl frame_system::Config for Runtime {
 	/// The basic call filter to use in dispatchable.
-	type BaseCallFilter = frame_support::traits::Everything;
+	type BaseCallFilter = TcCandidatesCallFilter;
 	/// Block & extrinsics weights: base values and limits.
 	type BlockWeights = RuntimeBlockWeights;
 	/// The maximum length of a block (in bytes).
@@ -1749,6 +1771,60 @@ impl pallet_serial_numbers::Config for Runtime {
     type MaxSerialNumbersPerBlock = ConstU32<10000>; // Allow up to 10,000 SNs per block per owner
 }
 
+// TC Candidates: only accounts that proposed an enacted set_code referendum can be TC members.
+use pallet_referenda::{ReferendumInfo, ReferendumInfoFor};
+use pallet_tc_candidates::{CheckSetCodeCall, DecodeOngoingProposerHash, ReferendumApprovedChecker};
+
+pub struct TcCandidatesDecodeOngoing;
+impl DecodeOngoingProposerHash for TcCandidatesDecodeOngoing {
+	type AccountId = AccountId;
+	type Hash = Hash;
+	fn decode_ongoing(bytes: &[u8]) -> Option<(AccountId, Hash)> {
+		let info = pallet_referenda::ReferendumInfoOf::<Runtime, ()>::decode(&mut &bytes[..]).ok()?;
+		info.ongoing_proposer_and_hash()
+	}
+}
+
+pub struct TcCandidatesReferendumApproved;
+impl ReferendumApprovedChecker for TcCandidatesReferendumApproved {
+	fn is_approved(index: pallet_tc_candidates::ReferendumIndex) -> bool {
+		matches!(
+			ReferendumInfoFor::<Runtime, ()>::get(index),
+			Some(ReferendumInfo::Approved(_, _, _))
+		)
+	}
+}
+
+pub struct TcCandidatesSetCodeChecker;
+impl CheckSetCodeCall for TcCandidatesSetCodeChecker {
+	type Hash = Hash;
+	fn is_set_code(hash: &Hash) -> bool {
+		if let Some(preimage) =
+			<pallet_preimage::Pallet<Runtime> as PreimageProvider<Hash>>::get_preimage(hash)
+		{
+			if let Ok(call) = Call::decode(&mut preimage.as_slice()) {
+				return matches!(call, Call::System(frame_system::Call::set_code { .. }));
+			}
+		}
+		false
+	}
+}
+
+pub struct TcCandidatesReferendaPalletName;
+impl frame_support::traits::Get<&'static str> for TcCandidatesReferendaPalletName {
+	fn get() -> &'static str {
+		"Referenda"
+	}
+}
+
+impl pallet_tc_candidates::Config for Runtime {
+	type Event = Event;
+	type ReferendaPalletName = TcCandidatesReferendaPalletName;
+	type DecodeOngoing = TcCandidatesDecodeOngoing;
+	type ReferendumApproved = TcCandidatesReferendumApproved;
+	type SetCodeChecker = TcCandidatesSetCodeChecker;
+}
+
 // Create the runtime by composing the FRAME pallets that were previously configured.
 construct_runtime!(
 	pub enum Runtime where
@@ -1812,6 +1888,7 @@ construct_runtime!(
 		HotfixSufficients: pallet_hotfix_sufficients,
 		Proxy: pallet_proxy,
 		SerialNumbers: pallet_serial_numbers::{Pallet, Call, Storage, Event<T>},
+		TcCandidates: pallet_tc_candidates,
 	}
 );
 
