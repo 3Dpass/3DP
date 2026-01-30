@@ -92,6 +92,8 @@ pub mod pallet {
 	pub enum Event<T: Config> {
 		/// Account was added to TC candidates (enacted set_code proposers).
 		CandidacySubmitted { who: T::AccountId, referendum_index: ReferendumIndex },
+		/// Account was added to TC candidates by Root (bypasses proof check).
+		CandidacyForceAdded { who: T::AccountId },
 	}
 
 	#[pallet::error]
@@ -182,6 +184,25 @@ pub mod pallet {
 					referendum_index,
 				});
 			}
+
+			Ok(())
+		}
+
+		/// Add an account to the TC candidate list without proof (Root only).
+		///
+		/// Bypasses the enacted set_code referendum check. Use for bootstrapping or recovery.
+		#[pallet::call_index(1)]
+		#[pallet::weight(10_000)]
+		pub fn add_candidate_force(origin: OriginFor<T>, who: T::AccountId) -> DispatchResult {
+			ensure_root(origin)?;
+
+			ensure!(
+				!EnactedSetCodeProposers::<T>::contains_key(&who),
+				Error::<T>::AlreadyCandidate,
+			);
+
+			EnactedSetCodeProposers::<T>::insert(&who, ());
+			Self::deposit_event(Event::CandidacyForceAdded { who: who.clone() });
 
 			Ok(())
 		}

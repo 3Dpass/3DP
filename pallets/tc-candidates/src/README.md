@@ -2,7 +2,7 @@
 
 ## Overview
 
-The **TC Candidates** pallet (`pallet_tc_candidates`) restricts Technical Committee (TC) membership to accounts that have been the **proposer** of an **enacted** runtime upgrade referendum (`System::set_code`). The list of eligible accounts (`EnactedSetCodeProposers`) is the TC candidate list itself: only this list is checked when adding TC members (via a runtime call filter). Nothing is pre-filled by hooks; candidates join by calling **`submit_candidacy`** with a **state proof** that at a past block they were the proposer of a referendum that is now Approved and whose proposal was `set_code`.
+The **TC Candidates** pallet (`pallet_tc_candidates`) restricts Technical Committee (TC) membership to accounts that have been the **proposer** of an **enacted** runtime upgrade referendum (`System::set_code`). The list of eligible accounts (`EnactedSetCodeProposers`) is the TC candidate list itself: only this list is checked when adding TC members (via a runtime call filter). Candidates join either by calling **`submit_candidacy`** with a **state proof** that at a past block they were the proposer of a referendum that is now Approved and whose proposal was `set_code`, or by **Root** via **`add_candidate_force`** (bypasses the proof; for bootstrapping or recovery).
 
 No hook in `pallet_referenda` (or elsewhere) is required. Proof generation is done via RPC; the runtime verifies the proof and adds the signer to `EnactedSetCodeProposers`.
 
@@ -14,7 +14,7 @@ No hook in `pallet_referenda` (or elsewhere) is required. Proof generation is do
 
 | Name | Type | Description |
 |------|------|-------------|
-| **EnactedSetCodeProposers** | `StorageMap<Blake2_128Concat, AccountId, ()>` | Set of accounts eligible for TC membership (proposers of enacted set_code referenda). Only populated by `submit_candidacy` and optionally **genesis**. |
+| **EnactedSetCodeProposers** | `StorageMap<Blake2_128Concat, AccountId, ()>` | Set of accounts eligible for TC membership (proposers of enacted set_code referenda). Populated by `submit_candidacy`, **add_candidate_force** (Root), and optionally **genesis**. |
 
 ### Extrinsic
 
@@ -32,6 +32,13 @@ No hook in `pallet_referenda` (or elsewhere) is required. Proof generation is do
     4. Ensure the preimage of `proposal_hash` is **`System::set_code`** (Preimage pallet + decode as `Call`).  
     5. Insert signer into **EnactedSetCodeProposers**.  
   - **Errors:** `InvalidProof`, `NotOngoing`, `NotProposer`, `ProposalHashMismatch`, `ReferendumNotApproved`, `NotSetCode`, `AlreadyCandidate`.
+
+- **`add_candidate_force(who)`**  
+  - **Origin:** Root only.  
+  - **Parameters:**  
+    - `who`: Account to add to the TC candidate list.  
+  - **Logic:** Insert `who` into **EnactedSetCodeProposers** without any proof. Use for bootstrapping or recovery when the normal proof path is not available.  
+  - **Errors:** `AlreadyCandidate` if `who` is already in the list.
 
 ### Genesis
 
@@ -79,7 +86,7 @@ A **BaseCallFilter** (or equivalent) in the runtime must restrict:
 - **Membership** (`add_member`, `swap_member`, `reset_members`): only allow accounts in **EnactedSetCodeProposers**.  
 - **TechnicalCommittee::set_members**: only allow if every new member is in **EnactedSetCodeProposers**.
 
-So the TC candidate list is exactly **EnactedSetCodeProposers**; the extrinsic checks and adds the signer into it using the proof. Nothing is filled before except optionally genesis.
+So the TC candidate list is exactly **EnactedSetCodeProposers**; candidates are added via **submit_candidacy** (proof) or **add_candidate_force** (Root). Optionally the set can be seeded at genesis.
 
 ---
 
