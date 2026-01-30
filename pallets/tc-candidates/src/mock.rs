@@ -1,5 +1,6 @@
 //! Mock for tests.
 
+use crate as pallet_tc_candidates;
 use crate::pallet::{Config, DecodeOngoingProposerHash, ReferendumApprovedChecker};
 use frame_support::traits::{ConstU32, Get};
 use frame_system as system;
@@ -28,8 +29,8 @@ impl system::Config for Test {
 	type BlockWeights = ();
 	type BlockLength = ();
 	type DbWeight = ();
-	type RuntimeOrigin = RuntimeOrigin;
-	type RuntimeCall = RuntimeCall;
+	type Origin = Origin;
+	type Call = Call;
 	type Index = u64;
 	type BlockNumber = u64;
 	type Hash = H256;
@@ -37,7 +38,7 @@ impl system::Config for Test {
 	type AccountId = u64;
 	type Lookup = IdentityLookup<Self::AccountId>;
 	type Header = Header;
-	type RuntimeEvent = RuntimeEvent;
+	type Event = Event;
 	type BlockHashCount = ();
 	type Version = ();
 	type PalletInfo = PalletInfo;
@@ -82,7 +83,7 @@ impl crate::pallet::CheckSetCodeCall for SetCodeCheckerImpl {
 }
 
 impl Config for Test {
-	type Event = RuntimeEvent;
+	type Event = Event;
 	type ReferendaPalletName = ReferendaPalletName;
 	type DecodeOngoing = DecodeOngoingImpl;
 	type ReferendumApproved = ReferendumApprovedImpl;
